@@ -1,0 +1,7 @@
+name = "moneywork-quote"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Worker ini publik (dipanggil dari aplikasi). Tidak menyimpan data apa pun,
+# hanya meneruskan harga dari Yahoo Finance. Aman pada paket gratis Cloudflare
+# (100.000 request/hari).

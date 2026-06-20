@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "152975911219",
+    "project_id": "moneywork-e775e",
+    "storage_bucket": "moneywork-e775e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:152975911219:android:28f97fc68cfd50fbdcf646",
+        "android_client_info": {
+          "package_name": "com.moneywork.moneywork"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwd5mkt6YlVmQ9b0Vjd5fsmMrBzb9ieHk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
