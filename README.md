@@ -1,119 +1,130 @@
 # MoneyWork
 
-Aplikasi pencatatan keuangan pribadi (Flutter) — transaksi, akun, utang & piutang,
-investasi, split bill, transaksi bulanan, wishlist, dan laporan. Sinkronisasi cloud
-lewat Firebase (Auth + Firestore) dengan cache offline, plus pembaruan OTA mandiri.
+Aplikasi pencatatan keuangan pribadi untuk Android. Catat pemasukan dan pengeluaran,
+kelola utang-piutang, pantau investasi, bagi tagihan bareng teman, dan lihat ke mana
+uangmu pergi lewat laporan. Data tersimpan di cloud dan tetap bisa dibuka saat offline.
 
-## Fitur utama
+---
 
-- **Akun & transaksi**: kas, bank, e-wallet, RDN. Pemasukan, pengeluaran, dan transfer
-  antar akun. Transfer mendukung **biaya admin terpisah** (mis. top up GoPay 50rb +
-  admin 1rb → sumber keluar 51rb, tujuan terima 50rb) yang tetap tertracking di laporan.
-- **Utang & piutang**: piutang **dikelompokkan otomatis per nama** dengan pembayaran
-  gabungan **FIFO** (melunasi pinjaman paling lama dulu).
-- **Split bill**: kalkulator patungan dengan PPN, service, dan diskon (rata/proporsional);
-  hasil otomatis masuk ke piutang per orang.
-- **Investasi**: posisi saham (lot)/kripto/lainnya, refresh **semua harga sekaligus**,
-  untung/rugi ditampilkan dalam Rupiah dan persentase.
-- **Transaksi bulanan**: template berulang, jalankan semua sekaligus.
-- **Wishlist menabung**, **pengingat** (notifikasi lokal), dan **laporan** (grafik).
-- **Pembaruan OTA**: aplikasi memeriksa versi terbaru dan memandu unduh + pasang APK.
+## Panduan Penggunaan
 
-## Menjalankan
+### Akun
+
+Akun adalah tempat uangmu berada: **Tunai**, **Bank**, **E-Wallet**, atau **RDN**
+(rekening dana saham). Setiap akun punya saldo berjalan yang otomatis ikut berubah
+setiap kali kamu mencatat transaksi.
+
+- Tambah akun lewat tab **Akun** → tombol tambah, lalu pilih jenis dan saldo awal.
+- Saldo tidak pernah dibuat minus: aplikasi menolak pengeluaran/transfer yang melebihi saldo.
+
+### Transaksi: Pemasukan, Pengeluaran, Transfer
+
+Catat lewat tab **Akun**. Tiga jenis:
+
+- **Pemasukan** — uang masuk ke sebuah akun (gaji, bonus, dll).
+- **Pengeluaran** — uang keluar, dengan kategori dan catatan.
+- **Transfer** — pindah saldo antar akunmu sendiri.
+
+**Biaya admin transfer.** Saat memilih Transfer, aktifkan **"Ada biaya admin"** bila
+ada potongan. Contoh: top up GoPay 50.000 dengan admin 1.000 → BCA berkurang 51.000,
+GoPay bertambah 50.000. Biaya admin dicatat sebagai pengeluaran terpisah berkategori
+"Biaya Admin" sehingga total admin yang kamu bayar bisa dilihat di laporan.
+
+### Piutang (uang yang dipinjam orang ke kamu)
+
+Di tab **Piutang**, catat siapa yang berhutang dan berapa. Piutang **otomatis
+dikelompokkan per nama**, jadi kalau Gama meminjam beberapa kali, semuanya menyatu
+dalam satu kartu dengan total sisa.
+
+- Saat mengetik nama, aplikasi **menyarankan nama yang sudah ada** agar tidak terpecah
+  (mis. "gama" dan "Gama" dianggap sama).
+- Ketuk kartu untuk melihat rincian tiap pinjaman.
+- Tombol **Terima** menerima pembayaran gabungan: jumlah yang dibayar otomatis melunasi
+  **pinjaman paling lama dulu**. Contoh: Gama berhutang 100rb lalu 200rb, bayar 150rb →
+  yang 100rb lunas, sisa hutang tinggal 150rb.
+
+### Utang (uang yang kamu pinjam)
+
+Di tab **Utang**, catat utangmu dan bayar dari akun tertentu. Saldo akun berkurang dan
+sisa utang ikut menyusut. Membatalkan pembayaran mengembalikan keduanya.
+
+### Split Bill (bagi tagihan)
+
+Kalkulator patungan di tab **Split Bill**:
+
+- Masukkan item dan siapa yang ikut menanggung tiap item (atau item bersama dibagi rata).
+- Tambahkan **PPN** dan **biaya layanan** (dihitung sebelum diskon), serta **diskon**
+  (dibagi rata atau proporsional, dipotong terakhir).
+- Hasilnya bisa langsung **masuk ke piutang per orang** — kalau kamu yang menalangi,
+  bagian teman otomatis jadi piutang atas nama mereka.
+
+### Investasi
+
+Pantau aset di tab **Investasi**: saham (dihitung dalam **lot**), kripto, atau lainnya.
+
+- **Perbarui semua harga sekaligus** lewat tombol sinkron di pojok kanan atas (untuk aset
+  yang mendukung harga otomatis).
+- Tiap aset menampilkan nilai pasar, **untung/rugi dalam Rupiah**, dan persentasenya.
+- Transaksi saham (beli/jual) lewat ikon RDN: saldo RDN dan posisi lot menyesuaikan,
+  harga beli dihitung rata-rata tertimbang.
+
+### Transaksi Bulanan
+
+Untuk tagihan rutin (langganan, cicilan, dll) di tab **Transaksi Bulanan**:
+
+- Buat **template** lewat tombol tambah di kanan atas.
+- **Jalankan Semua** mencatat semua template aktif sekaligus; template dilewati bila
+  saldo tidak cukup.
+
+### Wishlist Menabung
+
+Tetapkan target tabungan dan nabung bertahap. Aplikasi menghitung cicilan dan progres,
+serta otomatis menandai selesai saat target tercapai.
+
+### Pengingat
+
+Notifikasi lokal mengingatkan hal seperti belum ada transaksi hari ini atau ajakan
+menabung setelah gajian.
+
+### Laporan
+
+Lihat ringkasan bulanan dan rincian per kategori dalam bentuk grafik. Transfer antar
+akun sendiri tidak dihitung sebagai pemasukan/pengeluaran agar laporan tetap akurat.
+
+### Akun & Sinkronisasi
+
+Masuk dengan Google atau email/kata sandi. Data disimpan di cloud per pengguna dan
+**tetap bisa dibuka saat offline** — perubahan tersinkron otomatis begitu kembali online.
+
+### Pembaruan Aplikasi
+
+Aplikasi memeriksa versi terbaru saat dibuka. Bila ada pembaruan, muncul dialog yang
+memandu unduh dan pasang langsung dari dalam aplikasi. Pertama kali, Android meminta izin
+"install dari sumber tak dikenal" — cukup sekali.
+
+---
+
+## Untuk Developer
+
+Proyek Flutter (Dart `^3.6.0`). Detail teknis singkat:
 
 ```bash
 flutter pub get
-flutter run
-```
-
-Butuh Flutter SDK (Dart `^3.6.0`). Lihat `pubspec.yaml` untuk dependensi.
-
-## Build APK rilis
-
-Signing release dibaca dari `android/key.properties` (tidak di-commit). Buat file ini
-berdasarkan keystore-mu:
-
-```properties
-storePassword=...
-keyPassword=...
-keyAlias=...
-storeFile=C:/path/ke/keystore.jks
-```
-
-Lalu:
-
-```bash
+flutter run            # jalankan di perangkat/emulator
+flutter test           # uji unit
+flutter analyze        # cek statis
 flutter build apk --release
-# Output: build/app/outputs/flutter-apk/app-release.apk
 ```
 
-> **Penting:** selalu gunakan keystore yang sama untuk setiap rilis. Pembaruan OTA hanya
-> bisa "install menimpa" tanpa uninstall bila APK ditandatangani kunci yang konsisten.
+- **Signing rilis** dibaca dari `android/key.properties` (tidak di-commit). Selalu pakai
+  keystore yang sama agar pembaruan bisa "install menimpa" tanpa uninstall.
+- **Firebase** diaktifkan di `lib/firebase/firebase_config.dart`. Data:
+  `users/{uid}/data/state` (AppState) dan `meta/app_version` (metadata OTA).
+- **Pembaruan OTA** bersifat self-hosted dan gratis: metadata versi di Firestore, file
+  APK di GitHub Releases. Alur rilis lengkap ada di [`RELEASING.md`](RELEASING.md).
 
-## Firebase
+### Keamanan repositori
 
-Integrasi diaktifkan lewat `lib/firebase/firebase_config.dart` (`useFirebase = true`).
-Konfigurasi project (`lib/firebase_options.dart`, `android/app/google-services.json`)
-tidak di-commit; hasilkan dengan `flutterfire configure`. Struktur data:
-
-```
-users/{uid}/data/state   → seluruh AppState (satu dokumen JSON)
-meta/app_version         → metadata rilis untuk OTA (lihat di bawah)
-```
-
-## Pembaruan OTA (self-hosted, gratis)
-
-OTA tidak memerlukan Firebase Storage. Metadata versi disimpan di Firestore (paket
-gratis Spark) dan file APK di-host di **GitHub Releases**.
-
-### Firestore rules (sekali)
-
-Izinkan pengguna login membaca dokumen versi; tulis hanya lewat Console:
-
-```
-match /meta/{doc} {
-  allow read: if request.auth != null;
-  allow write: if false;
-}
-```
-
-### Dokumen `meta/app_version`
-
-| Field | Tipe | Keterangan |
-|---|---|---|
-| `latestVersionCode` | number | Dibandingkan dengan build number (`+N`) di `pubspec.yaml` |
-| `latestVersionName` | string | Ditampilkan ke pengguna, mis. `1.1.4` |
-| `apkUrl` | string | URL unduh langsung APK (GitHub Releases) |
-| `releaseNotes` | string | Ringkasan perubahan (opsional) |
-| `mandatory` | boolean | `true` = update wajib, dialog tak bisa ditutup |
-
-### Alur tiap rilis
-
-1. Naikkan versi di `pubspec.yaml` (angka `+N` **wajib** naik), mis. `1.1.4+6`.
-2. `flutter build apk --release`.
-3. GitHub → **Releases → Draft a new release** → buat tag (mis. `v1.1.4`) → unggah
-   `app-release.apk` → **Publish**.
-4. Salin tautan aset APK (klik kanan → *Copy link address*):
-   `https://github.com/<user>/<repo>/releases/download/v1.1.4/app-release.apk`
-5. Perbarui dokumen `meta/app_version` di Firestore: `latestVersionCode` → `6`,
-   `latestVersionName` → `1.1.4`, `apkUrl` → tautan tadi.
-
-Saat pengguna membuka aplikasi berikutnya, dialog pembaruan muncul → unduh → installer
-Android berjalan.
-
-> Repo (atau repo khusus rilis) harus **public** agar URL APK bisa diunduh tanpa login.
-
-## Keamanan repositori
-
-File berikut **tidak di-commit** (lihat `.gitignore`) dan tidak boleh bocor ke repo public:
-
-- `android/key.properties` — berisi password keystore dalam teks biasa.
-- `*.jks` / `*.keystore` — file keystore signing.
-- `lib/firebase_options.dart`, `android/app/google-services.json` — konfigurasi Firebase.
-
-## Pengujian
-
-```bash
-flutter test
-flutter analyze
-```
+File berikut **tidak di-commit** (lihat `.gitignore`) dan tidak boleh bocor ke repo publik:
+`android/key.properties`, `*.jks`/`*.keystore`, `lib/firebase_options.dart`,
+`android/app/google-services.json`.
