@@ -172,8 +172,6 @@ class _InvestmentTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final positive = inv.gain >= 0;
     final color = positive ? AppTheme.income : AppTheme.expense;
-    final canRefresh = inv.ticker.trim().isNotEmpty &&
-        ref.read(priceServiceProvider).supportsAuto(inv.type);
     // Saham ditampilkan dalam lot, jenis lain dalam unit.
     final qtyLabel = inv.type.tradedInLots
         ? '${Fmt.number(inv.lots)} lot'
@@ -185,38 +183,17 @@ class _InvestmentTile extends ConsumerWidget {
           '${inv.type.label} · $qtyLabel @ ${Fmt.rupiah(inv.currentPrice)}'
           '\nDiperbarui ${Fmt.date(inv.updatedAt)}'),
       isThreeLine: true,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (canRefresh)
-            IconButton(
-              icon: const Icon(Icons.refresh, size: 20),
-              tooltip: 'Perbarui harga',
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final error = await ref
-                    .read(appStateProvider.notifier)
-                    .refreshPrice(inv.id);
-                messenger.showSnackBar(SnackBar(
-                    content: Text(error ?? 'Harga ${inv.name} diperbarui.')));
-              },
-            ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(Fmt.rupiah(inv.marketValue),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              Text(Fmt.rupiahSigned(inv.gain),
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
-              Text(
-                  '${positive ? '+' : ''}${inv.gainPercent.toStringAsFixed(1)}%',
-                  style: TextStyle(color: color, fontSize: 11)),
-            ],
-          ),
+          Text(Fmt.rupiah(inv.marketValue),
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(Fmt.rupiahSigned(inv.gain),
+              style: TextStyle(
+                  color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text('${positive ? '+' : ''}${inv.gainPercent.toStringAsFixed(1)}%',
+              style: TextStyle(color: color, fontSize: 11)),
         ],
       ),
       onTap: () => showInvestmentDialog(context, ref, existing: inv),
