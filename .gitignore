@@ -44,3 +44,19 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 nul
+
+# === Rahasia signing (JANGAN pernah di-commit) ===
+# Berisi password keystore dalam teks biasa. Jika bocor ke repo public,
+# siapa pun bisa menandatangani APK palsu seolah update resmi aplikasimu.
+key.properties
+android/key.properties
+*.jks
+*.keystore
+
+# === Konfigurasi Firebase ===
+# API key Firebase tidak rahasia (memang tertanam di APK), tapi untuk repo
+# public lebih aman tidak mengekspos konfigurasi project. Hapus baris ini
+# bila repo tetap private dan kamu ingin clone bisa langsung build.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart

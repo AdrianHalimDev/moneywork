@@ -13,6 +13,7 @@ import 'router.dart';
 import 'screens/complete_account_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/notification_service.dart';
+import 'widgets/update_checker.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,7 +82,8 @@ class _AuthGate extends ConsumerWidget {
         if (user == null) return const LoginScreen();
         // Akun Google yang belum punya kata sandi wajib melengkapi dulu.
         if (!user.hasPassword) return CompleteAccountScreen(user: user);
-        return child;
+        // Pengguna sudah masuk penuh: bungkus aplikasi dengan pengecek update OTA.
+        return UpdateChecker(child: child);
       },
     );
   }
