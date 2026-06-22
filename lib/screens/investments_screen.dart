@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,7 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../data/app_state.dart';
+import '../models/account.dart';
 import '../models/investment.dart';
 import '../widgets/common.dart';
 
@@ -16,7 +18,19 @@ class InvestmentsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(appStateProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Investasi')),
+      appBar: AppBar(
+        title: const Text('Investasi'),
+        actions: [
+          async.maybeWhen(
+            data: (state) => IconButton(
+              icon: const Icon(Icons.candlestick_chart_outlined),
+              tooltip: 'Transaksi Saham (RDN)',
+              onPressed: () => showStockTradeDialog(context, ref, state),
+            ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showInvestmentDialog(context, ref),
         icon: const Icon(Icons.add),
@@ -426,4 +440,249 @@ String? _numValidator(String? v) {
   final n = double.tryParse((v ?? '').trim());
   if (n == null || n < 0) return 'Angka tidak valid';
   return null;
+}
+
+// ============================================================================
+// Dialog: transaksi saham (beli/jual) via RDN
+// ============================================================================
+
+Future<void> showStockTradeDialog(
+  BuildContext context,
+  WidgetRef ref,
+  AppState state,
+) async {
+  final rdnAccounts =
+      state.accounts.where((a) => a.type == AccountType.rdn).toList();
+  if (rdnAccounts.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Buat akun jenis "RDN (Saham)" dulu di tab Akun untuk transaksi saham.')));
+    return;
+  }
+  final stocks = state.investments
+      .where((i) => i.type == InvestmentType.stock)
+      .toList();
+
+  var isBuy = true;
+  var rdnId = rdnAccounts.first.id;
+  // Untuk beli: null = saham baru. Untuk jual: wajib pilih saham.
+  String? stockId = stocks.isNotEmpty ? stocks.first.id : null;
+  final nameCtrl = TextEditingController();
+  final tickerCtrl = TextEditingController();
+  final lotCtrl = TextEditingController();
+  final priceCtrl = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) {
+        // Saham baru hanya opsi saat beli.
+        final newStockSelected = isBuy && stockId == null;
+        final selectedStock = stockId == null
+            ? null
+            : stocks.where((s) => s.id == stockId).firstOrNull;
+        final lots = double.tryParse(lotCtrl.text.trim()) ?? 0;
+        final price = double.tryParse(priceCtrl.text.trim()) ?? 0;
+        final total = lots * sharesPerLot * price;
+
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 8,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+          ),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Transaksi Saham',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: true, label: Text('Beli')),
+                    ButtonSegment(value: false, label: Text('Jual')),
+                  ],
+                  selected: {isBuy},
+                  onSelectionChanged: (s) => setState(() {
+                    isBuy = s.first;
+                    // Saat pindah ke jual, pastikan ada saham terpilih.
+                    if (!isBuy && stockId == null && stocks.isNotEmpty) {
+                      stockId = stocks.first.id;
+                    }
+                  }),
+                ),
+                const SizedBox(height: 16),
+                // Pilih saham (untuk jual: wajib; untuk beli: bisa baru).
+                if (!isBuy && stocks.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Belum ada saham untuk dijual.'),
+                  )
+                else
+                  DropdownButtonFormField<String?>(
+                    value: stockId,
+                    decoration: const InputDecoration(labelText: 'Saham'),
+                    items: [
+                      if (isBuy)
+                        const DropdownMenuItem(
+                            value: null, child: Text('+ Saham baru')),
+                      for (final s in stocks)
+                        DropdownMenuItem(
+                            value: s.id,
+                            child: Text(
+                                '${s.name} (${Fmt.number(s.lots)} lot)')),
+                    ],
+                    onChanged: (v) => setState(() => stockId = v),
+                  ),
+                if (newStockSelected) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Nama saham', hintText: 'mis. BBCA'),
+                    validator: (v) => newStockSelected &&
+                            (v == null || v.trim().isEmpty)
+                        ? 'Wajib diisi'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: tickerCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                        labelText: 'Kode (opsional)', hintText: 'mis. BBCA'),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: rdnId,
+                  decoration: const InputDecoration(labelText: 'Rekening RDN'),
+                  items: [
+                    for (final a in rdnAccounts)
+                      DropdownMenuItem(
+                          value: a.id,
+                          child: Text('${a.name} · ${Fmt.rupiah(a.balance)}')),
+                  ],
+                  onChanged: (v) => setState(() => rdnId = v ?? rdnId),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: lotCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Jumlah lot',
+                          helperText: selectedStock != null && !isBuy
+                              ? 'Punya ${Fmt.number(selectedStock.lots)} lot'
+                              : '1 lot = $sharesPerLot lembar',
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) {
+                          final n = double.tryParse((v ?? '').trim());
+                          if (n == null || n <= 0) return 'Tidak valid';
+                          if (!isBuy &&
+                              selectedStock != null &&
+                              n > selectedStock.lots) {
+                            return 'Maks ${Fmt.number(selectedStock.lots)}';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: priceCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                            labelText: 'Harga/lembar', prefixText: 'Rp '),
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) {
+                          final n = double.tryParse((v ?? '').trim());
+                          if (n == null || n <= 0) return 'Tidak valid';
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (isBuy ? AppTheme.expense : AppTheme.income)
+                        .withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(isBuy ? 'Total bayar' : 'Total diterima'),
+                      Text(Fmt.rupiah(total),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isBuy
+                                  ? AppTheme.expense
+                                  : AppTheme.income)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      if (!isBuy && stockId == null) return;
+                      final messenger = ScaffoldMessenger.of(context);
+                      final navigator = Navigator.of(context);
+                      final ctrl = ref.read(appStateProvider.notifier);
+                      final lotsVal = double.parse(lotCtrl.text.trim());
+                      final priceVal = double.parse(priceCtrl.text.trim());
+                      final error = isBuy
+                          ? await ctrl.buyStock(
+                              investmentId: stockId,
+                              name: nameCtrl.text.trim(),
+                              ticker: tickerCtrl.text.trim(),
+                              rdnAccountId: rdnId,
+                              lots: lotsVal,
+                              pricePerShare: priceVal,
+                            )
+                          : await ctrl.sellStock(
+                              investmentId: stockId!,
+                              rdnAccountId: rdnId,
+                              lots: lotsVal,
+                              pricePerShare: priceVal,
+                            );
+                      if (error != null) {
+                        messenger
+                            .showSnackBar(SnackBar(content: Text(error)));
+                        return;
+                      }
+                      navigator.pop();
+                      messenger.showSnackBar(SnackBar(
+                          content: Text(isBuy
+                              ? 'Pembelian saham tercatat.'
+                              : 'Penjualan saham tercatat.')));
+                    },
+                    child: Text(isBuy ? 'Beli' : 'Jual'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
 }

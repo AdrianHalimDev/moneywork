@@ -188,48 +188,90 @@ class _WishTile extends ConsumerWidget {
             ? item.monthlySaving.toStringAsFixed(0)
             : '');
     final formKey = GlobalKey<FormState>();
+    final accounts =
+        ref.read(appStateProvider).valueOrNull?.accounts ?? const [];
+    // Default ke rekening tabungan wishlist bila masih ada, jika tidak rekening
+    // pertama. Boleh juga null = catat progres tanpa memotong saldo.
+    String? accountId = accounts.any((a) => a.id == item.savingAccountId)
+        ? item.savingAccountId
+        : (accounts.isNotEmpty ? accounts.first.id : null);
+
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Nabung untuk ${item.name}'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Terkumpul ${Fmt.rupiah(item.savedAmount)} dari '
-                  '${Fmt.rupiah(item.price)}'),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: ctrl,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Jumlah ditabung', prefixText: 'Rp '),
-                validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
-                  if (n == null || n <= 0) return 'Masukkan jumlah valid';
-                  return null;
-                },
-              ),
-            ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Nabung untuk ${item.name}'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Terkumpul ${Fmt.rupiah(item.savedAmount)} dari '
+                    '${Fmt.rupiah(item.price)}'),
+                const SizedBox(height: 4),
+                Text('Sisa ${Fmt.rupiah(item.remainingToSave)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline)),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: ctrl,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Jumlah ditabung', prefixText: 'Rp '),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    if (n == null || n <= 0) return 'Masukkan jumlah valid';
+                    return null;
+                  },
+                ),
+                if (accounts.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String?>(
+                    value: accountId,
+                    decoration:
+                        const InputDecoration(labelText: 'Ambil dari rekening'),
+                    items: [
+                      const DropdownMenuItem(
+                          value: null, child: Text('Tanpa potong saldo')),
+                      for (final a in accounts)
+                        DropdownMenuItem(
+                            value: a.id,
+                            child: Text(
+                                '${a.name} · ${Fmt.rupiah(a.balance)}')),
+                    ],
+                    onChanged: (v) => setState(() => accountId = v),
+                  ),
+                ],
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal')),
+            FilledButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(context);
+                final error = await ref
+                    .read(appStateProvider.notifier)
+                    .contributeToWish(
+                      item.id,
+                      double.parse(ctrl.text.trim()),
+                      accountId: accountId,
+                    );
+                if (error != null) {
+                  messenger.showSnackBar(SnackBar(content: Text(error)));
+                  return;
+                }
+                navigator.pop();
+              },
+              child: const Text('Catat'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal')),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              ref
-                  .read(appStateProvider.notifier)
-                  .contributeToWish(item.id, double.parse(ctrl.text.trim()));
-              Navigator.pop(context);
-            },
-            child: const Text('Catat'),
-          ),
-        ],
       ),
     );
   }

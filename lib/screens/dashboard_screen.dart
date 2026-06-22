@@ -274,55 +274,64 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-/// Tiga kartu ringkas: kas, investasi, utang.
+/// Kartu ringkas kas, investasi, piutang, utang — disusun grid 2 kolom.
 class _BreakdownRow extends StatelessWidget {
   const _BreakdownRow({required this.state});
   final AppState state;
 
   @override
   Widget build(BuildContext context) {
-    final hasReceivable = state.totalReceivable > 0;
-    return Row(
-      children: [
-        Expanded(
-          child: _BreakdownCard(
-            icon: Icons.account_balance_wallet,
-            label: 'Kas',
-            value: state.totalCash,
-            color: AppTheme.income,
-          ),
+    final cards = <Widget>[
+      _BreakdownCard(
+        icon: Icons.account_balance_wallet,
+        label: 'Kas',
+        value: state.totalCash,
+        color: AppTheme.income,
+      ),
+      _BreakdownCard(
+        icon: Icons.show_chart,
+        label: 'Investasi',
+        value: state.totalInvestment,
+        color: AppTheme.investment,
+      ),
+      if (state.totalReceivable > 0)
+        _BreakdownCard(
+          icon: Icons.handshake,
+          label: 'Piutang',
+          value: state.totalReceivable,
+          color: AppTheme.income,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _BreakdownCard(
-            icon: Icons.show_chart,
-            label: 'Investasi',
-            value: state.totalInvestment,
-            color: AppTheme.investment,
-          ),
-        ),
-        if (hasReceivable) ...[
-          const SizedBox(width: 12),
-          Expanded(
-            child: _BreakdownCard(
-              icon: Icons.handshake,
-              label: 'Piutang',
-              value: state.totalReceivable,
-              color: AppTheme.income,
+      _BreakdownCard(
+        icon: Icons.credit_card,
+        label: 'Utang',
+        value: state.totalDebt,
+        color: AppTheme.debt,
+      ),
+    ];
+
+    // Susun 2 kolom per baris. IntrinsicHeight memberi baris tinggi terbatas
+    // (setinggi kartu tertinggi) sehingga stretch bisa menyamakan tinggi kedua
+    // kartu — tanpa ini, stretch di dalam ListView memicu error "infinite
+    // height" dan seluruh blok tak tampil. Slot kosong dipakai bila jumlah
+    // kartu ganjil agar lebarnya tetap separuh.
+    final rows = <Widget>[];
+    for (var i = 0; i < cards.length; i += 2) {
+      if (rows.isNotEmpty) rows.add(const SizedBox(height: 12));
+      rows.add(IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: cards[i]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: i + 1 < cards.length ? cards[i + 1] : const SizedBox(),
             ),
-          ),
-        ],
-        const SizedBox(width: 12),
-        Expanded(
-          child: _BreakdownCard(
-            icon: Icons.credit_card,
-            label: 'Utang',
-            value: state.totalDebt,
-            color: AppTheme.debt,
-          ),
+          ],
         ),
-      ],
-    );
+      ));
+    }
+
+    return Column(children: rows);
   }
 }
 

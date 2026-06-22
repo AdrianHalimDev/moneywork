@@ -58,6 +58,9 @@ class _Body extends ConsumerWidget {
       );
     }
 
+    final groups = ReceivableGroup.groupByName(state.receivables);
+    final openGroups = groups.where((g) => !g.isSettled).length;
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 96),
       children: [
@@ -86,7 +89,7 @@ class _Body extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Text('${state.receivables.where((r) => r.remaining > 0).length} orang',
+                  Text('$openGroups orang',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.outline)),
                 ],
@@ -94,67 +97,122 @@ class _Body extends ConsumerWidget {
             ),
           ),
         ),
-        for (final r in state.receivables) _ReceivableTile(receivable: r),
+        for (final g in groups) _GroupTile(group: g),
       ],
     );
   }
 }
 
-class _ReceivableTile extends ConsumerWidget {
-  const _ReceivableTile({required this.receivable});
-  final Receivable receivable;
+/// Kartu satu orang: total sisa + jumlah pinjaman, dapat di-expand untuk
+/// melihat rincian tiap pinjaman dan menerima pembayaran gabungan.
+class _GroupTile extends ConsumerWidget {
+  const _GroupTile({required this.group});
+  final ReceivableGroup group;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final due = receivable.dueDate;
-    final parts = <String>[
-      if (receivable.note.isNotEmpty) receivable.note,
+    final lunas = group.isSettled;
+    final due = group.nearestDue;
+    final subtitleParts = <String>[
+      if (group.openCount > 1) '${group.openCount} pinjaman',
       if (due != null) 'Tempo ${Fmt.date(due)}',
     ];
-    final lunas = receivable.remaining <= 0;
-    return ListTile(
-      leading: IconBadge(icon: receivable.icon, color: AppTheme.income),
-      title: Text(receivable.personName),
-      subtitle: parts.isEmpty ? null : Text(parts.join(' · ')),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: ExpansionTile(
+        // Pakai key agar status expand tahan terhadap rebuild list.
+        key: PageStorageKey('rcv-${group.key}'),
+        leading: IconBadge(icon: Icons.person_outline, color: AppTheme.income),
+        title: Text(group.displayName,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle:
+            subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(lunas ? 'Lunas' : Fmt.rupiah(group.outstanding),
+                style: TextStyle(
+                    color: lunas
+                        ? Theme.of(context).colorScheme.outline
+                        : AppTheme.income,
+                    fontWeight: FontWeight.w600)),
+            Text(lunas ? 'selesai' : 'sisa',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline)),
+          ],
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         children: [
-          Text(lunas ? 'Lunas' : Fmt.rupiah(receivable.remaining),
-              style: TextStyle(
-                  color: lunas
-                      ? Theme.of(context).colorScheme.outline
-                      : AppTheme.income,
-                  fontWeight: FontWeight.w600)),
+          for (final r in group.items) _LoanRow(receivable: r),
+          const SizedBox(height: 8),
           if (!lunas)
             SizedBox(
-              height: 28,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: () =>
-                    showCollectDialog(context, ref, receivable),
-                child: const Text('Terima'),
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => showCollectFromPersonDialog(context, ref, group),
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: Text('Terima dari ${group.displayName}'),
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Satu baris pinjaman di dalam grup orang.
+class _LoanRow extends ConsumerWidget {
+  const _LoanRow({required this.receivable});
+  final Receivable receivable;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lunas = receivable.remaining <= 0;
+    final due = receivable.dueDate;
+    final parts = <String>[
+      Fmt.date(receivable.createdAt),
+      if (receivable.note.isNotEmpty) receivable.note,
+      if (due != null) 'tempo ${Fmt.date(due)}',
+    ];
+    return InkWell(
       onTap: () => showReceivableDialog(context, ref, existing: receivable),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(parts.join(' · '),
+                      style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(lunas ? 'Lunas' : Fmt.rupiah(receivable.remaining),
+                style: TextStyle(
+                    color: lunas
+                        ? Theme.of(context).colorScheme.outline
+                        : AppTheme.income,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
     );
   }
 }
 
 // ============================================================================
-// Dialog: terima pembayaran piutang
+// Dialog: terima pembayaran gabungan dari satu orang (alokasi FIFO)
 // ============================================================================
 
-Future<void> showCollectDialog(
+Future<void> showCollectFromPersonDialog(
   BuildContext context,
   WidgetRef ref,
-  Receivable receivable,
+  ReceivableGroup group,
 ) async {
   final state = ref.read(appStateProvider).valueOrNull;
   if (state == null) return;
@@ -166,7 +224,7 @@ Future<void> showCollectDialog(
   }
 
   final amountCtrl =
-      TextEditingController(text: receivable.remaining.toStringAsFixed(0));
+      TextEditingController(text: group.outstanding.toStringAsFixed(0));
   var accountId = state.accounts.first.id;
   final formKey = GlobalKey<FormState>();
 
@@ -188,11 +246,18 @@ Future<void> showCollectDialog(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Terima dari ${receivable.personName}',
+              Text('Terima dari ${group.displayName}',
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 4),
-              Text('Sisa piutang: ${Fmt.rupiah(receivable.remaining)}',
+              Text(
+                  'Sisa total: ${Fmt.rupiah(group.outstanding)}'
+                  '${group.openCount > 1 ? ' · ${group.openCount} pinjaman' : ''}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.outline)),
+              const SizedBox(height: 6),
+              Text(
+                  'Pembayaran melunasi pinjaman paling lama dulu.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.outline)),
               const SizedBox(height: 16),
               TextFormField(
@@ -204,8 +269,8 @@ Future<void> showCollectDialog(
                 validator: (v) {
                   final n = double.tryParse((v ?? '').trim());
                   if (n == null || n <= 0) return 'Masukkan jumlah valid';
-                  if (n > receivable.remaining) {
-                    return 'Melebihi sisa piutang (${Fmt.rupiah(receivable.remaining)})';
+                  if (n > group.outstanding) {
+                    return 'Melebihi sisa total (${Fmt.rupiah(group.outstanding)})';
                   }
                   return null;
                 },
@@ -233,8 +298,8 @@ Future<void> showCollectDialog(
                     final navigator = Navigator.of(context);
                     final error = await ref
                         .read(appStateProvider.notifier)
-                        .collectReceivable(
-                          receivableId: receivable.id,
+                        .collectFromPerson(
+                          nameKey: group.key,
                           accountId: accountId,
                           amount: amount,
                         );
@@ -244,8 +309,7 @@ Future<void> showCollectDialog(
                     }
                     navigator.pop();
                     messenger.showSnackBar(SnackBar(
-                        content:
-                            Text('Diterima ${Fmt.rupiah(amount)}.')));
+                        content: Text('Diterima ${Fmt.rupiah(amount)}.')));
                   },
                   child: const Text('Terima Sekarang'),
                 ),
@@ -268,6 +332,7 @@ Future<void> showReceivableDialog(
   Receivable? existing,
 }) async {
   final nameCtrl = TextEditingController(text: existing?.personName ?? '');
+  final nameFocus = FocusNode();
   final amountCtrl = TextEditingController(
       text: existing != null ? existing.remaining.toStringAsFixed(0) : '');
   final noteCtrl = TextEditingController(text: existing?.note ?? '');
@@ -275,8 +340,15 @@ Future<void> showReceivableDialog(
   final isEdit = existing != null;
   final formKey = GlobalKey<FormState>();
 
+  final appState = ref.read(appStateProvider).valueOrNull;
   // Opsi talangan: uang keluar dari rekening saat membuat piutang (mode tambah).
-  final accounts = ref.read(appStateProvider).valueOrNull?.accounts ?? const [];
+  final accounts = appState?.accounts ?? const [];
+  // Nama yang sudah pernah dipakai — disarankan saat mengetik agar grup tak pecah.
+  final knownNames = <String>{
+    for (final r in (appState?.receivables ?? const []))
+      if (r.personName.trim().isNotEmpty) r.personName.trim(),
+  }.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   var fundFromAccount = false;
   String? fundingAccountId = accounts.isNotEmpty ? accounts.first.id : null;
 
@@ -301,13 +373,54 @@ Future<void> showReceivableDialog(
               Text(isEdit ? 'Edit Piutang' : 'Tambah Piutang',
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: nameCtrl,
-                autofocus: !isEdit,
-                decoration: const InputDecoration(
-                    labelText: 'Nama orang', hintText: 'mis. Gama'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
+              RawAutocomplete<String>(
+                textEditingController: nameCtrl,
+                focusNode: nameFocus,
+                optionsBuilder: (value) {
+                  final q = value.text.trim().toLowerCase();
+                  if (q.isEmpty) return const Iterable<String>.empty();
+                  return knownNames.where((n) {
+                    final low = n.toLowerCase();
+                    // Sembunyikan kalau sudah cocok persis (tak perlu disarankan).
+                    return low.contains(q) && low != q;
+                  });
+                },
+                fieldViewBuilder:
+                    (context, controller, focusNode, onSubmitted) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    autofocus: !isEdit,
+                    decoration: const InputDecoration(
+                        labelText: 'Nama orang', hintText: 'mis. Gama'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  final list = options.toList();
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: list.length,
+                          itemBuilder: (context, i) => ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.person_outline, size: 18),
+                            title: Text(list[i]),
+                            onTap: () => onSelected(list[i]),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 12),
               TextFormField(

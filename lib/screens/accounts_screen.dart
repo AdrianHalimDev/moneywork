@@ -366,6 +366,14 @@ class _TxRow extends ConsumerWidget {
         subtitle: Text(subtitle),
         trailing: Text(Fmt.rupiahSigned(tx.signedAmount),
             style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+        // Geser ke kiri untuk hapus, atau tahan (long-press) bila gestur geser
+        // sulit — keduanya melalui konfirmasi yang sama.
+        onLongPress: () async {
+          final ctrl = ref.read(appStateProvider.notifier);
+          if (await _confirmDelete(context)) {
+            await ctrl.deleteTransaction(tx.id);
+          }
+        },
       ),
     );
   }
@@ -373,16 +381,18 @@ class _TxRow extends ConsumerWidget {
   Future<bool> _confirmDelete(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      // Pakai context milik dialog (dialogCtx) untuk pop — bukan context baris,
+      // yang resolve ke navigator halaman dan malah menutup layar (layar hitam).
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Hapus transaksi?'),
         content: const Text(
             'Saldo akun akan disesuaikan kembali. Tindakan ini tidak bisa dibatalkan.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogCtx, false),
               child: const Text('Batal')),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogCtx, true),
               child: const Text('Hapus')),
         ],
       ),
@@ -488,8 +498,16 @@ Future<void> showAccountDialog(
                   if (isEdit)
                     TextButton.icon(
                       onPressed: () async {
-                        Navigator.pop(context);
-                        await _confirmDeleteAccount(context, ref, existing);
+                        // Konfirmasi dulu (sheet masih terbuka → context valid),
+                        // baru hapus, lalu tutup sheet. Memanggil dialog setelah
+                        // pop sebelumnya membuat dialog tak pernah muncul.
+                        final navigator = Navigator.of(context);
+                        final ctrl = ref.read(appStateProvider.notifier);
+                        final confirmed =
+                            await _confirmDeleteAccount(context, existing);
+                        if (!confirmed) return;
+                        await ctrl.deleteAccount(existing.id);
+                        navigator.pop();
                       },
                       icon: const Icon(Icons.delete_outline,
                           color: AppTheme.expense),
@@ -534,27 +552,27 @@ Future<void> showAccountDialog(
   );
 }
 
-Future<void> _confirmDeleteAccount(
-    BuildContext context, WidgetRef ref, Account account) async {
+Future<bool> _confirmDeleteAccount(
+    BuildContext context, Account account) async {
   final ok = await showDialog<bool>(
     context: context,
-    builder: (_) => AlertDialog(
+    // Pop pakai context dialog (dialogCtx). Bila pakai context bottom sheet,
+    // pop salah sasaran: dialog tak tertutup & future menggantung (stuck).
+    builder: (dialogCtx) => AlertDialog(
       title: Text('Hapus ${account.name}?'),
       content: const Text(
           'Semua transaksi terkait akun ini juga akan dihapus.'),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: const Text('Batal')),
         FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Hapus')),
       ],
     ),
   );
-  if (ok ?? false) {
-    await ref.read(appStateProvider.notifier).deleteAccount(account.id);
-  }
+  return ok ?? false;
 }
 
 // ============================================================================

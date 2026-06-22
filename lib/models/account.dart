@@ -4,18 +4,21 @@ import 'package:flutter/material.dart';
 enum AccountType {
   cash,
   bank,
-  ewallet;
+  ewallet,
+  rdn;
 
   String get label => switch (this) {
         AccountType.cash => 'Tunai',
         AccountType.bank => 'Bank',
         AccountType.ewallet => 'E-Wallet',
+        AccountType.rdn => 'RDN (Saham)',
       };
 
   IconData get icon => switch (this) {
         AccountType.cash => Icons.payments_outlined,
         AccountType.bank => Icons.account_balance_outlined,
         AccountType.ewallet => Icons.account_balance_wallet_outlined,
+        AccountType.rdn => Icons.candlestick_chart_outlined,
       };
 }
 

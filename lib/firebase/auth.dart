@@ -13,17 +13,23 @@ class AppUser {
     required this.uid,
     required this.email,
     this.displayName = '',
+    this.hasPassword = true,
   }) : isLocal = false;
 
   const AppUser.local()
       : uid = 'local',
         email = '',
         displayName = '',
+        hasPassword = true,
         isLocal = true;
 
   final String uid;
   final String email;
   final String displayName;
+
+  /// Apakah akun sudah punya metode kata sandi (provider `password`).
+  /// Akun yang login hanya via Google bernilai `false` sampai kata sandi dibuat.
+  final bool hasPassword;
   final bool isLocal;
 
   /// Nama untuk ditampilkan; jatuh ke bagian depan email bila nama kosong.
@@ -61,6 +67,8 @@ final authStateProvider = StreamProvider<AppUser?>((ref) {
                 uid: u.uid,
                 email: u.email ?? '',
                 displayName: u.displayName ?? '',
+                hasPassword:
+                    u.providerData.any((p) => p.providerId == 'password'),
               ),
       );
 });
@@ -124,26 +132,57 @@ class AuthService {
     await _auth.signOut();
   }
 
-  /// Masuk dengan akun Google.
-  ///
-  /// Saat ini didukung di web (memakai popup bawaan firebase_auth). Di mobile
-  /// memerlukan konfigurasi tambahan (SHA-1) dan akan ditolak dengan pesan
-  /// ramah hingga disiapkan.
-  Future<String?> signInWithGoogle({bool rememberMe = true}) async {
+  /// Tautkan kata sandi ke akun yang sedang login (mis. akun Google yang
+  /// belum punya kata sandi). Setelah ini, akun bisa masuk dengan email +
+  /// kata sandi dan mengelola akun layaknya akun email biasa.
+  Future<String?> linkPassword(String password) async {
     if (!useFirebase) return 'Firebase belum diaktifkan.';
-    if (!kIsWeb) {
-      return 'Login Google baru tersedia di versi web untuk saat ini.';
+    final user = _auth.currentUser;
+    if (user == null || (user.email ?? '').isEmpty) {
+      return 'Sesi tidak valid.';
     }
     try {
-      await _applyPersistence(rememberMe);
-      final provider = GoogleAuthProvider()
-        ..setCustomParameters({'prompt': 'select_account'});
-      await _auth.signInWithPopup(provider);
+      final cred =
+          EmailAuthProvider.credential(email: user.email!, password: password);
+      await user.linkWithCredential(cred);
+      await user.reload();
       return null;
     } on FirebaseAuthException catch (e) {
-      // Pengguna menutup popup — bukan error yang perlu ditampilkan.
+      // Sudah punya kata sandi sebelumnya — anggap sukses.
+      if (e.code == 'provider-already-linked' ||
+          e.code == 'credential-already-in-use') {
+        return null;
+      }
+      return _message(e);
+    } catch (e) {
+      return 'Gagal membuat kata sandi: $e';
+    }
+  }
+
+  /// Masuk dengan akun Google.
+  ///
+  /// Web memakai popup; mobile memakai alur native ([signInWithProvider]).
+  /// Di Android, login Google memerlukan sidik jari SHA-1 aplikasi terdaftar
+  /// di Firebase Console dan provider Google diaktifkan.
+  Future<String?> signInWithGoogle({bool rememberMe = true}) async {
+    if (!useFirebase) return 'Firebase belum diaktifkan.';
+    try {
+      final provider = GoogleAuthProvider()
+        ..setCustomParameters({'prompt': 'select_account'});
+      if (kIsWeb) {
+        await _applyPersistence(rememberMe);
+        await _auth.signInWithPopup(provider);
+      } else {
+        // Alur native (Custom Tab) di mobile — tanpa paket google_sign_in.
+        await _auth.signInWithProvider(provider);
+      }
+      return null;
+    } on FirebaseAuthException catch (e) {
+      // Pengguna membatalkan — bukan error yang perlu ditampilkan.
       if (e.code == 'popup-closed-by-user' ||
-          e.code == 'cancelled-popup-request') {
+          e.code == 'cancelled-popup-request' ||
+          e.code == 'web-context-canceled' ||
+          e.code == 'canceled') {
         return null;
       }
       return _message(e);

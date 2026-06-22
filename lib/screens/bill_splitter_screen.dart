@@ -24,6 +24,9 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
   final _serviceCtrl = TextEditingController(text: '0');
   final _discountCtrl = TextEditingController(text: '0');
 
+  // Diskon dibagi rata ke tiap orang (true) atau proporsional ke pesanan.
+  bool _splitDiscountEvenly = true;
+
   @override
   void dispose() {
     _ppnCtrl.dispose();
@@ -50,6 +53,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
       discount: _discount,
       serviceRate: _serviceRate,
       ppnRate: _ppnRate,
+      splitDiscountEvenly: _splitDiscountEvenly,
     );
   }
 
@@ -144,7 +148,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
         .map((p) => p.nameCtrl.text.trim())
         .toSet();
 
-    // Hanya simpan orang yang punya nama, tagihan > 0, dan bukan owner.
+    // Tagihan orang lain: punya nama, > 0, dan bukan owner.
     final valid = result.shares
         .where((s) =>
             s.name.isNotEmpty && s.total > 0 && !ownerNames.contains(s.name))
@@ -155,56 +159,153 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
       return;
     }
 
-    final selected = await showDialog<bool>(
+    // Total bagian kita sendiri (akan jadi pengeluaran bila ada sumber dana).
+    final ownerShare = result.shares
+        .where((s) => ownerNames.contains(s.name))
+        .fold<double>(0, (sum, s) => sum + s.total);
+    final friendsTotal = valid.fold<double>(0, (sum, s) => sum + s.total);
+
+    final accounts =
+        ref.read(appStateProvider).valueOrNull?.accounts ?? const [];
+    // Default: potong dari rekening pertama bila ada.
+    String? fundingId = accounts.isNotEmpty ? accounts.first.id : null;
+
+    final selected = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Simpan ke Piutang?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Tiap orang akan dicatat sebagai piutang:'),
-            const SizedBox(height: 12),
-            for (final s in valid)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(s.name),
-                    Text(Fmt.rupiah(s.total),
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ],
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheet) {
+          final deduct = fundingId != null
+              ? friendsTotal + ownerShare
+              : friendsTotal;
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 8,
+              bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Simpan Split Bill',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                Text('Tagihan teman (jadi piutang):',
+                    style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 4),
+                for (final s in valid)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(s.name),
+                        Text(Fmt.rupiah(s.total),
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                if (ownerShare > 0) ...[
+                  const Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Bagian saya'),
+                      Text(Fmt.rupiah(ownerShare)),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                if (accounts.isNotEmpty)
+                  DropdownButtonFormField<String?>(
+                    value: fundingId,
+                    decoration: const InputDecoration(
+                        labelText: 'Saya menalangi dari rekening'),
+                    items: [
+                      const DropdownMenuItem(
+                          value: null,
+                          child: Text('— Jangan potong saldo')),
+                      for (final a in accounts)
+                        DropdownMenuItem(
+                            value: a.id,
+                            child:
+                                Text('${a.name} · ${Fmt.rupiah(a.balance)}')),
+                    ],
+                    onChanged: (v) => setSheet(() => fundingId = v),
+                  ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.expense.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(fundingId != null
+                          ? 'Total keluar dari rekening'
+                          : 'Total piutang dicatat'),
+                      Text(Fmt.rupiah(deduct),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.expense)),
+                    ],
+                  ),
                 ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Simpan Semua')),
-        ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Simpan'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
 
     if (selected != true || !mounted) return;
 
     final ctrl = ref.read(appStateProvider.notifier);
-    final today = DateTime.now();
-    for (final s in valid) {
-      await ctrl.addReceivable(
-        personName: s.name,
-        remaining: s.total,
-        note: 'Split bill ${Fmt.date(today)}',
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    if (fundingId != null) {
+      // Talangi dari rekening: teman jadi piutang+talangan, bagian sendiri
+      // jadi pengeluaran. Atomik.
+      final error = await ctrl.splitBillPayment(
+        fundingAccountId: fundingId!,
+        shares: [for (final s in valid) (name: s.name, amount: s.total)],
+        ownerShare: ownerShare,
       );
+      if (error != null) {
+        messenger.showSnackBar(SnackBar(content: Text(error)));
+        return;
+      }
+      messenger.showSnackBar(SnackBar(content: Text(
+          '${valid.length} piutang dicatat, saldo dipotong ${Fmt.rupiah(friendsTotal + ownerShare)}.')));
+    } else {
+      // Tanpa sumber dana: catat piutang teman saja (saldo tidak berubah).
+      for (final s in valid) {
+        await ctrl.addReceivable(
+          personName: s.name,
+          remaining: s.total,
+          note: 'Split bill ${Fmt.date(DateTime.now())}',
+        );
+      }
+      messenger.showSnackBar(
+          SnackBar(content: Text('${valid.length} piutang tersimpan.')));
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${valid.length} piutang tersimpan.')));
-    Navigator.of(context).pop();
+    navigator.pop();
   }
 
   @override
@@ -395,6 +496,15 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                   labelText: 'Diskon', prefixText: 'Rp ', isDense: true),
               onChanged: (_) => setState(() {}),
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Bagi diskon rata'),
+              subtitle: Text(_splitDiscountEvenly
+                  ? 'Tiap orang dapat potongan sama besar'
+                  : 'Potongan proporsional ke besar pesanan'),
+              value: _splitDiscountEvenly,
+              onChanged: (v) => setState(() => _splitDiscountEvenly = v),
+            ),
           ],
         ),
       ),
@@ -413,11 +523,11 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
             Text('Rincian', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             _summaryRow('Subtotal', result.subtotal),
-            if (result.discount > 0)
-              _summaryRow('Diskon', -result.discount),
             if (result.serviceAmount > 0)
               _summaryRow('Service charge', result.serviceAmount),
             if (result.taxAmount > 0) _summaryRow('PPN', result.taxAmount),
+            if (result.discount > 0)
+              _summaryRow('Diskon', -result.discount),
             const Divider(),
             _summaryRow('Total', result.grandTotal, bold: true),
             const SizedBox(height: 12),

@@ -59,17 +59,31 @@ dependencies:
   cloud_firestore: ^5.6.0
   # Grafik laporan (pie, bar)
   fl_chart: ^0.69.2
+  # Notifikasi lokal terjadwal (pengingat harian & tabungan)
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
+  # Generator ikon launcher (Android) + web/favicon dari satu gambar.
+  flutter_launcher_icons: ^0.14.1
+
   flutter_lints: ^5.0.0
+
+# Konfigurasi ikon aplikasi. Jalankan:
+#   flutter pub run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/appicon.png"
+  android: true
+  web:
+    generate: true
+    background_color: "#ffffff"
+    theme_color: "#1B7A4B"
+  # Latar adaptive icon Android (di belakang ikon transparan).
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/icon/appicon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

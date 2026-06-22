@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:moneywork/data/app_controller.dart';
 import 'package:moneywork/data/app_state.dart';
 import 'package:moneywork/data/storage.dart';
@@ -31,6 +32,9 @@ class InMemoryStorage implements StorageBackend {
 
 void main() {
   final now = DateTime(2026, 1, 1);
+
+  // Fmt.date dkk memakai locale id_ID (di app diinisialisasi di main()).
+  setUpAll(() => initializeDateFormatting('id_ID', null));
 
   group('AppState ringkasan kekayaan', () {
     test('net worth = kas + investasi - utang', () {
@@ -388,6 +392,119 @@ void main() {
     });
   });
 
+  group('Piutang per orang (grouping & FIFO)', () {
+    test('groupByName menggabungkan nama beda kapital & spasi', () {
+      final groups = ReceivableGroup.groupByName([
+        Receivable(
+            id: 'a',
+            personName: 'Gama',
+            remaining: 100000,
+            createdAt: DateTime(2026, 1, 1)),
+        Receivable(
+            id: 'b',
+            personName: 'gama ',
+            remaining: 200000,
+            createdAt: DateTime(2026, 1, 2)),
+        Receivable(
+            id: 'c',
+            personName: 'Budi',
+            remaining: 50000,
+            createdAt: DateTime(2026, 1, 1)),
+      ]);
+      expect(groups.length, 2);
+      final gama = groups.firstWhere((g) => g.key == 'gama');
+      expect(gama.outstanding, 300000);
+      expect(gama.openCount, 2);
+      // Nama tampilan mengikuti entri terbaru ('gama ' -> trim 'gama').
+      expect(gama.displayName, 'gama');
+      // Item terurut paling lama dulu (FIFO).
+      expect(gama.items.first.id, 'a');
+    });
+
+    test('collectFromPerson alokasi FIFO: 150rb melunasi 100rb dulu', () async {
+      final initial = AppState(
+        accounts: [
+          Account(
+              id: 'bca',
+              name: 'BCA',
+              type: AccountType.bank,
+              balance: 1000000,
+              createdAt: now),
+        ],
+        receivables: [
+          Receivable(
+              id: 'r1',
+              personName: 'Gama',
+              remaining: 100000,
+              createdAt: DateTime(2026, 1, 1)),
+          Receivable(
+              id: 'r2',
+              personName: 'Gama',
+              remaining: 200000,
+              createdAt: DateTime(2026, 1, 2)),
+        ],
+      );
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(initial)),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+      final ctrl = container.read(appStateProvider.notifier);
+
+      final err = await ctrl.collectFromPerson(
+        nameKey: 'gama',
+        accountId: 'bca',
+        amount: 150000,
+      );
+      expect(err, isNull);
+
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 1150000);
+      // r1 (paling lama) lunas, r2 sisa 50rb terpotong -> sisa 150rb.
+      expect(state.receivables.firstWhere((r) => r.id == 'r1').remaining, 0);
+      expect(state.receivables.firstWhere((r) => r.id == 'r2').remaining, 150000);
+      // Dua transaksi income tercatat & tertaut ke pinjaman masing-masing.
+      final linked = state.transactions
+          .where((t) => t.linkedReceivableId != null)
+          .map((t) => t.linkedReceivableId)
+          .toSet();
+      expect(linked, {'r1', 'r2'});
+    });
+
+    test('collectFromPerson menolak jumlah melebihi total sisa', () async {
+      final initial = AppState(
+        accounts: [
+          Account(
+              id: 'bca',
+              name: 'BCA',
+              type: AccountType.bank,
+              balance: 1000000,
+              createdAt: now),
+        ],
+        receivables: [
+          Receivable(
+              id: 'r1',
+              personName: 'Gama',
+              remaining: 100000,
+              createdAt: DateTime(2026, 1, 1)),
+        ],
+      );
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(initial)),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      final err = await container
+          .read(appStateProvider.notifier)
+          .collectFromPerson(nameKey: 'gama', accountId: 'bca', amount: 150000);
+      expect(err, isNotNull);
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 1000000);
+      expect(state.receivables.first.remaining, 100000);
+    });
+  });
+
   group('Split bill', () {
     test('bagi rata PPN proporsional, jumlah per orang = grand total', () {
       // A pesan nasi goreng 20rb, B pesan 15rb. PPN 11%, tanpa service/diskon.
@@ -424,7 +541,7 @@ void main() {
       expect(result.grandTotal, 35000);
     });
 
-    test('diskon lalu service lalu PPN', () {
+    test('service & PPN dihitung sebelum diskon, diskon dipotong terakhir', () {
       final result = BillSplitter.calculate(
         people: const [
           BillPerson(name: 'A', items: [BillItem(name: 'X', price: 100000)]),
@@ -433,11 +550,68 @@ void main() {
         serviceRate: 0.05,
         ppnRate: 0.11,
       );
-      // base 90000, service 4500, ppn (94500*0.11)=10395, grand 104895
+      // subtotal 100000, service 5000, ppn (105000*0.11)=11550,
+      // totalWithTax 116550, diskon 10000 dipotong terakhir, grand 106550
       expect(result.discount, 10000);
-      expect(result.serviceAmount, closeTo(4500, 0.01));
-      expect(result.taxAmount, closeTo(10395, 0.01));
-      expect(result.grandTotal, closeTo(104895, 0.01));
+      expect(result.serviceAmount, closeTo(5000, 0.01));
+      expect(result.taxAmount, closeTo(11550, 0.01));
+      expect(result.grandTotal, closeTo(106550, 0.01));
+    });
+
+    test('diskon dibagi rata: tiap orang dapat potongan sama', () {
+      // A 30rb, B 90rb, diskon 12rb, tanpa pajak.
+      final result = BillSplitter.calculate(
+        people: const [
+          BillPerson(name: 'A', items: [BillItem(name: 'X', price: 30000)]),
+          BillPerson(name: 'B', items: [BillItem(name: 'Y', price: 90000)]),
+        ],
+        discount: 12000,
+        ppnRate: 0,
+        splitDiscountEvenly: true,
+      );
+      // diskon rata 6rb/orang: A=30000-6000=24000, B=90000-6000=84000
+      expect(result.shares[0].total, 24000);
+      expect(result.shares[1].total, 84000);
+      expect(result.grandTotal, 108000);
+      final sum = result.shares.fold<double>(0, (s, x) => s + x.total);
+      expect(sum, result.grandTotal.roundToDouble());
+    });
+
+    test('diskon proporsional berbeda dari rata', () {
+      // Kasus sama, tapi proporsional: A bayar lebih besar dari versi rata.
+      final result = BillSplitter.calculate(
+        people: const [
+          BillPerson(name: 'A', items: [BillItem(name: 'X', price: 30000)]),
+          BillPerson(name: 'B', items: [BillItem(name: 'Y', price: 90000)]),
+        ],
+        discount: 12000,
+        ppnRate: 0,
+        splitDiscountEvenly: false,
+      );
+      // proporsional: A=25%*108000=27000, B=75%*108000=81000
+      expect(result.shares[0].total, 27000);
+      expect(result.shares[1].total, 81000);
+      expect(result.grandTotal, 108000);
+    });
+
+    test('diskon rata dipotong setelah PPN, jumlah = grand total', () {
+      final result = BillSplitter.calculate(
+        people: const [
+          BillPerson(name: 'A', items: [BillItem(name: 'X', price: 30000)]),
+          BillPerson(name: 'B', items: [BillItem(name: 'Y', price: 90000)]),
+        ],
+        discount: 12000,
+        ppnRate: 0.11,
+        splitDiscountEvenly: true,
+      );
+      // subtotal 120000, ppn 13200, totalWithTax 133200,
+      // diskon 12000 terakhir → grand 121200. Diskon rata 6000/orang:
+      // A=30000*1.11-6000=27300, B=90000*1.11-6000=93900
+      expect(result.grandTotal, closeTo(121200, 0.01));
+      expect(result.shares[0].total, 27300);
+      expect(result.shares[1].total, 93900);
+      final sum = result.shares.fold<double>(0, (s, x) => s + x.total);
+      expect(sum, result.grandTotal.roundToDouble());
     });
   });
 
@@ -731,6 +905,302 @@ void main() {
       // Ada transaksi hari ini, jadi tidak ada banner "belum ada transaksi".
       expect(reminders.any((r) => r.id == 'no-tx-today'), isFalse);
       expect(reminders.any((r) => r.id == 'salary-save'), isTrue);
+    });
+  });
+
+  group('Transaksi saham (RDN)', () {
+    AppState seedRdn({double balance = 10000000}) => AppState(
+          accounts: [
+            Account(
+                id: 'rdn',
+                name: 'RDN BCA',
+                type: AccountType.rdn,
+                balance: balance,
+                createdAt: now),
+          ],
+        );
+
+    test('beli saham baru: RDN turun, posisi dibuat dalam lembar', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seedRdn())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      // Beli 5 lot @ 9000 = 500 lembar * 9000 = 4.500.000
+      final err = await container.read(appStateProvider.notifier).buyStock(
+            name: 'BBCA',
+            ticker: 'BBCA',
+            rdnAccountId: 'rdn',
+            lots: 5,
+            pricePerShare: 9000,
+          );
+      expect(err, isNull);
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 5500000); // 10jt - 4,5jt
+      expect(state.investments.length, 1);
+      final inv = state.investments.first;
+      expect(inv.quantity, 500);
+      expect(inv.lots, 5);
+      expect(inv.buyPrice, 9000);
+    });
+
+    test('beli tambahan: harga beli rata-rata tertimbang', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seedRdn())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+      final ctrl = container.read(appStateProvider.notifier);
+
+      await ctrl.buyStock(
+          name: 'BBCA', rdnAccountId: 'rdn', lots: 5, pricePerShare: 9000);
+      final id = container.read(appStateProvider).value!.investments.first.id;
+      // Beli lagi 5 lot @ 11000.
+      await ctrl.buyStock(
+          investmentId: id,
+          rdnAccountId: 'rdn',
+          lots: 5,
+          pricePerShare: 11000);
+
+      final inv = container.read(appStateProvider).value!.investments.first;
+      expect(inv.quantity, 1000); // 10 lot
+      expect(inv.buyPrice, 10000); // (500*9000 + 500*11000)/1000
+    });
+
+    test('jual sebagian: lot berkurang, RDN bertambah', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seedRdn())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+      final ctrl = container.read(appStateProvider.notifier);
+
+      await ctrl.buyStock(
+          name: 'BBCA', rdnAccountId: 'rdn', lots: 5, pricePerShare: 9000);
+      final id = container.read(appStateProvider).value!.investments.first.id;
+      // RDN sekarang 5,5jt. Jual 2 lot @ 10000 = 200*10000 = 2.000.000.
+      final err = await ctrl.sellStock(
+          investmentId: id, rdnAccountId: 'rdn', lots: 2, pricePerShare: 10000);
+      expect(err, isNull);
+
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 7500000); // 5,5jt + 2jt
+      expect(state.investments.first.quantity, 300); // 3 lot tersisa
+      expect(state.investments.first.buyPrice, 9000); // tak berubah saat jual
+    });
+
+    test('jual seluruh lot menghapus posisi', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seedRdn())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+      final ctrl = container.read(appStateProvider.notifier);
+
+      await ctrl.buyStock(
+          name: 'BBCA', rdnAccountId: 'rdn', lots: 5, pricePerShare: 9000);
+      final id = container.read(appStateProvider).value!.investments.first.id;
+      await ctrl.sellStock(
+          investmentId: id, rdnAccountId: 'rdn', lots: 5, pricePerShare: 9500);
+
+      expect(container.read(appStateProvider).value!.investments, isEmpty);
+    });
+
+    test('beli ditolak bila saldo RDN kurang', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seedRdn(balance: 100000))),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      final err = await container.read(appStateProvider.notifier).buyStock(
+            name: 'BBCA',
+            rdnAccountId: 'rdn',
+            lots: 5,
+            pricePerShare: 9000,
+          );
+      expect(err, isNotNull);
+      final state = container.read(appStateProvider).value!;
+      expect(state.investments, isEmpty);
+      expect(state.accounts.first.balance, 100000);
+    });
+  });
+
+  group('Split bill dengan sumber dana', () {
+    AppState seedAcc({double balance = 1000000}) => AppState(
+          accounts: [
+            Account(
+                id: 'bca',
+                name: 'BCA',
+                type: AccountType.bank,
+                balance: balance,
+                createdAt: now),
+          ],
+        );
+
+    test('teman jadi piutang+talangan, bagian sendiri jadi pengeluaran',
+        () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seedAcc())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+      final before = container.read(appStateProvider).value!.netWorth;
+
+      // 2 teman @ 50rb, bagian sendiri 30rb. Total keluar 130rb.
+      final err = await container.read(appStateProvider.notifier).splitBillPayment(
+            fundingAccountId: 'bca',
+            shares: const [
+              (name: 'Gama', amount: 50000),
+              (name: 'Rina', amount: 50000),
+            ],
+            ownerShare: 30000,
+          );
+      expect(err, isNull);
+
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 870000); // 1jt - 130rb
+      expect(state.totalReceivable, 100000); // 2 x 50rb
+      expect(state.receivables.length, 2);
+      expect(state.transactions.length, 3); // 2 talangan + 1 bagian sendiri
+      // Net worth turun tepat sebesar bagian sendiri (talangan netral).
+      expect(state.netWorth, before - 30000);
+    });
+
+    test('tanpa bagian sendiri: net worth tetap (semua talangan)', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seedAcc())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+      final before = container.read(appStateProvider).value!.netWorth;
+
+      await container.read(appStateProvider.notifier).splitBillPayment(
+            fundingAccountId: 'bca',
+            shares: const [(name: 'Gama', amount: 80000)],
+          );
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 920000);
+      expect(state.totalReceivable, 80000);
+      expect(state.netWorth, before); // kas -80rb, piutang +80rb
+    });
+
+    test('ditolak bila saldo tidak cukup', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seedAcc(balance: 50000))),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      final err = await container.read(appStateProvider.notifier).splitBillPayment(
+            fundingAccountId: 'bca',
+            shares: const [(name: 'Gama', amount: 100000)],
+          );
+      expect(err, isNotNull);
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 50000); // tak berubah
+      expect(state.receivables, isEmpty);
+      expect(state.transactions, isEmpty);
+    });
+  });
+
+  group('Nabung wishlist', () {
+    AppState seed({double balance = 1000000, double price = 500000}) =>
+        AppState(
+          accounts: [
+            Account(
+                id: 'bca',
+                name: 'BCA',
+                type: AccountType.bank,
+                balance: balance,
+                createdAt: now),
+          ],
+          wishlist: [
+            WishlistItem(
+                id: 'w1',
+                name: 'Laptop',
+                price: price,
+                createdAt: now),
+          ],
+        );
+
+    test('memotong saldo akun & mencatat pengeluaran', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seed())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      final err = await container
+          .read(appStateProvider.notifier)
+          .contributeToWish('w1', 200000, accountId: 'bca');
+      expect(err, isNull);
+
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 800000); // 1jt - 200rb
+      expect(state.wishlist.first.savedAmount, 200000);
+      expect(state.wishlist.first.purchased, isFalse);
+      expect(state.transactions.length, 1);
+      expect(state.transactions.first.category, 'Nabung');
+    });
+
+    test('tanpa akun: hanya catat progres, saldo tetap', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seed())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      final err = await container
+          .read(appStateProvider.notifier)
+          .contributeToWish('w1', 200000);
+      expect(err, isNull);
+
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 1000000); // tak berubah
+      expect(state.wishlist.first.savedAmount, 200000);
+      expect(state.transactions, isEmpty);
+    });
+
+    test('otomatis selesai & dibatasi sisa target saat tabungan penuh',
+        () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seed())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      // Setor lebih dari sisa (500rb) — hanya 500rb yang dipotong.
+      final err = await container
+          .read(appStateProvider.notifier)
+          .contributeToWish('w1', 900000, accountId: 'bca');
+      expect(err, isNull);
+
+      final state = container.read(appStateProvider).value!;
+      expect(state.wishlist.first.savedAmount, 500000); // tak melebihi harga
+      expect(state.wishlist.first.purchased, isTrue); // selesai otomatis
+      expect(state.accounts.first.balance, 500000); // hanya 500rb terpotong
+      expect(state.transactions.first.amount, 500000);
+    });
+
+    test('ditolak bila saldo tidak cukup', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider
+            .overrideWithValue(InMemoryStorage(seed(balance: 50000))),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      final err = await container
+          .read(appStateProvider.notifier)
+          .contributeToWish('w1', 100000, accountId: 'bca');
+      expect(err, isNotNull);
+
+      final state = container.read(appStateProvider).value!;
+      expect(state.accounts.first.balance, 50000); // tak berubah
+      expect(state.wishlist.first.savedAmount, 0);
+      expect(state.transactions, isEmpty);
     });
   });
 }

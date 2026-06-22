@@ -8,12 +8,21 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// Muat kredensial signing release dari android/key.properties (tidak di-commit).
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.moneywork.moneywork"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Diperlukan flutter_local_notifications untuk API tanggal/waktu modern.
+        coreLibraryDesugaringEnabled true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -27,21 +36,48 @@ android {
         applicationId = "com.moneywork.moneywork"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Firebase Auth membutuhkan minSdk minimal 23 (Android 6.0).
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
+                storeFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storePassword = keystoreProperties['storePassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            // Tanda tangani dengan keystore release bila key.properties ada,
+            // jika tidak jatuh ke debug agar build tetap jalan.
+            signingConfig = keystorePropertiesFile.exists()
+                ? signingConfigs.release
+                : signingConfigs.debug
+
+            // R8 aktif di release. Tanpa aturan keep, generic signature Gson
+            // yang dipakai flutter_local_notifications terhapus sehingga
+            // ScheduledNotificationReceiver force close (TypeToken error).
+            // proguard-rules.pro menjaga signature & kelas terkait tetap utuh.
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Diperlukan saat coreLibraryDesugaringEnabled = true
+    // (untuk flutter_local_notifications).
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }

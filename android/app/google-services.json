@@ -12,7 +12,20 @@
           "package_name": "com.moneywork.moneywork"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "152975911219-45icsbqgrmhrvfrgj6mg5akn3vsi0hei.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.moneywork.moneywork",
+            "certificate_hash": "379e8e8fbe3155dfd557220bd7ebefb7ee397d59"
+          }
+        },
+        {
+          "client_id": "152975911219-kuas62e4t16fggekqo82krcbcila3oee.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCwd5mkt6YlVmQ9b0Vjd5fsmMrBzb9ieHk"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "152975911219-kuas62e4t16fggekqo82krcbcila3oee.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -82,6 +82,14 @@ class AppController extends AsyncNotifier<AppState> {
     await _commit(_current.copyWith(themeMode: mode));
   }
 
+  /// Atur jam pengingat harian (0–23) dan menit (0–59), tersimpan & sinkron.
+  Future<void> setReminderTime(int hour, int minute) async {
+    await _commit(_current.copyWith(
+      reminderHour: hour.clamp(0, 23),
+      reminderMinute: minute.clamp(0, 59),
+    ));
+  }
+
   /// Hapus seluruh data pengguna dari penyimpanan dan reset state.
   /// Dipakai saat menghapus akun.
   Future<void> clearAllData() async {
@@ -287,6 +295,147 @@ class AppController extends AsyncNotifier<AppState> {
     final investments =
         _current.investments.where((i) => i.id != id).toList();
     await _commit(_current.copyWith(investments: investments));
+  }
+
+  /// Beli saham dari RDN: kas RDN berkurang, lot bertambah, harga beli
+  /// rata-rata dihitung ulang (weighted average). Jika [investmentId] null,
+  /// membuat posisi saham baru.
+  ///
+  /// [lots] dalam lot (1 lot = 100 lembar). [pricePerShare] harga per lembar.
+  /// Mengembalikan `null` bila berhasil, atau pesan error.
+  Future<String?> buyStock({
+    String? investmentId,
+    String? name,
+    String ticker = '',
+    required String rdnAccountId,
+    required double lots,
+    required double pricePerShare,
+  }) async {
+    if (lots <= 0 || pricePerShare <= 0) {
+      return 'Jumlah lot dan harga harus lebih dari nol.';
+    }
+    final shares = lots * sharesPerLot;
+    final cost = shares * pricePerShare;
+
+    final accMatch = _current.accounts.where((a) => a.id == rdnAccountId);
+    if (accMatch.isEmpty) return 'Rekening RDN tidak ditemukan.';
+    final account = accMatch.first;
+    if (cost > account.balance) {
+      return 'Saldo ${account.name} tidak cukup '
+          '(butuh ${Fmt.rupiah(cost)}, tersedia ${Fmt.rupiah(account.balance)}).';
+    }
+
+    var investments = _current.investments;
+    String stockName;
+    if (investmentId != null) {
+      final invMatch = investments.where((i) => i.id == investmentId);
+      if (invMatch.isEmpty) return 'Saham tidak ditemukan.';
+      final inv = invMatch.first;
+      final newQty = inv.quantity + shares;
+      // Harga beli rata-rata tertimbang.
+      final avgBuy =
+          (inv.quantity * inv.buyPrice + shares * pricePerShare) / newQty;
+      investments = investments
+          .map((i) => i.id == investmentId
+              ? i.copyWith(
+                  quantity: newQty,
+                  buyPrice: avgBuy,
+                  currentPrice: pricePerShare,
+                  updatedAt: DateTime.now())
+              : i)
+          .toList();
+      stockName = inv.name;
+    } else {
+      stockName = (name ?? '').trim().isEmpty
+          ? (ticker.trim().isEmpty ? 'Saham' : ticker.trim())
+          : name!.trim();
+      investments = [
+        ...investments,
+        Investment(
+          id: _uuid.v4(),
+          name: stockName,
+          type: InvestmentType.stock,
+          quantity: shares,
+          buyPrice: pricePerShare,
+          currentPrice: pricePerShare,
+          ticker: ticker.trim(),
+          updatedAt: DateTime.now(),
+        ),
+      ];
+    }
+
+    final tx = Transaction(
+      id: _uuid.v4(),
+      type: TxType.expense,
+      amount: cost,
+      accountId: rdnAccountId,
+      category: 'Beli Saham',
+      note: '$stockName ${Fmt.number(lots)} lot @ ${Fmt.rupiah(pricePerShare)}',
+      date: DateTime.now(),
+    );
+
+    await _commit(_current.copyWith(
+      investments: investments,
+      transactions: [tx, ..._current.transactions],
+      accounts: _applyTx(_current.accounts, tx),
+    ));
+    return null;
+  }
+
+  /// Jual saham ke RDN: lot berkurang, uang masuk ke RDN. Jika seluruh lot
+  /// terjual, posisi saham dihapus. Harga beli rata-rata tidak berubah saat jual.
+  ///
+  /// Mengembalikan `null` bila berhasil, atau pesan error.
+  Future<String?> sellStock({
+    required String investmentId,
+    required String rdnAccountId,
+    required double lots,
+    required double pricePerShare,
+  }) async {
+    if (lots <= 0 || pricePerShare <= 0) {
+      return 'Jumlah lot dan harga harus lebih dari nol.';
+    }
+    final invMatch = _current.investments.where((i) => i.id == investmentId);
+    if (invMatch.isEmpty) return 'Saham tidak ditemukan.';
+    final inv = invMatch.first;
+
+    final accMatch = _current.accounts.where((a) => a.id == rdnAccountId);
+    if (accMatch.isEmpty) return 'Rekening RDN tidak ditemukan.';
+
+    final shares = lots * sharesPerLot;
+    if (shares > inv.quantity) {
+      return 'Lot melebihi kepemilikan (${Fmt.number(inv.lots)} lot).';
+    }
+    final proceeds = shares * pricePerShare;
+    final remainingQty = inv.quantity - shares;
+
+    final investments = remainingQty <= 0
+        ? _current.investments.where((i) => i.id != investmentId).toList()
+        : _current.investments
+            .map((i) => i.id == investmentId
+                ? i.copyWith(
+                    quantity: remainingQty,
+                    currentPrice: pricePerShare,
+                    updatedAt: DateTime.now())
+                : i)
+            .toList();
+
+    final tx = Transaction(
+      id: _uuid.v4(),
+      type: TxType.income,
+      amount: proceeds,
+      accountId: rdnAccountId,
+      category: 'Jual Saham',
+      note: '${inv.name} ${Fmt.number(lots)} lot @ ${Fmt.rupiah(pricePerShare)}',
+      date: DateTime.now(),
+    );
+
+    await _commit(_current.copyWith(
+      investments: investments,
+      transactions: [tx, ..._current.transactions],
+      accounts: _applyTx(_current.accounts, tx),
+    ));
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -496,9 +645,157 @@ class AppController extends AsyncNotifier<AppState> {
     return null;
   }
 
-  // ---------------------------------------------------------------------------
-  // Wishlist
-  // ---------------------------------------------------------------------------
+  /// Terima pembayaran gabungan dari satu orang (dikelompokkan by nama).
+  ///
+  /// Jumlah [amount] dialokasikan FIFO: melunasi pinjaman paling lama dulu,
+  /// lalu mengalir ke pinjaman berikutnya. Tiap pinjaman yang tersentuh dicatat
+  /// sebagai transaksi income tersendiri (tertaut lewat [Transaction.linkedReceivableId])
+  /// agar penghapusan transaksi tetap memulihkan sisa piutang dengan benar.
+  /// Mengembalikan `null` bila berhasil, atau pesan error.
+  Future<String?> collectFromPerson({
+    required String nameKey,
+    required String accountId,
+    required double amount,
+    DateTime? date,
+  }) async {
+    if (amount <= 0) return 'Masukkan jumlah penerimaan yang valid.';
+
+    final accMatch = _current.accounts.where((a) => a.id == accountId);
+    if (accMatch.isEmpty) return 'Rekening tidak ditemukan.';
+
+    // Pinjaman orang ini yang masih berjalan, terurut paling lama dulu (FIFO).
+    final open = _current.receivables
+        .where((r) =>
+            Receivable.nameKey(r.personName) == nameKey && r.remaining > 0)
+        .toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    if (open.isEmpty) return 'Tidak ada piutang berjalan untuk orang ini.';
+
+    final outstanding = open.fold<double>(0, (s, r) => s + r.remaining);
+    if (amount > outstanding) {
+      return 'Jumlah melebihi total sisa piutang (${Fmt.rupiah(outstanding)}).';
+    }
+
+    final when = date ?? DateTime.now();
+    final personName = open.last.personName;
+
+    // Alokasikan FIFO ke tiap pinjaman.
+    final paid = <String, double>{}; // receivableId -> jumlah dibayar
+    final newTxns = <Transaction>[];
+    var left = amount;
+    for (final r in open) {
+      if (left <= 0) break;
+      final take = left < r.remaining ? left : r.remaining;
+      paid[r.id] = take;
+      left -= take;
+      newTxns.add(Transaction(
+        id: _uuid.v4(),
+        type: TxType.income,
+        amount: take,
+        accountId: accountId,
+        category: 'Terima Piutang',
+        note: personName,
+        linkedReceivableId: r.id,
+        date: when,
+      ));
+    }
+
+    final receivables = _current.receivables
+        .map((r) => paid.containsKey(r.id)
+            ? r.copyWith(remaining: r.remaining - paid[r.id]!)
+            : r)
+        .toList();
+
+    var accounts = _current.accounts;
+    for (final tx in newTxns) {
+      accounts = _applyTx(accounts, tx);
+    }
+
+    await _commit(_current.copyWith(
+      transactions: [...newTxns, ..._current.transactions],
+      accounts: accounts,
+      receivables: receivables,
+    ));
+    return null;
+  }
+  /// rekening. Bagian tiap teman ([shares]) dicatat sebagai piutang dengan
+  /// uang keluar (talangan), dan bagian kita sendiri ([ownerShare]) dicatat
+  /// sebagai pengeluaran biasa. Semua dilakukan atomik.
+  ///
+  /// Net worth tetap untuk porsi teman (kas turun, piutang naik) dan berkurang
+  /// untuk porsi kita (pengeluaran nyata). Mengembalikan `null` bila berhasil,
+  /// atau pesan error.
+  Future<String?> splitBillPayment({
+    required String fundingAccountId,
+    required List<({String name, double amount})> shares,
+    double ownerShare = 0,
+    DateTime? date,
+  }) async {
+    final accMatch = _current.accounts.where((a) => a.id == fundingAccountId);
+    if (accMatch.isEmpty) return 'Rekening sumber tidak ditemukan.';
+    final account = accMatch.first;
+
+    final friendsTotal = shares.fold<double>(0, (s, e) => s + e.amount);
+    final total = friendsTotal + ownerShare;
+    if (total <= 0) return 'Tidak ada tagihan untuk dibayar.';
+    if (total > account.balance) {
+      return 'Saldo ${account.name} tidak cukup '
+          '(butuh ${Fmt.rupiah(total)}, tersedia ${Fmt.rupiah(account.balance)}).';
+    }
+
+    final when = date ?? DateTime.now();
+    final dateLabel = Fmt.date(when);
+    final newReceivables = <Receivable>[];
+    final newTxns = <Transaction>[];
+
+    // Bagian tiap teman: piutang + pengeluaran talangan.
+    for (final s in shares) {
+      if (s.amount <= 0) continue;
+      newReceivables.add(Receivable(
+        id: _uuid.v4(),
+        personName: s.name,
+        remaining: s.amount,
+        note: 'Split bill $dateLabel',
+        createdAt: when,
+      ));
+      newTxns.add(Transaction(
+        id: _uuid.v4(),
+        type: TxType.expense,
+        amount: s.amount,
+        accountId: fundingAccountId,
+        category: 'Talangan',
+        note: 'Split bill ${s.name}',
+        date: when,
+      ));
+    }
+
+    // Bagian kita sendiri: pengeluaran biasa.
+    if (ownerShare > 0) {
+      newTxns.add(Transaction(
+        id: _uuid.v4(),
+        type: TxType.expense,
+        amount: ownerShare,
+        accountId: fundingAccountId,
+        category: 'Split Bill',
+        note: 'Bagian saya',
+        date: when,
+      ));
+    }
+
+    // Terapkan seluruh transaksi ke saldo rekening.
+    var accounts = _current.accounts;
+    for (final tx in newTxns) {
+      accounts = _applyTx(accounts, tx);
+    }
+
+    await _commit(_current.copyWith(
+      accounts: accounts,
+      transactions: [...newTxns, ..._current.transactions],
+      receivables: [..._current.receivables, ...newReceivables],
+    ));
+    return null;
+  }
 
   Future<void> addWish({
     required String name,
@@ -545,17 +842,71 @@ class AppController extends AsyncNotifier<AppState> {
     await _commit(_current.copyWith(wishlist: wishlist));
   }
 
-  /// Catat setoran tabungan untuk sebuah wishlist (menambah [savedAmount]).
+  /// Catat setoran tabungan untuk sebuah wishlist.
   ///
-  /// Ini melacak progres menabung, bukan memindahkan uang nyata — pencatatan
-  /// pengeluaran saat benar-benar membeli dilakukan lewat transaksi biasa.
-  Future<void> contributeToWish(String id, double amount) async {
-    if (amount <= 0) return;
-    final wishlist = _current.wishlist.map((w) {
-      if (w.id != id) return w;
-      return w.copyWith(savedAmount: w.savedAmount + amount);
-    }).toList();
-    await _commit(_current.copyWith(wishlist: wishlist));
+  /// Bila [accountId] diisi, saldo rekening tersebut benar-benar berkurang dan
+  /// tercatat sebagai pengeluaran kategori "Nabung" — uang disisihkan dari
+  /// rekening. Setoran dibatasi agar tidak melebihi sisa target. Saat
+  /// [savedAmount] mencapai harga, wishlist otomatis ditandai sudah dibeli.
+  ///
+  /// Mengembalikan `null` bila berhasil, atau pesan error bila saldo kurang
+  /// atau data tidak ditemukan.
+  Future<String?> contributeToWish(
+    String id,
+    double amount, {
+    String? accountId,
+  }) async {
+    if (amount <= 0) return 'Masukkan jumlah yang valid.';
+
+    final wishMatch = _current.wishlist.where((w) => w.id == id);
+    if (wishMatch.isEmpty) return 'Wishlist tidak ditemukan.';
+    final wish = wishMatch.first;
+
+    // Jangan menabung melebihi sisa target — cukup sampai lunas.
+    final contribution =
+        amount > wish.remainingToSave ? wish.remainingToSave : amount;
+    if (contribution <= 0) return 'Target tabungan sudah terpenuhi.';
+
+    final newSaved = wish.savedAmount + contribution;
+    final reachedTarget = newSaved >= wish.price;
+    final updatedWish = wish.copyWith(
+      savedAmount: newSaved,
+      // Tandai selesai otomatis begitu target tercapai.
+      purchased: reachedTarget ? true : null,
+    );
+    final wishlist =
+        _current.wishlist.map((w) => w.id == id ? updatedWish : w).toList();
+
+    // Tanpa rekening sumber: hanya catat progres tabungan.
+    if (accountId == null) {
+      await _commit(_current.copyWith(wishlist: wishlist));
+      return null;
+    }
+
+    final accMatch = _current.accounts.where((a) => a.id == accountId);
+    if (accMatch.isEmpty) return 'Rekening sumber tidak ditemukan.';
+    final account = accMatch.first;
+    if (contribution > account.balance) {
+      return 'Saldo ${account.name} tidak cukup. '
+          'Tersedia ${Fmt.rupiah(account.balance)}.';
+    }
+
+    final tx = Transaction(
+      id: _uuid.v4(),
+      type: TxType.expense,
+      amount: contribution,
+      accountId: accountId,
+      category: 'Nabung',
+      note: wish.name,
+      date: DateTime.now(),
+    );
+
+    await _commit(_current.copyWith(
+      wishlist: wishlist,
+      transactions: [tx, ..._current.transactions],
+      accounts: _applyTx(_current.accounts, tx),
+    ));
+    return null;
   }
 
   // ---------------------------------------------------------------------------

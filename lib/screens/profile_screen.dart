@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,7 @@ import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../firebase/auth.dart';
 import '../firebase/firebase_config.dart';
+import '../services/notification_service.dart';
 
 /// Layar profil & pengaturan.
 ///
@@ -28,6 +30,10 @@ class ProfileScreen extends ConsumerWidget {
           if (isCloud) _ProfileHeader(user: user),
           const _SectionLabel('Tampilan'),
           _ThemeTile(current: themeMode),
+          if (!kIsWeb) ...[
+            const _SectionLabel('Pengingat'),
+            const _NotificationTile(),
+          ],
           if (isCloud) ...[
             const _SectionLabel('Akun'),
             ListTile(
@@ -147,6 +153,115 @@ class _ThemeTile extends ConsumerWidget {
           title: const Text('Gelap'),
           secondary: const Icon(Icons.dark_mode_outlined),
         ),
+      ],
+    );
+  }
+}
+
+/// Toggle pengingat lokal: minta izin & jadwalkan reminder harian + wishlist.
+class _NotificationTile extends ConsumerStatefulWidget {
+  const _NotificationTile();
+
+  @override
+  ConsumerState<_NotificationTile> createState() => _NotificationTileState();
+}
+
+class _NotificationTileState extends ConsumerState<_NotificationTile> {
+  bool _enabled = false;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final on = await NotificationService.instance.isEnabled();
+    if (mounted) setState(() => _enabled = on);
+  }
+
+  Future<void> _toggle(bool value) async {
+    setState(() => _busy = true);
+    final svc = NotificationService.instance;
+    final messenger = ScaffoldMessenger.of(context);
+    final state = ref.read(appStateProvider).valueOrNull;
+    if (value) {
+      final granted = await svc.requestPermissions();
+      if (granted) {
+        await svc.scheduleDailyReminder(
+          hour: state?.reminderHour ?? 20,
+          minute: state?.reminderMinute ?? 0,
+        );
+        await svc.scheduleWishlistReminders(state?.wishlist ?? const []);
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Pengingat aktif. Atur jamnya di bawah.')));
+      } else {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Izin notifikasi ditolak. Aktifkan di Pengaturan HP.')));
+      }
+    } else {
+      await svc.cancelAll();
+      messenger
+          .showSnackBar(const SnackBar(content: Text('Pengingat dimatikan.')));
+    }
+    await _refresh();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _pickTime() async {
+    final state = ref.read(appStateProvider).valueOrNull;
+    final initial = TimeOfDay(
+      hour: state?.reminderHour ?? 20,
+      minute: state?.reminderMinute ?? 0,
+    );
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      helpText: 'Jam pengingat harian',
+    );
+    if (picked == null || !mounted) return;
+    // Tangkap sebelum await berikutnya untuk hindari akses context lintas async.
+    final messenger = ScaffoldMessenger.of(context);
+    final label = picked.format(context);
+    // Simpan & jadwalkan ulang dengan jam baru.
+    await ref
+        .read(appStateProvider.notifier)
+        .setReminderTime(picked.hour, picked.minute);
+    await NotificationService.instance
+        .scheduleDailyReminder(hour: picked.hour, minute: picked.minute);
+    if (mounted) {
+      setState(() {});
+      messenger.showSnackBar(
+          SnackBar(content: Text('Pengingat harian diatur ke $label.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(appStateProvider).valueOrNull;
+    final time = TimeOfDay(
+      hour: state?.reminderHour ?? 20,
+      minute: state?.reminderMinute ?? 0,
+    );
+    return Column(
+      children: [
+        SwitchListTile(
+          secondary: const Icon(Icons.notifications_active_outlined),
+          title: const Text('Pengingat di HP'),
+          subtitle: const Text(
+              'Ingatkan catat transaksi harian & jadwal menabung'),
+          value: _enabled,
+          onChanged: _busy ? null : _toggle,
+        ),
+        if (_enabled)
+          ListTile(
+            leading: const Icon(Icons.schedule_outlined),
+            title: const Text('Jam pengingat harian'),
+            subtitle: Text('Setiap hari pukul ${time.format(context)}'),
+            trailing: const Icon(Icons.edit_outlined, size: 18),
+            onTap: _busy ? null : _pickTime,
+          ),
       ],
     );
   }

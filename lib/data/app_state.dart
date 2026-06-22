@@ -22,6 +22,8 @@ class AppState {
     this.wishlist = const [],
     this.recurring = const [],
     this.themeMode = 'system',
+    this.reminderHour = 20,
+    this.reminderMinute = 0,
   });
 
   final List<Account> accounts;
@@ -34,6 +36,10 @@ class AppState {
 
   /// Preferensi tema: 'system', 'light', atau 'dark'. Tersinkron per akun.
   final String themeMode;
+
+  /// Jam & menit pengingat harian "catat transaksi" (default 20:00).
+  final int reminderHour;
+  final int reminderMinute;
 
   // --- Ringkasan kekayaan bersih ---
 
@@ -68,6 +74,8 @@ class AppState {
     List<WishlistItem>? wishlist,
     List<RecurringTransaction>? recurring,
     String? themeMode,
+    int? reminderHour,
+    int? reminderMinute,
   }) {
     return AppState(
       accounts: accounts ?? this.accounts,
@@ -78,6 +86,8 @@ class AppState {
       wishlist: wishlist ?? this.wishlist,
       recurring: recurring ?? this.recurring,
       themeMode: themeMode ?? this.themeMode,
+      reminderHour: reminderHour ?? this.reminderHour,
+      reminderMinute: reminderMinute ?? this.reminderMinute,
     );
   }
 
@@ -90,6 +100,8 @@ class AppState {
         'wishlist': wishlist.map((e) => e.toJson()).toList(),
         'recurring': recurring.map((e) => e.toJson()).toList(),
         'themeMode': themeMode,
+        'reminderHour': reminderHour,
+        'reminderMinute': reminderMinute,
       };
 
   factory AppState.fromJson(Map<String, dynamic> json) {
@@ -103,6 +115,8 @@ class AppState {
       recurring:
           _parseList(json['recurring'], RecurringTransaction.fromJson),
       themeMode: json['themeMode'] as String? ?? 'system',
+      reminderHour: (json['reminderHour'] as num?)?.toInt() ?? 20,
+      reminderMinute: (json['reminderMinute'] as num?)?.toInt() ?? 0,
     );
   }
 }

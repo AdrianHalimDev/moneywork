@@ -10,7 +10,9 @@ import 'firebase/auth.dart';
 import 'firebase/firebase_config.dart';
 import 'firebase_options.dart';
 import 'router.dart';
+import 'screens/complete_account_screen.dart';
 import 'screens/login_screen.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +24,8 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
+  // Siapkan notifikasi lokal (no-op di web).
+  await NotificationService.instance.init();
   runApp(const ProviderScope(child: MoneyWorkApp()));
 }
 
@@ -73,7 +77,12 @@ class _AuthGate extends ConsumerWidget {
       error: (e, _) => Scaffold(
         body: Center(child: Text('Gagal memuat sesi: $e')),
       ),
-      data: (user) => user == null ? const LoginScreen() : child,
+      data: (user) {
+        if (user == null) return const LoginScreen();
+        // Akun Google yang belum punya kata sandi wajib melengkapi dulu.
+        if (!user.hasPassword) return CompleteAccountScreen(user: user);
+        return child;
+      },
     );
   }
 }
