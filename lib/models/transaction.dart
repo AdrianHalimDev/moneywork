@@ -29,6 +29,7 @@ class Transaction {
     this.note = '',
     this.linkedDebtId,
     this.linkedReceivableId,
+    this.linkedTransferId,
     required this.date,
   });
 
@@ -47,6 +48,12 @@ class Transaction {
   /// Jika transaksi ini adalah penerimaan piutang, menyimpan id piutang
   /// terkait agar penghapusan transaksi bisa mengembalikan sisa piutang.
   final String? linkedReceivableId;
+
+  /// Jika transaksi ini adalah biaya admin sebuah transfer, menyimpan id
+  /// transfer terkait. Admin dicatat sebagai pengeluaran terpisah (kategori
+  /// "Biaya Admin") agar tetap tertracking, dan ikut terhapus bila transfernya
+  /// dihapus.
+  final String? linkedTransferId;
   final DateTime date;
 
   /// Dampak ke saldo akun [accountId].
@@ -66,6 +73,7 @@ class Transaction {
     String? note,
     String? linkedDebtId,
     String? linkedReceivableId,
+    String? linkedTransferId,
     DateTime? date,
   }) {
     return Transaction(
@@ -78,6 +86,7 @@ class Transaction {
       note: note ?? this.note,
       linkedDebtId: linkedDebtId ?? this.linkedDebtId,
       linkedReceivableId: linkedReceivableId ?? this.linkedReceivableId,
+      linkedTransferId: linkedTransferId ?? this.linkedTransferId,
       date: date ?? this.date,
     );
   }
@@ -92,6 +101,7 @@ class Transaction {
         'note': note,
         'linkedDebtId': linkedDebtId,
         'linkedReceivableId': linkedReceivableId,
+        'linkedTransferId': linkedTransferId,
         'date': date.toIso8601String(),
       };
 
@@ -105,6 +115,7 @@ class Transaction {
         note: json['note'] as String? ?? '',
         linkedDebtId: json['linkedDebtId'] as String?,
         linkedReceivableId: json['linkedReceivableId'] as String?,
+        linkedTransferId: json['linkedTransferId'] as String?,
         date: DateTime.parse(json['date'] as String),
       );
 }

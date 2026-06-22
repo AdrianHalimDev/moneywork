@@ -587,7 +587,9 @@ Future<void> showTransactionDialog(
   final amountCtrl = TextEditingController();
   final categoryCtrl = TextEditingController();
   final noteCtrl = TextEditingController();
+  final adminFeeCtrl = TextEditingController();
   var type = TxType.expense;
+  var useAdminFee = false;
   var accountId = state.accounts.first.id;
   String? toAccountId =
       state.accounts.length > 1 ? state.accounts[1].id : null;
@@ -682,6 +684,56 @@ Future<void> showTransactionDialog(
                     return null;
                   },
                 ),
+                SwitchListTile(
+                  value: useAdminFee,
+                  onChanged: (v) => setState(() => useAdminFee = v),
+                  title: const Text('Ada biaya admin'),
+                  subtitle: const Text(
+                      'Dipotong dari akun sumber, dicatat terpisah'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+                if (useAdminFee)
+                  Builder(builder: (context) {
+                    final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
+                    final fee = double.tryParse(adminFeeCtrl.text.trim()) ?? 0;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          controller: adminFeeCtrl,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Biaya admin',
+                            prefixText: 'Rp ',
+                            helperText:
+                                'Tujuan tetap terima jumlah penuh; admin keluar dari sumber',
+                          ),
+                          validator: (v) {
+                            if (!useAdminFee) return null;
+                            final n = double.tryParse((v ?? '').trim());
+                            if (n == null || n <= 0) {
+                              return 'Masukkan biaya admin valid';
+                            }
+                            return null;
+                          },
+                        ),
+                        if (amt > 0 && fee > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                                'Total keluar dari sumber: ${Fmt.rupiah(amt + fee)}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.expense)),
+                          ),
+                      ],
+                    );
+                  }),
               ] else ...[
                 const SizedBox(height: 12),
                 TextFormField(
@@ -732,6 +784,9 @@ Future<void> showTransactionDialog(
                               type == TxType.transfer ? toAccountId : null,
                           category: categoryCtrl.text.trim(),
                           note: noteCtrl.text.trim(),
+                          adminFee: type == TxType.transfer && useAdminFee
+                              ? (double.tryParse(adminFeeCtrl.text.trim()) ?? 0)
+                              : 0,
                           date: date,
                         );
                     if (error != null) {

@@ -18,16 +18,20 @@ class MonthlyExpensesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(appStateProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Transaksi Bulanan')),
-      floatingActionButton: async.maybeWhen(
-        data: (state) => state.accounts.isEmpty
-            ? null
-            : FloatingActionButton.extended(
-                onPressed: () => showRecurringDialog(context, ref, state),
-                icon: const Icon(Icons.add),
-                label: const Text('Template'),
-              ),
-        orElse: () => null,
+      appBar: AppBar(
+        title: const Text('Transaksi Bulanan'),
+        actions: [
+          async.maybeWhen(
+            data: (state) => state.accounts.isEmpty
+                ? const SizedBox.shrink()
+                : IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Tambah template',
+                    onPressed: () => showRecurringDialog(context, ref, state),
+                  ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),

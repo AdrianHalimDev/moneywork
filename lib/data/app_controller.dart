@@ -71,8 +71,39 @@ class AppController extends AsyncNotifier<AppState> {
   }
 
   Future<void> _commit(AppState next) async {
+    // Update state secara optimistic agar UI langsung responsif, lalu
+    // persist di latar tanpa memblok pemanggil. Penting: backend Firestore
+    // menyelesaikan Future tulisannya hanya setelah server mengakui, sehingga
+    // jika kita meng-await save di sini, alur UI (mis. menutup dialog) akan
+    // menggantung saat jaringan lambat. Save diserialkan lewat [_enqueueSave]
+    // supaya state terbaru selalu menang dan tulisan tidak balapan.
     state = AsyncData(next);
-    await _storage.save(next);
+    _enqueueSave(next);
+  }
+
+  // Antrean simpan: hanya satu tulisan berjalan; commit yang datang saat
+  // tulisan berlangsung akan menimpa target sehingga state final yang disimpan.
+  AppState? _pendingSave;
+  bool _saving = false;
+
+  void _enqueueSave(AppState next) {
+    _pendingSave = next;
+    if (_saving) return;
+    _saving = true;
+    Future(() async {
+      while (_pendingSave != null) {
+        final toSave = _pendingSave!;
+        _pendingSave = null;
+        try {
+          await _storage.save(toSave);
+        } catch (_) {
+          // Abaikan kegagalan tulisan sesaat; commit berikutnya akan
+          // menyimpan state terbaru, dan Firestore menyinkronkan ulang
+          // dari cache offline begitu kembali online.
+        }
+      }
+      _saving = false;
+    });
   }
 
   AppState get _current => state.valueOrNull ?? const AppState();
@@ -167,6 +198,12 @@ class AppController extends AsyncNotifier<AppState> {
   ///
   /// Mengembalikan `null` jika berhasil, atau pesan error bila saldo akun
   /// tidak cukup untuk pengeluaran/transfer (saldo tidak boleh minus).
+  ///
+  /// [adminFee] hanya berlaku untuk transfer: biaya admin dicatat sebagai
+  /// pengeluaran terpisah (kategori "Biaya Admin") dari akun sumber dan tertaut
+  /// ke transfernya. Contoh: top up GoPay 50rb dengan admin 1rb → BCA keluar
+  /// 51rb total (50rb pindah + 1rb admin), GoPay terima 50rb. Memisahkan admin
+  /// dari transfer membuatnya tetap tertracking di laporan per kategori.
   Future<String?> addTransaction({
     required TxType type,
     required double amount,
@@ -174,18 +211,22 @@ class AppController extends AsyncNotifier<AppState> {
     String? toAccountId,
     String category = '',
     String note = '',
+    double adminFee = 0,
     DateTime? date,
   }) async {
-    // Validasi saldo untuk pengeluaran & transfer.
+    final fee = type == TxType.transfer && adminFee > 0 ? adminFee : 0.0;
+
+    // Validasi saldo untuk pengeluaran & transfer (transfer termasuk admin).
     if (type != TxType.income) {
       final source =
           _current.accounts.firstWhere((a) => a.id == accountId);
-      if (amount > source.balance) {
+      if (amount + fee > source.balance) {
         return 'Saldo ${source.name} tidak cukup. '
             'Tersedia ${Fmt.rupiah(source.balance)}.';
       }
     }
 
+    final when = date ?? DateTime.now();
     final tx = Transaction(
       id: _uuid.v4(),
       type: type,
@@ -194,22 +235,52 @@ class AppController extends AsyncNotifier<AppState> {
       toAccountId: toAccountId,
       category: category,
       note: note,
-      date: date ?? DateTime.now(),
+      date: when,
     );
+
+    final newTxns = <Transaction>[tx];
+    if (fee > 0) {
+      // Biaya admin: pengeluaran terpisah dari akun sumber, tertaut ke transfer.
+      newTxns.add(Transaction(
+        id: _uuid.v4(),
+        type: TxType.expense,
+        amount: fee,
+        accountId: accountId,
+        category: 'Biaya Admin',
+        note: note.isEmpty ? 'Admin transfer' : 'Admin: $note',
+        linkedTransferId: tx.id,
+        date: when,
+      ));
+    }
+
+    var accounts = _current.accounts;
+    for (final t in newTxns) {
+      accounts = _applyTx(accounts, t);
+    }
     await _commit(_current.copyWith(
-      transactions: [tx, ..._current.transactions],
-      accounts: _applyTx(_current.accounts, tx),
+      transactions: [...newTxns, ..._current.transactions],
+      accounts: accounts,
     ));
     return null;
   }
 
   /// Hapus transaksi dan kembalikan dampaknya ke saldo akun.
   /// Jika transaksi adalah pembayaran utang / penerimaan piutang,
-  /// sisa utang / piutang dipulihkan.
+  /// sisa utang / piutang dipulihkan. Jika transaksi adalah transfer yang
+  /// punya biaya admin, transaksi admin tertaut ikut terhapus (cascade).
   Future<void> deleteTransaction(String id) async {
     final tx = _current.transactions.firstWhere((t) => t.id == id);
+
+    // Kumpulkan transaksi yang akan dihapus: transaksi ini + biaya admin
+    // tertaut (jika transfer). Biaya admin tak bisa berdiri sendiri.
+    final removeIds = <String>{id};
+    for (final t in _current.transactions) {
+      if (t.linkedTransferId == id) removeIds.add(t.id);
+    }
+    final toRemove =
+        _current.transactions.where((t) => removeIds.contains(t.id)).toList();
     final transactions =
-        _current.transactions.where((t) => t.id != id).toList();
+        _current.transactions.where((t) => !removeIds.contains(t.id)).toList();
 
     // Pulihkan sisa utang bila ini transaksi pembayaran utang.
     var debts = _current.debts;
@@ -231,9 +302,14 @@ class AppController extends AsyncNotifier<AppState> {
           .toList();
     }
 
+    var accounts = _current.accounts;
+    for (final t in toRemove) {
+      accounts = _applyTx(accounts, t, reverse: true);
+    }
+
     await _commit(_current.copyWith(
       transactions: transactions,
-      accounts: _applyTx(_current.accounts, tx, reverse: true),
+      accounts: accounts,
       debts: debts,
       receivables: receivables,
     ));
@@ -289,6 +365,45 @@ class AppController extends AsyncNotifier<AppState> {
       updatedAt: DateTime.now(),
     ));
     return null;
+  }
+
+  /// Perbarui harga semua investasi yang mendukung harga otomatis sekaligus.
+  ///
+  /// Mengambil harga secara paralel lalu menyimpan dalam satu commit agar
+  /// efisien (hanya satu tulisan storage). Mengembalikan ringkasan jumlah yang
+  /// berhasil diperbarui, gagal, dan total yang dicoba.
+  Future<({int updated, int failed, int total})> refreshAllPrices() async {
+    final service = ref.read(priceServiceProvider);
+    final targets = _current.investments
+        .where((i) => i.ticker.trim().isNotEmpty && service.supportsAuto(i.type))
+        .toList();
+    if (targets.isEmpty) return (updated: 0, failed: 0, total: 0);
+
+    final results = await Future.wait(
+      targets.map((i) async => (id: i.id, result: await service.fetch(i))),
+    );
+
+    final priceById = <String, double>{};
+    var failed = 0;
+    for (final r in results) {
+      if (r.result.ok) {
+        priceById[r.id] = r.result.price;
+      } else {
+        failed++;
+      }
+    }
+
+    if (priceById.isNotEmpty) {
+      final now = DateTime.now();
+      final investments = _current.investments
+          .map((i) => priceById.containsKey(i.id)
+              ? i.copyWith(currentPrice: priceById[i.id]!, updatedAt: now)
+              : i)
+          .toList();
+      await _commit(_current.copyWith(investments: investments));
+    }
+
+    return (updated: priceById.length, failed: failed, total: targets.length);
   }
 
   Future<void> deleteInvestment(String id) async {

@@ -22,11 +22,29 @@ class InvestmentsScreen extends ConsumerWidget {
         title: const Text('Investasi'),
         actions: [
           async.maybeWhen(
-            data: (state) => IconButton(
-              icon: const Icon(Icons.candlestick_chart_outlined),
-              tooltip: 'Transaksi Saham (RDN)',
-              onPressed: () => showStockTradeDialog(context, ref, state),
-            ),
+            data: (state) {
+              final priceSvc = ref.read(priceServiceProvider);
+              final autoCount = state.investments
+                  .where((i) =>
+                      i.ticker.trim().isNotEmpty && priceSvc.supportsAuto(i.type))
+                  .length;
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (autoCount > 0)
+                    IconButton(
+                      icon: const Icon(Icons.sync),
+                      tooltip: 'Perbarui semua harga ($autoCount)',
+                      onPressed: () => _refreshAll(context, ref),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.candlestick_chart_outlined),
+                    tooltip: 'Transaksi Saham (RDN)',
+                    onPressed: () => showStockTradeDialog(context, ref, state),
+                  ),
+                ],
+              );
+            },
             orElse: () => const SizedBox.shrink(),
           ),
         ],
@@ -43,6 +61,21 @@ class InvestmentsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Ambil harga semua aset yang mendukung harga otomatis sekaligus.
+Future<void> _refreshAll(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.showSnackBar(const SnackBar(
+      content: Text('Memperbarui harga...'),
+      duration: Duration(seconds: 1)));
+  final r = await ref.read(appStateProvider.notifier).refreshAllPrices();
+  final msg = r.total == 0
+      ? 'Tidak ada aset dengan harga otomatis.'
+      : r.failed == 0
+          ? '${r.updated} harga diperbarui.'
+          : '${r.updated} diperbarui, ${r.failed} gagal dari ${r.total}.';
+  messenger.showSnackBar(SnackBar(content: Text(msg)));
 }
 
 class _Body extends ConsumerWidget {
@@ -174,9 +207,14 @@ class _InvestmentTile extends ConsumerWidget {
             children: [
               Text(Fmt.rupiah(inv.marketValue),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(Fmt.rupiahSigned(inv.gain),
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
               Text(
                   '${positive ? '+' : ''}${inv.gainPercent.toStringAsFixed(1)}%',
-                  style: TextStyle(color: color, fontSize: 12)),
+                  style: TextStyle(color: color, fontSize: 11)),
             ],
           ),
         ],

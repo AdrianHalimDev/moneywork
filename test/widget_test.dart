@@ -505,6 +505,128 @@ void main() {
     });
   });
 
+  group('Transfer dengan biaya admin', () {
+    AppState seed() => AppState(
+          accounts: [
+            Account(
+                id: 'bca',
+                name: 'BCA',
+                type: AccountType.bank,
+                balance: 1000000,
+                createdAt: now),
+            Account(
+                id: 'gopay',
+                name: 'GoPay',
+                type: AccountType.ewallet,
+                balance: 0,
+                createdAt: now),
+          ],
+        );
+
+    test('admin keluar dari sumber, tujuan terima penuh, tercatat terpisah',
+        () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seed())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      final err = await container.read(appStateProvider.notifier).addTransaction(
+            type: TxType.transfer,
+            amount: 50000,
+            accountId: 'bca',
+            toAccountId: 'gopay',
+            adminFee: 1000,
+          );
+      expect(err, isNull);
+
+      final state = container.read(appStateProvider).value!;
+      final bca = state.accounts.firstWhere((a) => a.id == 'bca');
+      final gopay = state.accounts.firstWhere((a) => a.id == 'gopay');
+      // BCA keluar 51rb (50rb transfer + 1rb admin), GoPay terima penuh 50rb.
+      expect(bca.balance, 949000);
+      expect(gopay.balance, 50000);
+
+      // Admin tercatat sebagai pengeluaran terpisah berkategori "Biaya Admin".
+      final admin = state.transactions
+          .where((t) => t.type == TxType.expense && t.category == 'Biaya Admin')
+          .toList();
+      expect(admin.length, 1);
+      expect(admin.first.amount, 1000);
+      expect(admin.first.accountId, 'bca');
+      // Tertaut ke transfernya.
+      final transfer =
+          state.transactions.firstWhere((t) => t.type == TxType.transfer);
+      expect(admin.first.linkedTransferId, transfer.id);
+    });
+
+    test('hapus transfer ikut menghapus biaya admin (cascade)', () async {
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(seed())),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+      final ctrl = container.read(appStateProvider.notifier);
+
+      await ctrl.addTransaction(
+        type: TxType.transfer,
+        amount: 50000,
+        accountId: 'bca',
+        toAccountId: 'gopay',
+        adminFee: 1000,
+      );
+      final transferId = container
+          .read(appStateProvider)
+          .value!
+          .transactions
+          .firstWhere((t) => t.type == TxType.transfer)
+          .id;
+
+      await ctrl.deleteTransaction(transferId);
+
+      final state = container.read(appStateProvider).value!;
+      // Kedua transaksi terhapus & saldo pulih sepenuhnya.
+      expect(state.transactions, isEmpty);
+      expect(state.accounts.firstWhere((a) => a.id == 'bca').balance, 1000000);
+      expect(state.accounts.firstWhere((a) => a.id == 'gopay').balance, 0);
+    });
+
+    test('admin ditolak bila saldo tak cukup untuk transfer + admin', () async {
+      final tight = AppState(accounts: [
+        Account(
+            id: 'bca',
+            name: 'BCA',
+            type: AccountType.bank,
+            balance: 50500,
+            createdAt: now),
+        Account(
+            id: 'gopay',
+            name: 'GoPay',
+            type: AccountType.ewallet,
+            balance: 0,
+            createdAt: now),
+      ]);
+      final container = ProviderContainer(overrides: [
+        storageProvider.overrideWithValue(InMemoryStorage(tight)),
+      ]);
+      addTearDown(container.dispose);
+      await container.read(appStateProvider.future);
+
+      // 50rb + 1rb admin = 51rb > 50.5rb tersedia.
+      final err = await container.read(appStateProvider.notifier).addTransaction(
+            type: TxType.transfer,
+            amount: 50000,
+            accountId: 'bca',
+            toAccountId: 'gopay',
+            adminFee: 1000,
+          );
+      expect(err, isNotNull);
+      final state = container.read(appStateProvider).value!;
+      expect(state.transactions, isEmpty);
+      expect(state.accounts.firstWhere((a) => a.id == 'bca').balance, 50500);
+    });
+  });
+
   group('Split bill', () {
     test('bagi rata PPN proporsional, jumlah per orang = grand total', () {
       // A pesan nasi goreng 20rb, B pesan 15rb. PPN 11%, tanpa service/diskon.
