@@ -185,7 +185,7 @@ class _WishTile extends ConsumerWidget {
   Future<void> _showContribute(BuildContext context, WidgetRef ref) async {
     final ctrl = TextEditingController(
         text: item.monthlySaving > 0
-            ? item.monthlySaving.toStringAsFixed(0)
+            ? Fmt.groupInput(item.monthlySaving)
             : '');
     final formKey = GlobalKey<FormState>();
     final accounts =
@@ -217,10 +217,11 @@ class _WishTile extends ConsumerWidget {
                   controller: ctrl,
                   autofocus: true,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [ThousandsInputFormatter()],
                   decoration: const InputDecoration(
                       labelText: 'Jumlah ditabung', prefixText: 'Rp '),
                   validator: (v) {
-                    final n = double.tryParse((v ?? '').trim());
+                    final n = Fmt.tryParseInput(v ?? '');
                     if (n == null || n <= 0) return 'Masukkan jumlah valid';
                     return null;
                   },
@@ -259,7 +260,7 @@ class _WishTile extends ConsumerWidget {
                     .read(appStateProvider.notifier)
                     .contributeToWish(
                       item.id,
-                      double.parse(ctrl.text.trim()),
+                      Fmt.tryParseInput(ctrl.text)!,
                       accountId: accountId,
                     );
                 if (error != null) {
@@ -288,11 +289,11 @@ Future<void> showWishDialog(
 }) async {
   final nameCtrl = TextEditingController(text: existing?.name ?? '');
   final priceCtrl = TextEditingController(
-      text: existing != null ? existing.price.toStringAsFixed(0) : '');
+      text: existing != null ? Fmt.groupInput(existing.price) : '');
   final urlCtrl = TextEditingController(text: existing?.url ?? '');
   final monthlyCtrl = TextEditingController(
       text: existing != null && existing.monthlySaving > 0
-          ? existing.monthlySaving.toStringAsFixed(0)
+          ? Fmt.groupInput(existing.monthlySaving)
           : '');
   final durationCtrl = TextEditingController(
       text: existing != null && existing.durationMonths > 0
@@ -309,8 +310,8 @@ Future<void> showWishDialog(
 
   // Kalkulator dua-arah: hitung jangka waktu dari tabungan bulanan.
   void recalcDuration() {
-    final price = double.tryParse(priceCtrl.text.trim()) ?? 0;
-    final monthly = double.tryParse(monthlyCtrl.text.trim()) ?? 0;
+    final price = Fmt.tryParseInput(priceCtrl.text) ?? 0;
+    final monthly = Fmt.tryParseInput(monthlyCtrl.text) ?? 0;
     if (price > 0 && monthly > 0) {
       durationCtrl.text = (price / monthly).ceil().toString();
     }
@@ -318,10 +319,10 @@ Future<void> showWishDialog(
 
   // Kalkulator dua-arah: hitung tabungan bulanan dari jangka waktu.
   void recalcMonthly() {
-    final price = double.tryParse(priceCtrl.text.trim()) ?? 0;
+    final price = Fmt.tryParseInput(priceCtrl.text) ?? 0;
     final months = int.tryParse(durationCtrl.text.trim()) ?? 0;
     if (price > 0 && months > 0) {
-      monthlyCtrl.text = (price / months).ceil().toString();
+      monthlyCtrl.text = Fmt.groupInput((price / months).ceil());
     }
   }
 
@@ -359,10 +360,11 @@ Future<void> showWishDialog(
               TextFormField(
                 controller: priceCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsInputFormatter()],
                 decoration: const InputDecoration(
                     labelText: 'Perkiraan harga', prefixText: 'Rp '),
                 validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
+                  final n = Fmt.tryParseInput(v ?? '');
                   if (n == null || n < 0) return 'Angka tidak valid';
                   return null;
                 },
@@ -434,6 +436,7 @@ Future<void> showWishDialog(
                     child: TextFormField(
                       controller: monthlyCtrl,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [ThousandsInputFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Tabung/bln', prefixText: 'Rp '),
                       // Isi tabungan -> hitung durasi otomatis.
@@ -455,7 +458,7 @@ Future<void> showWishDialog(
               ),
               const SizedBox(height: 4),
               Builder(builder: (context) {
-                final monthly = double.tryParse(monthlyCtrl.text.trim()) ?? 0;
+                final monthly = Fmt.tryParseInput(monthlyCtrl.text) ?? 0;
                 final months = int.tryParse(durationCtrl.text.trim()) ?? 0;
                 if (monthly <= 0 || months <= 0) {
                   return Text(
@@ -517,9 +520,9 @@ Future<void> showWishDialog(
                   FilledButton(
                     onPressed: () {
                       if (!formKey.currentState!.validate()) return;
-                      final price = double.parse(priceCtrl.text.trim());
+                      final price = Fmt.tryParseInput(priceCtrl.text)!;
                       final monthly =
-                          double.tryParse(monthlyCtrl.text.trim()) ?? 0;
+                          Fmt.tryParseInput(monthlyCtrl.text) ?? 0;
                       final months =
                           int.tryParse(durationCtrl.text.trim()) ?? 0;
                       final ctrl = ref.read(appStateProvider.notifier);

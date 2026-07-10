@@ -412,7 +412,7 @@ Future<void> showAccountDialog(
 }) async {
   final nameCtrl = TextEditingController(text: existing?.name ?? '');
   final balanceCtrl = TextEditingController(
-      text: existing != null ? existing.balance.toStringAsFixed(0) : '');
+      text: existing != null ? Fmt.groupInput(existing.balance) : '');
   final numberCtrl =
       TextEditingController(text: existing?.accountNumber ?? '');
   var type = existing?.type ?? AccountType.bank;
@@ -481,13 +481,14 @@ Future<void> showAccountDialog(
               TextFormField(
                 controller: balanceCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsInputFormatter()],
                 decoration: InputDecoration(
                   labelText: isEdit ? 'Saldo' : 'Saldo awal',
                   prefixText: 'Rp ',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return null;
-                  return double.tryParse(v.trim()) == null
+                  return Fmt.tryParseInput(v) == null
                       ? 'Angka tidak valid'
                       : null;
                 },
@@ -519,7 +520,7 @@ Future<void> showAccountDialog(
                     onPressed: () {
                       if (!formKey.currentState!.validate()) return;
                       final balance =
-                          double.tryParse(balanceCtrl.text.trim()) ?? 0;
+                          Fmt.tryParseInput(balanceCtrl.text) ?? 0;
                       // Nomor rekening tidak berlaku untuk akun tunai.
                       final number = type == AccountType.cash
                           ? ''
@@ -638,6 +639,7 @@ Future<void> showTransactionDialog(
                   controller: amountCtrl,
                   autofocus: true,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [ThousandsInputFormatter()],
                   decoration: InputDecoration(
                     labelText: 'Jumlah',
                     prefixText: 'Rp ',
@@ -646,7 +648,7 @@ Future<void> showTransactionDialog(
                         : 'Saldo ${source.name}: ${Fmt.rupiah(source.balance)}',
                   ),
                   validator: (v) {
-                    final n = double.tryParse((v ?? '').trim());
+                    final n = Fmt.tryParseInput(v ?? '');
                     if (n == null || n <= 0) return 'Masukkan jumlah valid';
                     if (type != TxType.income && n > source.balance) {
                       return 'Melebihi saldo (${Fmt.rupiah(source.balance)})';
@@ -695,14 +697,15 @@ Future<void> showTransactionDialog(
                 ),
                 if (useAdminFee)
                   Builder(builder: (context) {
-                    final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
-                    final fee = double.tryParse(adminFeeCtrl.text.trim()) ?? 0;
+                    final amt = Fmt.tryParseInput(amountCtrl.text) ?? 0;
+                    final fee = Fmt.tryParseInput(adminFeeCtrl.text) ?? 0;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TextFormField(
                           controller: adminFeeCtrl,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [ThousandsInputFormatter()],
                           onChanged: (_) => setState(() {}),
                           decoration: const InputDecoration(
                             labelText: 'Biaya admin',
@@ -712,7 +715,7 @@ Future<void> showTransactionDialog(
                           ),
                           validator: (v) {
                             if (!useAdminFee) return null;
-                            final n = double.tryParse((v ?? '').trim());
+                            final n = Fmt.tryParseInput(v ?? '');
                             if (n == null || n <= 0) {
                               return 'Masukkan biaya admin valid';
                             }
@@ -771,7 +774,7 @@ Future<void> showTransactionDialog(
                 child: FilledButton(
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
-                    final amount = double.parse(amountCtrl.text.trim());
+                    final amount = Fmt.tryParseInput(amountCtrl.text)!;
                     final messenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(context);
                     final error = await ref
@@ -785,7 +788,7 @@ Future<void> showTransactionDialog(
                           category: categoryCtrl.text.trim(),
                           note: noteCtrl.text.trim(),
                           adminFee: type == TxType.transfer && useAdminFee
-                              ? (double.tryParse(adminFeeCtrl.text.trim()) ?? 0)
+                              ? (Fmt.tryParseInput(adminFeeCtrl.text) ?? 0)
                               : 0,
                           date: date,
                         );

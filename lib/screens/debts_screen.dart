@@ -204,6 +204,7 @@ Future<void> showPayDebtDialog(
                   controller: amountCtrl,
                   autofocus: true,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [ThousandsInputFormatter()],
                   decoration: InputDecoration(
                     labelText: 'Jumlah bayar',
                     prefixText: 'Rp ',
@@ -211,7 +212,7 @@ Future<void> showPayDebtDialog(
                         'Saldo ${source.name}: ${Fmt.rupiah(source.balance)}',
                   ),
                   validator: (v) {
-                    final n = double.tryParse((v ?? '').trim());
+                    final n = Fmt.tryParseInput(v ?? '');
                     if (n == null || n <= 0) return 'Masukkan jumlah valid';
                     if (n > debt.remaining) {
                       return 'Melebihi sisa utang (${Fmt.rupiah(debt.remaining)})';
@@ -241,7 +242,7 @@ Future<void> showPayDebtDialog(
                 child: FilledButton(
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
-                    final amount = double.parse(amountCtrl.text.trim());
+                    final amount = Fmt.tryParseInput(amountCtrl.text)!;
                     final messenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(context);
                     final error =
@@ -282,10 +283,10 @@ Future<void> showDebtDialog(
 }) async {
   final nameCtrl = TextEditingController(text: existing?.name ?? '');
   final remainingCtrl = TextEditingController(
-      text: existing != null ? existing.remaining.toStringAsFixed(0) : '');
+      text: existing != null ? Fmt.groupInput(existing.remaining) : '');
   final monthlyCtrl = TextEditingController(
       text: existing != null && existing.monthlyPayment > 0
-          ? existing.monthlyPayment.toStringAsFixed(0)
+          ? Fmt.groupInput(existing.monthlyPayment)
           : '');
   var type = existing?.type ?? DebtType.loan;
   DateTime? dueDate = existing?.dueDate;
@@ -341,10 +342,11 @@ Future<void> showDebtDialog(
               TextFormField(
                 controller: remainingCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsInputFormatter()],
                 decoration: const InputDecoration(
                     labelText: 'Sisa utang', prefixText: 'Rp '),
                 validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
+                  final n = Fmt.tryParseInput(v ?? '');
                   if (n == null || n < 0) return 'Angka tidak valid';
                   return null;
                 },
@@ -353,6 +355,7 @@ Future<void> showDebtDialog(
               TextFormField(
                 controller: monthlyCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsInputFormatter()],
                 decoration: const InputDecoration(
                     labelText: 'Cicilan per bulan (opsional)',
                     prefixText: 'Rp '),
@@ -404,9 +407,9 @@ Future<void> showDebtDialog(
                     onPressed: () {
                       if (!formKey.currentState!.validate()) return;
                       final remaining =
-                          double.parse(remainingCtrl.text.trim());
+                          Fmt.tryParseInput(remainingCtrl.text)!;
                       final monthly =
-                          double.tryParse(monthlyCtrl.text.trim()) ?? 0;
+                          Fmt.tryParseInput(monthlyCtrl.text) ?? 0;
                       final ctrl = ref.read(appStateProvider.notifier);
                       if (isEdit) {
                         ctrl.updateDebt(existing.copyWith(

@@ -28,6 +28,12 @@ export default {
     if (!symbol) {
       return json({ error: "Parameter 'symbol' wajib diisi." }, 400, cors);
     }
+    // Hanya izinkan format kode saham yang wajar (huruf/angka, opsional sufiks
+    // .JK). Ini mencegah penyalahgunaan worker untuk meneruskan input arbitrer
+    // ke Yahoo — worker hanya boleh menanyakan kode saham, bukan jalur lain.
+    if (!/^[A-Z0-9]{1,10}(\.JK)?$/.test(symbol)) {
+      return json({ error: "Format kode saham tidak valid." }, 400, cors);
+    }
 
     try {
       const ySymbol = symbol.endsWith(".JK") ? symbol : `${symbol}.JK`;

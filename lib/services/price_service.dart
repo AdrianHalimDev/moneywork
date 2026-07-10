@@ -56,8 +56,11 @@ class PriceService {
         _ => const PriceResult.failure(
             'Harga otomatis belum tersedia untuk jenis ini.'),
       };
-    } catch (e) {
-      return PriceResult.failure('Gagal mengambil harga: $e');
+    } catch (_) {
+      // Jangan sertakan exception mentah: pesannya membocorkan URL endpoint
+      // (mis. saat offline). Cukup pesan ramah yang menyarankan cek koneksi.
+      return const PriceResult.failure(
+          'Gagal mengambil harga. Periksa koneksi internetmu.');
     }
   }
 

@@ -41,7 +41,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
   double get _ppnRate => (double.tryParse(_ppnCtrl.text.trim()) ?? 0) / 100;
   double get _serviceRate =>
       (double.tryParse(_serviceCtrl.text.trim()) ?? 0) / 100;
-  double get _discount => double.tryParse(_discountCtrl.text.trim()) ?? 0;
+  double get _discount => Fmt.tryParseInput(_discountCtrl.text) ?? 0;
 
   BillResult _compute() {
     return BillSplitter.calculate(
@@ -101,10 +101,11 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
               TextFormField(
                 controller: priceCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsInputFormatter()],
                 decoration:
                     const InputDecoration(labelText: 'Harga', prefixText: 'Rp '),
                 validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
+                  final n = Fmt.tryParseInput(v ?? '');
                   if (n == null || n <= 0) return 'Harga tidak valid';
                   return null;
                 },
@@ -129,7 +130,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                 context,
                 BillItem(
                   name: nameCtrl.text.trim(),
-                  price: double.parse(priceCtrl.text.trim()),
+                  price: Fmt.tryParseInput(priceCtrl.text)!,
                   qty: int.tryParse(qtyCtrl.text.trim()) ?? 1,
                 ),
               );
@@ -492,6 +493,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
             TextField(
               controller: _discountCtrl,
               keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsInputFormatter()],
               decoration: const InputDecoration(
                   labelText: 'Diskon', prefixText: 'Rp ', isDense: true),
               onChanged: (_) => setState(() {}),

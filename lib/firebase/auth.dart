@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firebase_config.dart';
+import 'key_manager.dart';
 
 /// Identitas pengguna aktif.
 ///
@@ -112,13 +113,20 @@ class AuthService {
   Future<String?> register(
     String email,
     String password, {
+    String name = '',
     bool rememberMe = true,
   }) async {
     if (!useFirebase) return 'Firebase belum diaktifkan.';
     try {
       await _applyPersistence(rememberMe);
-      await _auth.createUserWithEmailAndPassword(
+      final cred = await _auth.createUserWithEmailAndPassword(
           email: email.trim(), password: password);
+      // Simpan nama tampilan bila diisi saat daftar.
+      final trimmed = name.trim();
+      if (trimmed.isNotEmpty) {
+        await cred.user?.updateDisplayName(trimmed);
+        await cred.user?.reload();
+      }
       return null;
     } on FirebaseAuthException catch (e) {
       return _message(e);
@@ -129,7 +137,15 @@ class AuthService {
 
   Future<void> signOut() async {
     if (!useFirebase) return;
+    final uid = _auth.currentUser?.uid;
     await _auth.signOut();
+    // Hapus DEK dari memori & cache perangkat agar sesi berikutnya wajib
+    // input sandi (tidak bocor ke pengguna berikutnya di perangkat ini).
+    if (uid != null) {
+      try {
+        await KeyManager.instance.lock(uid);
+      } catch (_) {}
+    }
   }
 
   /// Tautkan kata sandi ke akun yang sedang login (mis. akun Google yang
@@ -232,6 +248,14 @@ class AuthService {
     if (reauth != null) return reauth;
     try {
       await _auth.currentUser!.updatePassword(newPassword);
+      // Re-bungkus DEK dengan sandi baru agar jalur password tetap bisa
+      // membuka data (DEK-nya sama, hanya pembungkusnya diganti). Aman
+      // bila belum setup E2EE — dilewati diam-diam.
+      final uid = _auth.currentUser?.uid;
+      if (uid != null && KeyManager.instance.isUnlocked) {
+        await KeyManager.instance.rewrapWithPassword(
+            uid: uid, password: newPassword);
+      }
       return null;
     } on FirebaseAuthException catch (e) {
       return _message(e);
@@ -247,7 +271,12 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) return 'Sesi tidak valid.';
     try {
+      final uid = user.uid;
       await user.delete();
+      // Hancurkan blob kunci di server + cache DEK di perangkat.
+      try {
+        await KeyManager.instance.destroy(uid);
+      } catch (_) {}
       return null;
     } on FirebaseAuthException catch (e) {
       return _message(e);

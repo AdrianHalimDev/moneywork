@@ -4,6 +4,13 @@ Aplikasi pencatatan keuangan pribadi untuk Android. Catat pemasukan dan pengelua
 kelola utang-piutang, pantau investasi, bagi tagihan bareng teman, dan lihat ke mana
 uangmu pergi lewat laporan. Data tersimpan di cloud dan tetap bisa dibuka saat offline.
 
+> **Pembaruan v2.0.0:**  
+> - **Perbaikan Teks Hantu:** Memperbaiki bug keyboard Android (Samsung) di mana teks yang dihapus muncul kembali.  
+> - **Perbaikan Crash:** Mengatasi bug layar merah (Red Screen) akibat `Overlay` yang tidak ditemukan pada halaman Login.  
+> - **Login Google:** Mengembalikan fitur masuk (Sign In) menggunakan akun Google.  
+> - **Titik Pemisah Angka:** Menambahkan fitur *auto-formatting* agar nominal angka otomatis memiliki titik pemisah ribuan saat diketik.
+> - **Kerapian:** Memindahkan semua file dokumentasi ekstra (Release notes, panduan Firebase) ke dalam folder `docs/`.
+
 ---
 
 ## Panduan Penggunaan
@@ -121,7 +128,7 @@ flutter build apk --release
 - **Firebase** diaktifkan di `lib/firebase/firebase_config.dart`. Data:
   `users/{uid}/data/state` (AppState) dan `meta/app_version` (metadata OTA).
 - **Pembaruan OTA** bersifat self-hosted dan gratis: metadata versi di Firestore, file
-  APK di GitHub Releases. Alur rilis lengkap ada di [`RELEASING.md`](RELEASING.md).
+  APK di GitHub Releases. Alur rilis lengkap ada di [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ### Keamanan repositori
 

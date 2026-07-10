@@ -6,6 +6,7 @@ import '../core/formatters.dart';
 import '../firebase/auth.dart';
 import '../firebase/firebase_config.dart';
 import '../firebase/firestore_storage.dart';
+import '../firebase/key_session.dart';
 import '../models/account.dart';
 import '../models/debt.dart';
 import '../models/investment.dart';
@@ -19,17 +20,25 @@ import 'storage.dart';
 
 const _uuid = Uuid();
 
-/// Backend penyimpanan aktif, dipilih berdasarkan status login:
+/// Backend penyimpanan aktif, dipilih berdasarkan status login **dan**
+/// status kunci E2EE:
 ///
 /// - Firebase nonaktif  → selalu [LocalStorage] (data di perangkat).
 /// - Firebase aktif + login → [FirestoreStorage] terisolasi per-UID,
 ///   sehingga tiap pengguna punya data sendiri yang tersinkron antar device.
 /// - Firebase aktif + belum login → [LocalStorage] sementara (UI menahan
 ///   di layar login, jadi data ini tidak benar-benar terpakai).
+///
+/// Menonton [securityStatusProvider] memastikan: setelah kunci dibuka
+/// (status `ready`), storage dibuat ulang & data terenkripsi dimuat ulang.
+/// Saat belum `ready`, FirestoreStorage.load() mengembalikan state kosong
+/// (aman) dan save() menolak menulis plaintext.
 final storageProvider = Provider<StorageBackend>((ref) {
   if (!useFirebase) return LocalStorage();
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null || user.isLocal) return LocalStorage();
+  // Bangun ulang storage saat status keamanan berganti (mis. unlocked).
+  ref.watch(securityStatusProvider);
   return FirestoreStorage(user.uid);
 });
 

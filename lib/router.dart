@@ -27,7 +27,13 @@ const _tabs = <_Tab>[
   _Tab('/wishlist', 'Wishlist', Icons.favorite_outline, Icons.favorite),
 ];
 
+/// Kunci navigator root. Dipakai untuk menampilkan dialog global (mis. dialog
+/// update OTA) dari widget yang berada di atas Navigator, seperti UpdateChecker
+/// yang dipasang di `builder` MaterialApp.router.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final appRouter = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/',
   routes: [
     StatefulShellRoute.indexedStack(

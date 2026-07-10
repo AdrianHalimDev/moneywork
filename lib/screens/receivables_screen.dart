@@ -224,7 +224,7 @@ Future<void> showCollectFromPersonDialog(
   }
 
   final amountCtrl =
-      TextEditingController(text: group.outstanding.toStringAsFixed(0));
+      TextEditingController(text: Fmt.groupInput(group.outstanding));
   var accountId = state.accounts.first.id;
   final formKey = GlobalKey<FormState>();
 
@@ -264,10 +264,11 @@ Future<void> showCollectFromPersonDialog(
                 controller: amountCtrl,
                 autofocus: true,
                 keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsInputFormatter()],
                 decoration: const InputDecoration(
                     labelText: 'Jumlah diterima', prefixText: 'Rp '),
                 validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
+                  final n = Fmt.tryParseInput(v ?? '');
                   if (n == null || n <= 0) return 'Masukkan jumlah valid';
                   if (n > group.outstanding) {
                     return 'Melebihi sisa total (${Fmt.rupiah(group.outstanding)})';
@@ -293,7 +294,7 @@ Future<void> showCollectFromPersonDialog(
                 child: FilledButton(
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
-                    final amount = double.parse(amountCtrl.text.trim());
+                    final amount = Fmt.tryParseInput(amountCtrl.text)!;
                     final messenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(context);
                     final error = await ref
@@ -334,7 +335,7 @@ Future<void> showReceivableDialog(
   final nameCtrl = TextEditingController(text: existing?.personName ?? '');
   final nameFocus = FocusNode();
   final amountCtrl = TextEditingController(
-      text: existing != null ? existing.remaining.toStringAsFixed(0) : '');
+      text: existing != null ? Fmt.groupInput(existing.remaining) : '');
   final noteCtrl = TextEditingController(text: existing?.note ?? '');
   DateTime? dueDate = existing?.dueDate;
   final isEdit = existing != null;
@@ -426,10 +427,11 @@ Future<void> showReceivableDialog(
               TextFormField(
                 controller: amountCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsInputFormatter()],
                 decoration: const InputDecoration(
                     labelText: 'Jumlah piutang', prefixText: 'Rp '),
                 validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
+                  final n = Fmt.tryParseInput(v ?? '');
                   if (n == null || n < 0) return 'Angka tidak valid';
                   return null;
                 },
@@ -512,7 +514,7 @@ Future<void> showReceivableDialog(
                   FilledButton(
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) return;
-                      final amount = double.parse(amountCtrl.text.trim());
+                      final amount = Fmt.tryParseInput(amountCtrl.text)!;
                       final ctrl = ref.read(appStateProvider.notifier);
                       final messenger = ScaffoldMessenger.of(context);
                       final navigator = Navigator.of(context);

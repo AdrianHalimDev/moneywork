@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../firebase/auth.dart';
+import '../firebase/key_session.dart';
+import '../widgets/common.dart';
 
 /// Layar wajib lengkapi data untuk akun yang masuk via Google tetapi belum
 /// punya kata sandi.
@@ -35,8 +37,8 @@ class _CompleteAccountScreenState
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
-    final error =
-        await ref.read(authServiceProvider).linkPassword(_passCtrl.text);
+    final pass = _passCtrl.text;
+    final error = await ref.read(authServiceProvider).linkPassword(pass);
     if (!mounted) return;
     setState(() => _loading = false);
     if (error != null) {
@@ -44,8 +46,10 @@ class _CompleteAccountScreenState
           .showSnackBar(SnackBar(content: Text(error)));
       return;
     }
-    // Sukses: userChanges memancarkan hasPassword=true, gerbang auth otomatis
-    // berpindah ke aplikasi utama.
+    // Sukses: simpan sandi transien agar gerbang E2EE bisa langsung menyiapkan
+    // kunci (akun Google baru belum punya blob kunci). userChanges memancarkan
+    // hasPassword=true, gerbang auth lanjut ke SecurityUpgradeScreen.
+    ref.read(keySessionProvider).setPendingPassword(pass);
   }
 
   @override
@@ -80,12 +84,9 @@ class _CompleteAccountScreenState
                         ?.copyWith(color: theme.colorScheme.outline),
                   ),
                   const SizedBox(height: 28),
-                  TextFormField(
+                  PasswordField(
                     controller: _passCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                        labelText: 'Kata sandi',
-                        prefixIcon: Icon(Icons.lock_outline)),
+                    labelText: 'Kata sandi',
                     validator: (v) {
                       if ((v ?? '').isEmpty) return 'Kata sandi wajib diisi';
                       if ((v ?? '').length < 6) return 'Minimal 6 karakter';
@@ -93,12 +94,9 @@ class _CompleteAccountScreenState
                     },
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
+                  PasswordField(
                     controller: _confirmCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                        labelText: 'Ulangi kata sandi',
-                        prefixIcon: Icon(Icons.lock_outline)),
+                    labelText: 'Ulangi kata sandi',
                     validator: (v) {
                       if ((v ?? '').isEmpty) return 'Wajib diisi';
                       if (v != _passCtrl.text) return 'Kata sandi tidak sama';

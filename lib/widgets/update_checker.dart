@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../router.dart';
 import '../services/update_service.dart';
 
 final updateServiceProvider = Provider<UpdateService>((ref) => UpdateService());
@@ -43,15 +44,31 @@ class _UpdateCheckerState extends ConsumerState<UpdateChecker> {
       if (!mounted) return;
     }
 
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: !release.mandatory,
-      builder: (_) => _UpdateDialog(release: release),
-    );
+    // Tampilkan lewat context navigator root, bukan context widget ini.
+    // UpdateChecker dipasang di `builder` MaterialApp.router sehingga berada
+    // DI ATAS Navigator — showDialog dengan context-nya sendiri tak menemukan
+    // Navigator (diam-diam gagal di release). Context root selalu punya Overlay.
+    final rootContext = rootNavigatorKey.currentContext;
+    if (rootContext == null) return;
+
+    // Aman: rootContext diambil tepat sebelum dipakai, tanpa await di antaranya.
+    // ignore: use_build_context_synchronously
+    await showUpdateDialog(rootContext, release);
   }
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// Tampilkan dialog update untuk [release]. Dipakai pengecekan otomatis maupun
+/// tombol "Cek pembaruan" manual di Profil. Mengembalikan setelah dialog
+/// ditutup.
+Future<void> showUpdateDialog(BuildContext context, AppRelease release) {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: !release.mandatory,
+    builder: (_) => _UpdateDialog(release: release),
+  );
 }
 
 /// Dialog update: tampilkan catatan rilis, lalu unduh + pasang APK.

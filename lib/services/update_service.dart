@@ -53,6 +53,16 @@ class AppRelease {
 /// Status unduhan untuk menampilkan progres ke pengguna.
 typedef DownloadProgress = void Function(double fraction);
 
+/// Hasil pengecekan update manual (tombol di Profil). Membedakan "sudah
+/// terbaru" dari "gagal memeriksa" agar UI bisa memberi umpan balik yang tepat.
+enum UpdateStatus { available, upToDate, unsupported, failed }
+
+class UpdateCheckResult {
+  const UpdateCheckResult(this.status, [this.release]);
+  final UpdateStatus status;
+  final AppRelease? release;
+}
+
 /// Layanan update OTA self-hosted: membandingkan versi terpasang dengan
 /// dokumen rilis di Firestore, mengunduh APK, lalu membuka installer Android.
 ///
@@ -85,6 +95,30 @@ class UpdateService {
     } catch (_) {
       // Gagal jaringan / izin: jangan ganggu pengguna, anggap tak ada update.
       return null;
+    }
+  }
+
+  /// Versi interaktif untuk tombol "Cek pembaruan": tidak menelan error dan
+  /// membedakan "sudah terbaru" dari "gagal memeriksa" sehingga UI bisa memberi
+  /// umpan balik yang sesuai. Tidak menghormati preferensi "lewati versi" —
+  /// pengguna yang menekan tombol ini memang ingin memperbarui sekarang.
+  Future<UpdateCheckResult> checkForUpdateInteractive() async {
+    if (!_supported) return const UpdateCheckResult(UpdateStatus.unsupported);
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('meta')
+          .doc('app_version')
+          .get();
+      final release = AppRelease.fromMap(snap.data());
+      if (release == null) {
+        return const UpdateCheckResult(UpdateStatus.upToDate);
+      }
+      final current = await currentVersionCode();
+      return release.versionCode > current
+          ? UpdateCheckResult(UpdateStatus.available, release)
+          : const UpdateCheckResult(UpdateStatus.upToDate);
+    } catch (_) {
+      return const UpdateCheckResult(UpdateStatus.failed);
     }
   }
 

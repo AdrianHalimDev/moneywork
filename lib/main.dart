@@ -8,10 +8,13 @@ import 'core/theme.dart';
 import 'data/app_controller.dart';
 import 'firebase/auth.dart';
 import 'firebase/firebase_config.dart';
+import 'firebase/key_session.dart';
 import 'firebase_options.dart';
 import 'router.dart';
 import 'screens/complete_account_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/security_upgrade_screen.dart';
+import 'screens/unlock_screen.dart';
 import 'services/notification_service.dart';
 import 'widgets/update_checker.dart';
 
@@ -79,11 +82,62 @@ class _AuthGate extends ConsumerWidget {
         body: Center(child: Text('Gagal memuat sesi: $e')),
       ),
       data: (user) {
-        if (user == null) return const LoginScreen();
+        if (user == null) {
+          return Navigator(
+            onGenerateRoute: (_) =>
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        }
         // Akun Google yang belum punya kata sandi wajib melengkapi dulu.
-        if (!user.hasPassword) return CompleteAccountScreen(user: user);
-        // Pengguna sudah masuk penuh: bungkus aplikasi dengan pengecek update OTA.
-        return UpdateChecker(child: child);
+        if (!user.hasPassword) {
+          return Navigator(
+            onGenerateRoute: (_) =>
+                MaterialPageRoute(builder: (_) => CompleteAccountScreen(user: user)),
+          );
+        }
+        // Gerbang enkripsi end-to-end: pastikan data terenkripsi & terbuka
+        // sebelum aplikasi menampilkan data keuangan.
+        return _SecurityGate(uid: user.uid, child: child);
+      },
+    );
+  }
+}
+
+/// Gerbang keamanan E2EE setelah login. Menentukan perlu setup (migrasi data
+/// lama), perlu unlock (perangkat baru), atau sudah siap.
+class _SecurityGate extends ConsumerWidget {
+  const _SecurityGate({required this.uid, required this.child});
+  final String uid;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(securityStatusProvider);
+    return status.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        body: Center(child: Text('Gagal memuat status keamanan: $e')),
+      ),
+      data: (s) {
+        switch (s) {
+          case SecurityStatus.needsUpgrade:
+            return Navigator(
+              onGenerateRoute: (_) =>
+                  MaterialPageRoute(builder: (_) => SecurityUpgradeScreen(uid: uid)),
+            );
+          case SecurityStatus.locked:
+            return Navigator(
+              onGenerateRoute: (_) =>
+                  MaterialPageRoute(builder: (_) => UnlockScreen(uid: uid)),
+            );
+          case SecurityStatus.disabled:
+          case SecurityStatus.ready:
+            // Pengguna sudah masuk penuh & kunci siap: bungkus aplikasi
+            // dengan pengecek update OTA.
+            return UpdateChecker(child: child);
+        }
       },
     );
   }

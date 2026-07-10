@@ -7,6 +7,9 @@ import '../data/app_controller.dart';
 import '../firebase/auth.dart';
 import '../firebase/firebase_config.dart';
 import '../services/notification_service.dart';
+import '../services/update_service.dart';
+import '../widgets/common.dart';
+import '../widgets/update_checker.dart';
 
 /// Layar profil & pengaturan.
 ///
@@ -33,6 +36,8 @@ class ProfileScreen extends ConsumerWidget {
           if (!kIsWeb) ...[
             const _SectionLabel('Pengingat'),
             const _NotificationTile(),
+            const _SectionLabel('Aplikasi'),
+            const _CheckUpdateTile(),
           ],
           if (isCloud) ...[
             const _SectionLabel('Akun'),
@@ -268,6 +273,62 @@ class _NotificationTileState extends ConsumerState<_NotificationTile> {
 }
 
 // ============================================================================
+// Cek pembaruan manual — preventif bila pengguna tak sengaja menekan "Lewati"
+// pada dialog update otomatis. Mengambil rilis terbaru dari Firestore lalu,
+// bila ada, langsung menampilkan dialog unduh & pasang yang sama.
+// ============================================================================
+
+class _CheckUpdateTile extends ConsumerStatefulWidget {
+  const _CheckUpdateTile();
+
+  @override
+  ConsumerState<_CheckUpdateTile> createState() => _CheckUpdateTileState();
+}
+
+class _CheckUpdateTileState extends ConsumerState<_CheckUpdateTile> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final result =
+        await ref.read(updateServiceProvider).checkForUpdateInteractive();
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    switch (result.status) {
+      case UpdateStatus.available:
+        await showUpdateDialog(context, result.release!);
+      case UpdateStatus.upToDate:
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Kamu sudah memakai versi terbaru.')));
+      case UpdateStatus.unsupported:
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Pembaruan otomatis hanya tersedia di Android.')));
+      case UpdateStatus.failed:
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Gagal memeriksa pembaruan. Periksa koneksi.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: _busy
+          ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.system_update_outlined),
+      title: const Text('Cek pembaruan'),
+      subtitle: const Text('Periksa & pasang versi terbaru'),
+      onTap: _busy ? null : _run,
+    );
+  }
+}
+
+// ============================================================================
 // Dialog: ubah nama
 // ============================================================================
 
@@ -332,20 +393,18 @@ Future<void> _showChangePassword(BuildContext context, WidgetRef ref) async {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
+            PasswordField(
               controller: currentCtrl,
-              obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Kata sandi saat ini'),
+              labelText: 'Kata sandi saat ini',
+              prefixIcon: null,
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'Wajib diisi' : null,
             ),
             const SizedBox(height: 12),
-            TextFormField(
+            PasswordField(
               controller: newCtrl,
-              obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Kata sandi baru'),
+              labelText: 'Kata sandi baru',
+              prefixIcon: null,
               validator: (v) =>
                   (v == null || v.length < 6) ? 'Minimal 6 karakter' : null,
             ),
@@ -401,11 +460,10 @@ Future<void> _showDeleteAccount(BuildContext context, WidgetRef ref) async {
                 'Seluruh data (akun, transaksi, investasi, utang, wishlist) '
                 'akan dihapus permanen dan tidak bisa dikembalikan.'),
             const SizedBox(height: 16),
-            TextFormField(
+            PasswordField(
               controller: passCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                  labelText: 'Konfirmasi dengan kata sandi'),
+              labelText: 'Konfirmasi dengan kata sandi',
+              prefixIcon: null,
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'Wajib diisi' : null,
             ),

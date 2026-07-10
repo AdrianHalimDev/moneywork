@@ -255,7 +255,7 @@ Future<void> showRecurringDialog(
 }) async {
   final labelCtrl = TextEditingController(text: existing?.label ?? '');
   final amountCtrl = TextEditingController(
-      text: existing != null ? existing.amount.toStringAsFixed(0) : '');
+      text: existing != null ? Fmt.groupInput(existing.amount) : '');
   final categoryCtrl = TextEditingController(text: existing?.category ?? '');
   var type = existing?.type ?? TxType.expense;
   var accountId = existing?.accountId ?? state.accounts.first.id;
@@ -308,10 +308,11 @@ Future<void> showRecurringDialog(
               TextFormField(
                 controller: amountCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: [ThousandsInputFormatter()],
                 decoration:
                     const InputDecoration(labelText: 'Jumlah', prefixText: 'Rp '),
                 validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
+                  final n = Fmt.tryParseInput(v ?? '');
                   if (n == null || n <= 0) return 'Masukkan jumlah valid';
                   return null;
                 },
@@ -373,7 +374,7 @@ Future<void> showRecurringDialog(
                   FilledButton(
                     onPressed: () {
                       if (!formKey.currentState!.validate()) return;
-                      final amount = double.parse(amountCtrl.text.trim());
+                      final amount = Fmt.tryParseInput(amountCtrl.text)!;
                       final ctrl = ref.read(appStateProvider.notifier);
                       final isTransfer = type == TxType.transfer;
                       if (isEdit) {
