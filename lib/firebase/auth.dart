@@ -197,9 +197,11 @@ class AuthService {
       // Pengguna membatalkan — bukan error yang perlu ditampilkan.
       if (e.code == 'popup-closed-by-user' ||
           e.code == 'cancelled-popup-request' ||
-          e.code == 'web-context-canceled' ||
-          e.code == 'canceled') {
+          e.code == 'web-context-canceled') {
         return null;
+      }
+      if (e.code == 'canceled') {
+         return 'Login dibatalkan oleh sistem: ${e.message}';
       }
       return _message(e);
     } catch (e) {

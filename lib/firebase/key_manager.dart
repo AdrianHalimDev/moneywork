@@ -129,6 +129,22 @@ class KeyManager {
     await _cacheDek(uid, _dek!);
   }
 
+  /// Buat ulang recovery key (karena Kunci Pemulihan lama tidak bisa dilihat lagi).
+  /// Membungkus ulang DEK yang aktif dengan recovery key yang baru.
+  Future<String> regenerateRecoveryKey(String uid) async {
+    if (_dek == null) {
+      throw StateError('DEK belum dibuka; tidak bisa buat kunci pemulihan baru.');
+    }
+    final newRecovery = await _crypto.generateRecoveryKey();
+    final recBlob = await _crypto.wrapDek(_dek!, CryptoService.normalizeRecoveryKey(newRecovery));
+    if (useFirebase) {
+      await _keysDoc(uid).set({
+        'recoveryBlob': recBlob.toJson(),
+      }, SetOptions(merge: true));
+    }
+    return newRecovery;
+  }
+
   /// Ambil DEK aktif. Lempar bila belum dibuka.
   Future<SecretKey> requireDek() async {
     if (_dek == null) {

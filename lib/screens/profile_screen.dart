@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../firebase/auth.dart';
 import '../firebase/firebase_config.dart';
+import '../firebase/key_manager.dart';
 import '../services/notification_service.dart';
 import '../services/update_service.dart';
 import '../widgets/common.dart';
@@ -53,6 +55,13 @@ class ProfileScreen extends ConsumerWidget {
               title: const Text('Ganti kata sandi'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showChangePassword(context, ref),
+            ),
+            ListTile(
+              leading: const Icon(Icons.key_outlined),
+              title: const Text('Kunci pemulihan'),
+              subtitle: const Text('Lihat/buat ulang kunci keamanan'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showRecoveryKey(context, ref, user.uid),
             ),
             const Divider(height: 24),
             ListTile(
@@ -496,11 +505,150 @@ Future<void> _showDeleteAccount(BuildContext context, WidgetRef ref) async {
             if (error != null) {
               messenger.showSnackBar(SnackBar(content: Text(error)));
             }
-            // Sukses: authStateProvider berpindah ke layar login.
+// Sukses: authStateProvider berpindah ke layar login.
           },
           child: const Text('Hapus Permanen'),
         ),
       ],
     ),
   );
+}
+
+// ============================================================================
+// Dialog: lihat/buat ulang kunci pemulihan
+// ============================================================================
+
+Future<void> _showRecoveryKey(BuildContext context, WidgetRef ref, String uid) async {
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => _RecoveryKeyDialog(uid: uid),
+  );
+}
+
+class _RecoveryKeyDialog extends ConsumerStatefulWidget {
+  const _RecoveryKeyDialog({required this.uid});
+  final String uid;
+  @override
+  ConsumerState<_RecoveryKeyDialog> createState() => _RecoveryKeyDialogState();
+}
+
+class _RecoveryKeyDialogState extends ConsumerState<_RecoveryKeyDialog> {
+  final _passCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _loading = false;
+  String? _newKey;
+
+  Future<void> _verifyAndGenerate() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    
+    // 1) Verifikasi kata sandi
+    final reauth = await ref.read(authServiceProvider).reauthenticate(_passCtrl.text);
+    if (reauth != null) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      messenger.showSnackBar(SnackBar(content: Text(reauth)));
+      return;
+    }
+
+    // 2) Buat ulang kunci pemulihan
+    try {
+      final newKey = await KeyManager.instance.regenerateRecoveryKey(widget.uid);
+      if (!mounted) return;
+      setState(() {
+        _newKey = newKey;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      messenger.showSnackBar(SnackBar(content: Text('Gagal membuat kunci pemulihan: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_newKey != null) {
+      return AlertDialog(
+        title: const Text('Kunci Pemulihan Baru'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Kunci pemulihan lama Anda telah diganti. Salin dan simpan kunci baru ini di tempat yang sangat aman. Ini adalah satu-satunya cara membuka data Anda jika lupa kata sandi!',
+              style: TextStyle(color: AppTheme.expense),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SelectableText(
+                _newKey!,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontFamily: 'monospace',
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          OutlinedButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: _newKey!));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kunci disalin.')));
+            },
+            icon: const Icon(Icons.copy),
+            label: const Text('Salin'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Selesai'),
+          )
+        ],
+      );
+    }
+
+    return AlertDialog(
+      title: const Text('Kunci Pemulihan'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Demi keamanan, sistem tidak menyimpan Kunci Pemulihan lama Anda. Kami akan membuatkan Kunci Pemulihan yang BARU.'),
+            const SizedBox(height: 16),
+            PasswordField(
+              controller: _passCtrl,
+              labelText: 'Konfirmasi dengan kata sandi',
+              prefixIcon: null,
+              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: _loading ? null : _verifyAndGenerate,
+          child: _loading
+              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Buat Kunci Baru'),
+        ),
+      ],
+    );
+  }
 }

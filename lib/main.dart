@@ -75,6 +75,7 @@ class _AuthGate extends ConsumerWidget {
 
     final auth = ref.watch(authStateProvider);
     return auth.when(
+      skipLoadingOnReload: true,
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
@@ -84,6 +85,7 @@ class _AuthGate extends ConsumerWidget {
       data: (user) {
         if (user == null) {
           return Navigator(
+            key: const ValueKey('nav-login'),
             onGenerateRoute: (_) =>
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
           );
@@ -91,6 +93,7 @@ class _AuthGate extends ConsumerWidget {
         // Akun Google yang belum punya kata sandi wajib melengkapi dulu.
         if (!user.hasPassword) {
           return Navigator(
+            key: const ValueKey('nav-complete'),
             onGenerateRoute: (_) =>
                 MaterialPageRoute(builder: (_) => CompleteAccountScreen(user: user)),
           );
@@ -114,6 +117,7 @@ class _SecurityGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(securityStatusProvider);
     return status.when(
+      skipLoadingOnReload: true,
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
@@ -124,11 +128,13 @@ class _SecurityGate extends ConsumerWidget {
         switch (s) {
           case SecurityStatus.needsUpgrade:
             return Navigator(
+              key: const ValueKey('nav-upgrade'),
               onGenerateRoute: (_) =>
                   MaterialPageRoute(builder: (_) => SecurityUpgradeScreen(uid: uid)),
             );
           case SecurityStatus.locked:
             return Navigator(
+              key: const ValueKey('nav-unlock'),
               onGenerateRoute: (_) =>
                   MaterialPageRoute(builder: (_) => UnlockScreen(uid: uid)),
             );
@@ -136,7 +142,7 @@ class _SecurityGate extends ConsumerWidget {
           case SecurityStatus.ready:
             // Pengguna sudah masuk penuh & kunci siap: bungkus aplikasi
             // dengan pengecek update OTA.
-            return UpdateChecker(child: child);
+            return UpdateChecker(key: const ValueKey('nav-main'), child: child);
         }
       },
     );
