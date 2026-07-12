@@ -7,6 +7,8 @@ import '../data/app_controller.dart';
 import '../data/app_state.dart';
 import '../models/receivable.dart';
 import '../widgets/common.dart';
+import '../widgets/dialogs/receivable_dialogs.dart';
+import '../widgets/responsive_layout.dart';
 import 'bill_splitter_screen.dart';
 
 /// Layar Piutang: uang yang dipinjam orang lain ke kita.
@@ -61,44 +63,61 @@ class _Body extends ConsumerWidget {
     final groups = ReceivableGroup.groupByName(state.receivables);
     final openGroups = groups.where((g) => !g.isSettled).length;
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 96),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Card(
-            color: AppTheme.income.withValues(alpha: 0.08),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Total Piutang',
-                            style: Theme.of(context).textTheme.labelLarge),
-                        const SizedBox(height: 4),
-                        Text(Fmt.rupiah(state.totalReceivable),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                    color: AppTheme.income,
-                                    fontWeight: FontWeight.bold)),
-                      ],
+    return ResponsiveCenter(
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Card(
+              color: AppTheme.income.withValues(alpha: 0.08),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Total Piutang',
+                              style: Theme.of(context).textTheme.labelLarge),
+                          const SizedBox(height: 4),
+                          Text(Fmt.rupiah(state.totalReceivable),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                      color: AppTheme.income,
+                                      fontWeight: FontWeight.bold)),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text('$openGroups orang',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.outline)),
-                ],
+                    Text('$openGroups orang',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.outline)),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        for (final g in groups) _GroupTile(group: g),
-      ],
+          for (final g in groups.where((g) => !g.isSettled))
+            _GroupTile(group: g),
+          if (groups.any((g) => g.isSettled)) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+              child: Text(
+                'Lunas',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ),
+            for (final g in groups.where((g) => g.isSettled))
+              _GroupTile(group: g),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -139,8 +158,10 @@ class _GroupTile extends ConsumerWidget {
                         : AppTheme.income,
                     fontWeight: FontWeight.w600)),
             Text(lunas ? 'selesai' : 'sisa',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline)),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.outline)),
           ],
         ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -151,7 +172,8 @@ class _GroupTile extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () => showCollectFromPersonDialog(context, ref, group),
+                onPressed: () =>
+                    showCollectFromPersonDialog(context, ref, group),
                 icon: const Icon(Icons.payments_outlined, size: 18),
                 label: Text('Terima dari ${group.displayName}'),
               ),
@@ -203,355 +225,4 @@ class _LoanRow extends ConsumerWidget {
       ),
     );
   }
-}
-
-// ============================================================================
-// Dialog: terima pembayaran gabungan dari satu orang (alokasi FIFO)
-// ============================================================================
-
-Future<void> showCollectFromPersonDialog(
-  BuildContext context,
-  WidgetRef ref,
-  ReceivableGroup group,
-) async {
-  final state = ref.read(appStateProvider).valueOrNull;
-  if (state == null) return;
-
-  if (state.accounts.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Tambahkan rekening dulu di tab Akun.')));
-    return;
-  }
-
-  final amountCtrl =
-      TextEditingController(text: Fmt.groupInput(group.outstanding));
-  var accountId = state.accounts.first.id;
-  final formKey = GlobalKey<FormState>();
-
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 8,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-        ),
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Terima dari ${group.displayName}',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 4),
-              Text(
-                  'Sisa total: ${Fmt.rupiah(group.outstanding)}'
-                  '${group.openCount > 1 ? ' · ${group.openCount} pinjaman' : ''}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.outline)),
-              const SizedBox(height: 6),
-              Text(
-                  'Pembayaran melunasi pinjaman paling lama dulu.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline)),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: amountCtrl,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsInputFormatter()],
-                decoration: const InputDecoration(
-                    labelText: 'Jumlah diterima', prefixText: 'Rp '),
-                validator: (v) {
-                  final n = Fmt.tryParseInput(v ?? '');
-                  if (n == null || n <= 0) return 'Masukkan jumlah valid';
-                  if (n > group.outstanding) {
-                    return 'Melebihi sisa total (${Fmt.rupiah(group.outstanding)})';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: accountId,
-                decoration: const InputDecoration(labelText: 'Masuk ke'),
-                items: [
-                  for (final a in state.accounts)
-                    DropdownMenuItem(
-                        value: a.id,
-                        child: Text('${a.name} · ${Fmt.rupiah(a.balance)}')),
-                ],
-                onChanged: (v) => setState(() => accountId = v ?? accountId),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    final amount = Fmt.tryParseInput(amountCtrl.text)!;
-                    final messenger = ScaffoldMessenger.of(context);
-                    final navigator = Navigator.of(context);
-                    final error = await ref
-                        .read(appStateProvider.notifier)
-                        .collectFromPerson(
-                          nameKey: group.key,
-                          accountId: accountId,
-                          amount: amount,
-                        );
-                    if (error != null) {
-                      messenger.showSnackBar(SnackBar(content: Text(error)));
-                      return;
-                    }
-                    navigator.pop();
-                    messenger.showSnackBar(SnackBar(
-                        content: Text('Diterima ${Fmt.rupiah(amount)}.')));
-                  },
-                  child: const Text('Terima Sekarang'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-// ============================================================================
-// Dialog: tambah/edit piutang
-// ============================================================================
-
-Future<void> showReceivableDialog(
-  BuildContext context,
-  WidgetRef ref, {
-  Receivable? existing,
-}) async {
-  final nameCtrl = TextEditingController(text: existing?.personName ?? '');
-  final nameFocus = FocusNode();
-  final amountCtrl = TextEditingController(
-      text: existing != null ? Fmt.groupInput(existing.remaining) : '');
-  final noteCtrl = TextEditingController(text: existing?.note ?? '');
-  DateTime? dueDate = existing?.dueDate;
-  final isEdit = existing != null;
-  final formKey = GlobalKey<FormState>();
-
-  final appState = ref.read(appStateProvider).valueOrNull;
-  // Opsi talangan: uang keluar dari rekening saat membuat piutang (mode tambah).
-  final accounts = appState?.accounts ?? const [];
-  // Nama yang sudah pernah dipakai — disarankan saat mengetik agar grup tak pecah.
-  final knownNames = <String>{
-    for (final r in (appState?.receivables ?? const []))
-      if (r.personName.trim().isNotEmpty) r.personName.trim(),
-  }.toList()
-    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-  var fundFromAccount = false;
-  String? fundingAccountId = accounts.isNotEmpty ? accounts.first.id : null;
-
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 8,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-        ),
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(isEdit ? 'Edit Piutang' : 'Tambah Piutang',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              RawAutocomplete<String>(
-                textEditingController: nameCtrl,
-                focusNode: nameFocus,
-                optionsBuilder: (value) {
-                  final q = value.text.trim().toLowerCase();
-                  if (q.isEmpty) return const Iterable<String>.empty();
-                  return knownNames.where((n) {
-                    final low = n.toLowerCase();
-                    // Sembunyikan kalau sudah cocok persis (tak perlu disarankan).
-                    return low.contains(q) && low != q;
-                  });
-                },
-                fieldViewBuilder:
-                    (context, controller, focusNode, onSubmitted) {
-                  return TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    autofocus: !isEdit,
-                    decoration: const InputDecoration(
-                        labelText: 'Nama orang', hintText: 'mis. Gama'),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
-                  );
-                },
-                optionsViewBuilder: (context, onSelected, options) {
-                  final list = options.toList();
-                  return Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(8),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 200),
-                        child: ListView.builder(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          itemCount: list.length,
-                          itemBuilder: (context, i) => ListTile(
-                            dense: true,
-                            leading: const Icon(Icons.person_outline, size: 18),
-                            title: Text(list[i]),
-                            onTap: () => onSelected(list[i]),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsInputFormatter()],
-                decoration: const InputDecoration(
-                    labelText: 'Jumlah piutang', prefixText: 'Rp '),
-                validator: (v) {
-                  final n = Fmt.tryParseInput(v ?? '');
-                  if (n == null || n < 0) return 'Angka tidak valid';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: noteCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Catatan (opsional)',
-                    hintText: 'mis. Makan di resto X'),
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: dueDate ?? DateTime.now(),
-                    firstDate: DateTime(2015),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) setState(() => dueDate = picked);
-                },
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Jatuh tempo (opsional)',
-                    suffixIcon: dueDate != null
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => setState(() => dueDate = null),
-                          )
-                        : const Icon(Icons.calendar_today, size: 18),
-                  ),
-                  child: Text(dueDate != null
-                      ? Fmt.dateFull(dueDate!)
-                      : 'Pilih tanggal'),
-                ),
-              ),
-              if (!isEdit && accounts.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  value: fundFromAccount,
-                  onChanged: (v) => setState(() => fundFromAccount = v),
-                  title: const Text('Saya menalangi sekarang'),
-                  subtitle: const Text('Uang keluar dari rekening saya'),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                ),
-                if (fundFromAccount)
-                  DropdownButtonFormField<String>(
-                    value: fundingAccountId,
-                    decoration: const InputDecoration(labelText: 'Dari rekening'),
-                    items: [
-                      for (final a in accounts)
-                        DropdownMenuItem(
-                            value: a.id,
-                            child:
-                                Text('${a.name} · ${Fmt.rupiah(a.balance)}')),
-                    ],
-                    onChanged: (v) =>
-                        setState(() => fundingAccountId = v ?? fundingAccountId),
-                  ),
-              ],
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  if (isEdit)
-                    TextButton.icon(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await ref
-                            .read(appStateProvider.notifier)
-                            .deleteReceivable(existing.id);
-                      },
-                      icon: const Icon(Icons.delete_outline,
-                          color: AppTheme.expense),
-                      label: const Text('Hapus',
-                          style: TextStyle(color: AppTheme.expense)),
-                    ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-                      final amount = Fmt.tryParseInput(amountCtrl.text)!;
-                      final ctrl = ref.read(appStateProvider.notifier);
-                      final messenger = ScaffoldMessenger.of(context);
-                      final navigator = Navigator.of(context);
-                      if (isEdit) {
-                        ctrl.updateReceivable(existing.copyWith(
-                          personName: nameCtrl.text.trim(),
-                          remaining: amount,
-                          note: noteCtrl.text.trim(),
-                          dueDate: dueDate,
-                          clearDueDate: dueDate == null,
-                        ));
-                        navigator.pop();
-                      } else {
-                        final error = await ctrl.addReceivable(
-                          personName: nameCtrl.text.trim(),
-                          remaining: amount,
-                          note: noteCtrl.text.trim(),
-                          dueDate: dueDate,
-                          fundingAccountId:
-                              fundFromAccount ? fundingAccountId : null,
-                        );
-                        if (error != null) {
-                          messenger
-                              .showSnackBar(SnackBar(content: Text(error)));
-                          return;
-                        }
-                        navigator.pop();
-                      }
-                    },
-                    child: Text(isEdit ? 'Simpan' : 'Tambah'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
 }

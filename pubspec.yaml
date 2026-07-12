@@ -71,6 +71,10 @@ dependencies:
   # Notifikasi lokal terjadwal (pengingat harian & tabungan)
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.4
+  pdf: ^3.11.3
+  printing: ^5.14.3
+  excel: ^4.0.6
+  share_plus: ^12.0.2
 
 dev_dependencies:
   flutter_test:

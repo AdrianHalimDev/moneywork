@@ -8,6 +8,7 @@ import '../data/app_state.dart';
 import '../models/transaction.dart';
 import '../models/wishlist_item.dart';
 import '../services/reminders.dart';
+import '../widgets/responsive_layout.dart';
 import 'profile_screen.dart';
 import 'report_screen.dart';
 
@@ -63,23 +64,25 @@ class _DashboardBody extends StatelessWidget {
         .where((w) => !w.purchased && w.hasSavingPlan)
         .toList();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      children: [
-        for (final r in reminders) ...[
-          _ReminderBanner(reminder: r),
+    return ResponsiveCenter(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        children: [
+          for (final r in reminders) ...[
+            _ReminderBanner(reminder: r),
+            const SizedBox(height: 8),
+          ],
+          _NetWorthCard(state: state),
+          const SizedBox(height: 16),
+          _BreakdownRow(state: state),
+          if (savingTargets.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _WishlistTargets(items: savingTargets),
+          ],
           const SizedBox(height: 8),
+          _RecentTransactions(state: state),
         ],
-        _NetWorthCard(state: state),
-        const SizedBox(height: 16),
-        _BreakdownRow(state: state),
-        if (savingTargets.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _WishlistTargets(items: savingTargets),
-        ],
-        const SizedBox(height: 8),
-        _RecentTransactions(state: state),
-      ],
+      ),
     );
   }
 }

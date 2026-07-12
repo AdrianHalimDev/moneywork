@@ -55,8 +55,7 @@ final appRouter = GoRouter(
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
-              path: '/piutang',
-              builder: (_, __) => const ReceivablesScreen()),
+              path: '/piutang', builder: (_, __) => const ReceivablesScreen()),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
@@ -87,22 +86,34 @@ class _AppShell extends StatelessWidget {
       return Scaffold(
         body: Row(
           children: [
-            NavigationRail(
-              selectedIndex: navShell.currentIndex,
-              onDestinationSelected: _go,
-              labelType: NavigationRailLabelType.all,
-              leading: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Icon(Icons.savings, size: 28),
-              ),
-              destinations: [
-                for (final t in _tabs)
-                  NavigationRailDestination(
-                    icon: Icon(t.icon),
-                    selectedIcon: Icon(t.selectedIcon),
-                    label: Text(t.label),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints:
+                        BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: NavigationRail(
+                        selectedIndex: navShell.currentIndex,
+                        onDestinationSelected: _go,
+                        labelType: NavigationRailLabelType.all,
+                        leading: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Icon(Icons.savings, size: 28),
+                        ),
+                        destinations: [
+                          for (final t in _tabs)
+                            NavigationRailDestination(
+                              icon: Icon(t.icon),
+                              selectedIcon: Icon(t.selectedIcon),
+                              label: Text(t.label),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-              ],
+                );
+              },
             ),
             const VerticalDivider(width: 1),
             Expanded(child: navShell),

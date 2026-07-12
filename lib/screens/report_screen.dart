@@ -6,7 +6,9 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../data/app_state.dart';
+import '../services/export_service.dart';
 import '../services/report.dart';
+import '../widgets/responsive_layout.dart';
 
 /// Layar Laporan: ringkasan bulanan + grafik komposisi aset, arus kas, kategori.
 class ReportScreen extends ConsumerStatefulWidget {
@@ -19,6 +21,104 @@ class ReportScreen extends ConsumerStatefulWidget {
 class _ReportScreenState extends ConsumerState<ReportScreen> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
 
+  void _showExportSheet(BuildContext context, AppState state,
+      MonthlySummary summary, List<CategorySlice> categories) {
+    DateTime selectedMonth = _month;
+    String selectedFormat = 'pdf'; // 'pdf' or 'xlsx'
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Ekspor Laporan',
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 16),
+                  Text('Periode', style: Theme.of(ctx).textTheme.titleSmall),
+                  _MonthPicker(
+                    month: selectedMonth,
+                    onChanged: (m) => setSheetState(() => selectedMonth = m),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Format', style: Theme.of(ctx).textTheme.titleSmall),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('PDF'),
+                          value: 'pdf',
+                          groupValue: selectedFormat,
+                          onChanged: (v) =>
+                              setSheetState(() => selectedFormat = v!),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Excel (.xlsx)'),
+                          value: 'xlsx',
+                          groupValue: selectedFormat,
+                          onChanged: (v) =>
+                              setSheetState(() => selectedFormat = v!),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.download),
+                      label: const Text('Ekspor Sekarang'),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final monthStr = Fmt.monthYear(selectedMonth);
+                        final filteredTx = state.transactions
+                            .where((t) =>
+                                t.date.year == selectedMonth.year &&
+                                t.date.month == selectedMonth.month)
+                            .toList();
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Menyiapkan $monthStr...')),
+                        );
+
+                        if (selectedFormat == 'pdf') {
+                          await ExportService.exportTransactionsToPDF(
+                            transactions: filteredTx,
+                            accounts: state.accounts,
+                            periodName: monthStr,
+                            summary: summary,
+                            categories: categories,
+                          );
+                        } else {
+                          await ExportService.exportTransactionsToExcel(
+                            transactions: filteredTx,
+                            accounts: state.accounts,
+                            periodName: monthStr,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider).valueOrNull ?? const AppState();
@@ -27,31 +127,44 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     final series = Report.lastMonths(state.transactions, _month, count: 6);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Laporan')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          _MonthPicker(
-            month: _month,
-            onChanged: (m) => setState(() => _month = m),
+      appBar: AppBar(
+        title: const Text('Laporan'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export Laporan',
+            onPressed: () =>
+                _showExportSheet(context, state, summary, categories),
           ),
-          const SizedBox(height: 12),
-          _SummaryCard(summary: summary),
-          const SizedBox(height: 16),
-          Text('Arus Kas 6 Bulan',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          _CashFlowChart(series: series),
-          const SizedBox(height: 24),
-          Text('Komposisi Aset', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          _AssetPie(state: state),
-          const SizedBox(height: 24),
-          Text('Pengeluaran per Kategori',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          _CategoryBreakdown(categories: categories, total: summary.expense),
         ],
+      ),
+      body: ResponsiveCenter(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: [
+            _MonthPicker(
+              month: _month,
+              onChanged: (m) => setState(() => _month = m),
+            ),
+            const SizedBox(height: 12),
+            _SummaryCard(summary: summary),
+            const SizedBox(height: 16),
+            Text('Arus Kas 6 Bulan',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            _CashFlowChart(series: series),
+            const SizedBox(height: 24),
+            Text('Komposisi Aset',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            _AssetPie(state: state),
+            const SizedBox(height: 24),
+            Text('Pengeluaran per Kategori',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            _CategoryBreakdown(categories: categories, total: summary.expense),
+          ],
+        ),
       ),
     );
   }
@@ -71,8 +184,7 @@ class _MonthPicker extends StatelessWidget {
       children: [
         IconButton(
           icon: const Icon(Icons.chevron_left),
-          onPressed: () =>
-              onChanged(DateTime(month.year, month.month - 1)),
+          onPressed: () => onChanged(DateTime(month.year, month.month - 1)),
         ),
         Text(Fmt.monthYear(month),
             style: Theme.of(context)
@@ -118,14 +230,12 @@ class _SummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Selisih',
-                    style: Theme.of(context).textTheme.titleSmall),
+                Text('Selisih', style: Theme.of(context).textTheme.titleSmall),
                 Text(
                   Fmt.rupiahSigned(summary.net),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: summary.net >= 0
-                          ? AppTheme.income
-                          : AppTheme.expense,
+                      color:
+                          summary.net >= 0 ? AppTheme.income : AppTheme.expense,
                       fontWeight: FontWeight.bold),
                 ),
               ],
@@ -165,9 +275,7 @@ class _CashFlowChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maxVal = series.fold<double>(
-        0,
-        (m, s) => [m, s.income, s.expense]
-            .reduce((a, b) => a > b ? a : b));
+        0, (m, s) => [m, s.income, s.expense].reduce((a, b) => a > b ? a : b));
     if (maxVal == 0) {
       return const _ChartEmpty(text: 'Belum ada arus kas untuk ditampilkan.');
     }
@@ -189,12 +297,12 @@ class _CashFlowChart extends StatelessWidget {
                 ),
               ),
               titlesData: FlTitlesData(
-                leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
+                leftTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -223,15 +331,15 @@ class _CashFlowChart extends StatelessWidget {
                       toY: series[i].income,
                       color: AppTheme.income,
                       width: 7,
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(2)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(2)),
                     ),
                     BarChartRodData(
                       toY: series[i].expense,
                       color: AppTheme.expense,
                       width: 7,
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(2)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(2)),
                     ),
                   ]),
               ],
@@ -308,8 +416,8 @@ class _AssetPie extends StatelessWidget {
                           const SizedBox(width: 8),
                           Expanded(child: Text(e.$1)),
                           Text(Fmt.rupiahCompact(e.$2),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600)),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -358,8 +466,9 @@ class _CategoryBreakdown extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: total == 0 ? 0 : c.amount / total,
                         minHeight: 6,
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surfaceContainerHighest,
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         color: AppTheme.expense,
                       ),
                     ),

@@ -9,6 +9,7 @@ import '../data/app_state.dart';
 import '../models/account.dart';
 import '../models/investment.dart';
 import '../widgets/common.dart';
+import '../widgets/responsive_layout.dart';
 
 /// Layar Investasi: portofolio saham/reksadana/crypto/emas dengan untung-rugi.
 class InvestmentsScreen extends ConsumerWidget {
@@ -99,19 +100,21 @@ class _Body extends ConsumerWidget {
     final totalGain = totalValue - totalCost;
     final gainPct = totalCost == 0 ? 0.0 : (totalGain / totalCost) * 100;
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 96),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: _PortfolioCard(
-            value: totalValue,
-            gain: totalGain,
-            gainPct: gainPct,
+    return ResponsiveCenter(
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _PortfolioCard(
+              value: totalValue,
+              gain: totalGain,
+              gainPct: gainPct,
+            ),
           ),
-        ),
-        for (final inv in state.investments) _InvestmentTile(inv: inv),
-      ],
+          for (final inv in state.investments) _InvestmentTile(inv: inv),
+        ],
+      ),
     );
   }
 }

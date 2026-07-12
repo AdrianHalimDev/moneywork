@@ -74,20 +74,31 @@ class AppController extends AsyncNotifier<AppState> {
   StorageBackend get _storage => ref.read(storageProvider);
 
   @override
-  Future<AppState> build() {
+  Future<AppState> build() async {
     final storage = ref.watch(storageProvider);
-    return storage.load();
+    final state = await storage.load();
+    
+    // Sort transactions by date descending immediately upon load
+    // so even old data without _commit will be displayed correctly.
+    final sortedTx = List<Transaction>.from(state.transactions)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return state.copyWith(transactions: sortedTx);
   }
 
   Future<void> _commit(AppState next) async {
+    // Pastikan daftar transaksi selalu terurut dari tanggal paling baru.
+    final sortedTx = List<Transaction>.from(next.transactions)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final finalState = next.copyWith(transactions: sortedTx);
+
     // Update state secara optimistic agar UI langsung responsif, lalu
     // persist di latar tanpa memblok pemanggil. Penting: backend Firestore
     // menyelesaikan Future tulisannya hanya setelah server mengakui, sehingga
     // jika kita meng-await save di sini, alur UI (mis. menutup dialog) akan
     // menggantung saat jaringan lambat. Save diserialkan lewat [_enqueueSave]
     // supaya state terbaru selalu menang dan tulisan tidak balapan.
-    state = AsyncData(next);
-    _enqueueSave(next);
+    state = AsyncData(finalState);
+    _enqueueSave(finalState);
   }
 
   // Antrean simpan: hanya satu tulisan berjalan; commit yang datang saat
@@ -266,8 +277,11 @@ class AppController extends AsyncNotifier<AppState> {
     for (final t in newTxns) {
       accounts = _applyTx(accounts, t);
     }
+    final allTxns = [...newTxns, ..._current.transactions]
+      ..sort((a, b) => b.date.compareTo(a.date));
+
     await _commit(_current.copyWith(
-      transactions: [...newTxns, ..._current.transactions],
+      transactions: allTxns,
       accounts: accounts,
     ));
     return null;

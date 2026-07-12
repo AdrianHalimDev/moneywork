@@ -8,7 +8,9 @@ import '../data/app_controller.dart';
 import '../data/app_state.dart';
 import '../models/account.dart';
 import '../models/transaction.dart';
+import '../services/export_service.dart';
 import '../widgets/common.dart';
+import '../widgets/responsive_layout.dart';
 import 'monthly_expenses_screen.dart';
 
 /// Layar Akun: kelola rekening/dompet dan catat transaksi.
@@ -105,14 +107,16 @@ class _BodyState extends ConsumerState<_Body> {
       );
     }
 
-    final filtered = state.transactions.where(_matches).toList();
+    final filtered = state.transactions.where(_matches).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
     final byDate = groupBy<Transaction, String>(
       filtered,
       (t) => Fmt.date(t.date),
     );
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 96),
+    return ResponsiveCenter(
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
       children: [
         _AccountsStrip(state: state),
         const SectionHeader(title: 'Riwayat Transaksi'),
@@ -145,6 +149,7 @@ class _BodyState extends ConsumerState<_Body> {
             for (final tx in entry.value) _TxRow(tx: tx, state: state),
           ],
       ],
+      ),
     );
   }
 
@@ -587,8 +592,15 @@ Future<void> showTransactionDialog(
 ) async {
   final amountCtrl = TextEditingController();
   final categoryCtrl = TextEditingController();
+  final categoryFocus = FocusNode();
   final noteCtrl = TextEditingController();
   final adminFeeCtrl = TextEditingController();
+
+  final knownCategories = <String>{
+    for (final t in state.transactions)
+      if (t.category.trim().isNotEmpty) t.category.trim(),
+  }.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   var type = TxType.expense;
   var useAdminFee = false;
   var accountId = state.accounts.first.id;
@@ -739,11 +751,50 @@ Future<void> showTransactionDialog(
                   }),
               ] else ...[
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: categoryCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Kategori',
-                      hintText: 'mis. Makan, Gaji, Transport'),
+                RawAutocomplete<String>(
+                  textEditingController: categoryCtrl,
+                  focusNode: categoryFocus,
+                  optionsBuilder: (value) {
+                    final q = value.text.trim().toLowerCase();
+                    if (q.isEmpty) return const Iterable<String>.empty();
+                    return knownCategories.where((c) {
+                      final low = c.toLowerCase();
+                      return low.contains(q) && low != q;
+                    });
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                    return TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                          labelText: 'Kategori',
+                          hintText: 'mis. Makan, Gaji, Transport'),
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    final list = options.toList();
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(8),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: list.length,
+                            itemBuilder: (context, i) => ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.category_outlined, size: 18),
+                              title: Text(list[i]),
+                              onTap: () => onSelected(list[i]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
               const SizedBox(height: 12),
