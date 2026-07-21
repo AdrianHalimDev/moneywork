@@ -1,84 +1,120 @@
 # MoneyWork 💰✨
 
-Aplikasi pencatatan keuangan pribadi modern berbasis **Flutter** untuk Android & Web. Catat transaksi harian, scan struk belanja dengan **AI OCR**, patungan makan bareng lewat **Split Bill Interaktif**, kelola utang-piutang, pantau investasi, dan analisis keuanganmu secara *real-time*.
-
-> 🚀 **Versi Terbaru v2.7.2:**
-> - **📸 Pemindai Bon AI (OCR)**: Ambil foto struk dari Kamera/Galeri; AI (Gemini + Cloudflare Worker Proxy) mengekstrak item, PPN, dan service charge secara instan.
-> - **👥 Split Bill Interaktif (Item Assignment per Qty)**: Pilih kuantitas menu `[ - ] qty [ + ]` per orang. Bebas pelipatgandaan item; sisa item otomatis dialokasikan ke Item Bersama.
-> - **✏️ Edit Transaksi**: Ubah Catatan (Berita) dan Kategori transaksi terarsip tanpa mengubah saldo akun.
-> - **🌐 3 Bahasa (ID, EN, 中文)**: Bahasa Indonesia, Inggris, dan Mandarin penuh dengan navigasi yang responsif.
-> - **📱 Tampilan Landscape Responsive**: Tombol scan hadir di `NavigationRail` saat HP dimiringkan.
-> - **🌐 Deploy Web-Ready**: Siap di-deploy ke Cloudflare Pages, Vercel, Netlify, atau GitHub Pages.
+Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter** untuk Android & Web. **MoneyWork** membantu kamu mencatat transaksi harian, memindai struk belanja dengan **AI OCR**, membagi tagihan patungan secara presisi lewat **Split Bill Interaktif**, mengelola utang-piutang, memantau portofolio investasi secara *real-time*, hingga merencanakan tabungan impian.
 
 ---
 
-## ✨ Fitur Utama
+## 📸 Fitur Unggulan Terbaru (v2.7.2)
 
-### 📸 1. OCR Pemindai Bon & Struk (AI Powered)
-- **Scan dari Kamera & Galeri**: Foto bon belanjaanmu, AI akan mengekstrak nama tempat, daftar item, harga satuan, PPN, dan biaya layanan.
-- **Backend Proxy Aman**: Pemrosesan gambar dikirim via Cloudflare Worker Proxy untuk menjaga keamanan API Key.
-- **Cross-check Otomatis**: Aplikasi mencocokkan total fisik pada kertas bon dengan hitungan item.
-- **Langsung ke Transaksi / Split Bill**: Hasil scan bisa langsung disimpan sebagai pengeluaran atau diteruskan ke kalkulator patungan.
-
-### 👥 2. Split Bill & Assign Item per Qty
-- **Pilih Jumlah Orang & Nama**: Masukkan anggota yang ikut bayar.
-- **Assign Qty per Orang**: Gunakan counter `[ - ] qty [ + ]` untuk menentukan porsi makanan tiap orang.
-- **Bebas Pelipatgandaan Qty**: Tombol `+` dibatasi sesuai sisa item di bon.
-- **Item Bersama Sisa**: Item yang belum di-assign otomatis dibagi rata sebagai *Shared Items*. **Grand Total dijamin 100% cocok dengan kertas bon!**
-
-### 💳 3. Manajemen Akun & Transaksi
-- **Multi-Akun**: Kelola Tunai, Bank, E-Wallet, dan RDN (Rekening Dana Nasabah).
-- **Jenis Transaksi**: Pemasukan, Pengeluaran (dengan kategori & autocomplete), dan Transfer antar akun.
-- **Biaya Admin Transfer**: Pencatatan terpisah biaya admin transfer agar laporan pengeluaran tetap presisi.
-- **Edit Transaksi**: Edit catatan dan kategori transaksi kapan saja.
-
-### 🤝 4. Utang & Piutang (Gabungan Otomatis)
-- **Pengelompokan per Nama**: Piutang otomatis menyatu berdasarkan nama orang.
-- **Pelunasan Otomatis (FIFO)**: Pembayaran piutang melunasi pinjaman yang paling lama terlebih dahulu.
-- **Satu Klik ke Saldo**: Pelunasan langsung memperbarui saldo akun.
-
-### 📈 5. Investasi & Pemantauan Portofolio
-- **Saham, Kripto, & Aset**: Pantau jumlah lot, rata-rata harga beli, nilai pasar, serta Profit/Loss (nominal & persentase).
-- **Harga Otomatis**: Sinkronisasi harga saham/kripto otomatis via Cloudflare Worker.
-- **Integrasi Saldo RDN**: Beli & jual saham langsung memotong/menambah saldo RDN.
-
-### 📊 6. Laporan, Tanggalan, & Fitur Lainnya
-- **Grafik Laporan Bulanan**: Visualisasi ringkasan pemasukan & pengeluaran per kategori.
-- **Transaksi Bulanan (Rutin)**: Template otomatis untuk tagihan bulanan / langganan.
-- **Wishlist Menabung**: Target tabungan bertahap dengan kalkulator estimasi waktu.
-- **Multi-Bahasa**: Bahasa Indonesia (ID), Inggris (EN), dan Mandarin (ZH).
+- **🤖 Pemindai Bon & Struk Berbasis AI (OCR)**: Foto struk belanja dari kamera atau galeri. AI secara otomatis mengidentifikasi nama merchant, daftar item, harga satuan, PPN, dan service charge. Diproses via Cloudflare Worker Proxy untuk keamanan API key.
+- **👥 Split Bill Interaktif (Item Assignment per Qty)**: Tentukan porsi makanan per individu menggunakan selector kuantitas `[ - ] qty [ + ]`. Bebas pelipatgandaan item; sisa makanan yang belum dipilih otomatis dialokasikan sebagai *Item Bersama* (Shared Items) yang dibagi rata. Total hitungan 100% cocok dengan bon fisik.
+- **✏️ Edit Transaksi Terarsip**: Ubah Catatan (Berita) dan Kategori pada transaksi yang sudah dicatat tanpa mengganggu mutasi saldo akun.
+- **🌐 Dukungan 3 Bahasa (ID, EN, 中文)**: Lokalisasi penuh dalam Bahasa Indonesia, Bahasa Inggris, dan Bahasa Mandarin.
+- **📱 Layout Responsif & Landscape Mode**: Navigasi bawah otomatis menyesuaikan menjadi `NavigationRail` lengkap dengan tombol Scan saat layar dimiringkan.
+- **☁️ Web Deployment Ready**: Dapat di-build dan di-deploy langsung ke Cloudflare Pages, Vercel, Netlify, atau GitHub Pages.
 
 ---
 
-## 🛠️ Untuk Developer
+## 📚 Panduan Fitur Lengkap Aplikasi
 
-Proyek menggunakan **Flutter** (SDK `^3.6.0`).
+### 💳 1. Manajemen Akun & Saldo Keuangan
+- **Empat Jenis Akun**: Kelola aset di akun **Tunai**, **Bank**, **E-Wallet** (GoPay, OVO, ShopeePay, dll), dan **RDN** (Rekening Dana Nasabah untuk saham).
+- **Saldo Berjalan & Saldo Awal**: Setiap transaksi otomatis memutasi saldo akun terkait secara *real-time*.
+- **Proteksi Saldo Negatif**: Aplikasi menolak transaksi pengeluaran atau transfer yang melebihi sisa saldo berjalan.
+- **Manajemen Akun**: Tambah, edit nama/nomor rekening, ubah warna/ikon, dan hapus akun.
 
-### Perintah Dasar:
+### 📝 2. Transaksi: Pemasukan, Pengeluaran, & Transfer
+- **Pemasukan**: Catat uang masuk (gaji, bonus, dividen) ke akun pilihan.
+- **Pengeluaran**: Catat uang keluar lengkap dengan kategori (*autocomplete suggestion*) dan catatan/berita.
+- **Transfer Antar Akun**: Pindahkan dana antar akun pribadi.
+- **Biaya Admin Transfer**: Opsi pencatatan biaya admin saat transfer (misal: top up e-wallet Rp 50.000 + admin Rp 1.000 → BCA berkurang Rp 51.000, GoPay bertambah Rp 50.000). Biaya admin dicatat sebagai pengeluaran terpisah berkategori "Biaya Admin" untuk pelaporan presisi.
+- **Edit Transaksi**: Ketuk baris transaksi untuk mengubah Catatan dan Kategori. Kolom nominal, akun, dan tanggal dikunci untuk menjaga integritas pembukuan.
+- **Auto-Formatting Ribuan**: Nominal angka otomatis memiliki titik pemisah ribuan saat diketik.
+
+### 📸 3. Pemindai Bon & Struk Otomatis (AI OCR)
+- **Sumber Gambar**: Ambil foto dari Kamera langsung atau pilih dari Galeri HP.
+- **Ekstraksi Presisi**: Membaca nama toko, item, qty, harga satuan, PPN/pajak, dan service charge dari gambar bon.
+- **Verifikasi Matematika**: Fitur *Cross-Check* otomatis mencocokkan total fisik di kertas bon dengan hasil hitungan item.
+- **Aksi Instan**: Hasil scan bisa langsung disimpankan sebagai **Transaksi Pengeluaran Baru** atau dilempar ke **Split Bill**.
+
+### 👥 4. Split Bill Interaktif (Patungan Makan Bareng)
+- **Wizard 3-Langkah**:
+  1. Input jumlah orang yang ikut bayar.
+  2. Input nama masing-masing orang (misal: Saya, Abhi, Gama).
+  3. Pilih porsi/qty item yang dipesan tiap orang.
+- **Selector Qty `[ - ] qty [ + ]`**: Memilih kuantitas item spesifik per orang. Tombol `+` dibatasi hingga sisa item yang belum diambil di bon (mencegah pelipatgandaan item).
+- **Auto Shared Items**: Kuantitas item yang belum habis dibagi otomatis dijadikan *Item Bersama* dan dibagi rata.
+- **Perhitungan Pajak & Diskon**: PPN dan Service Charge dihitung sebelum diskon. Diskon dapat dibagi rata atau proporsional.
+- **Langsung ke Piutang**: Hasil perhitungan per orang bisa langsung disimpan sebagai Piutang atas nama mereka jika kamu yang menalangi tagihan.
+
+### 🤝 5. Pengelolaan Piutang (Uang Kamu yang Dipinjam Orang)
+- **Pengelompokan Otomatis per Nama**: Pinjaman dari orang yang sama otomatis digabung dalam 1 kartu dengan saran nama otomatis.
+- **Pelunasan FIFO (First In First Out)**: Pembayaran piutang secara otomatis melunasi pinjaman paling lama terlebih dahulu.
+- **Integrasi Saldo Akun**: Pelunasan piutang menambah saldo akun yang dipilih untuk menerima uang.
+- **Riwayat Transaksi Piutang**: Melacak detail rincian tiap tanggal pinjaman dan sisa tagihan.
+
+### 💸 6. Pengelolaan Utang (Uang yang Kamu Pinjam)
+- **Pencatatan Utang**: Catat utang ke kreditur lengkap dengan nominal dan tanggal jatuh tempo.
+- **Pembayaran Utang**: Mengurangi saldo akun pilihan dan mengupdate sisa utang.
+- **Pembatalan Pembayaran**: Fitur *rollback* untuk mengembalikan saldo akun dan sisa utang jika terjadi kesalahan.
+
+### 📈 7. Portofolio Investasi & Harga Otomatis
+- **Ragam Jenis Aset**: Pantau Saham (dihitung dalam **Lot**), Kripto, Reksadana, Emas, atau Aset Fisik.
+- **Sinkronisasi Harga Real-Time**: Perbarui harga pasar otomatis via Cloudflare Worker untuk saham & kripto yang mendukung.
+- **Analisis Profit / Loss**: Menampilkan Nilai Pasar (*Market Value*), Gain/Loss nominal (Rp), dan persentase *return* (% PnL).
+- **Transaksi Saham via RDN**: Jual/Beli saham memotong/menambah saldo RDN dan menghitung harga beli rata-rata tertimbang (*Average Purchase Price*).
+
+### 🔄 8. Transaksi Bulanan & Tagihan Rutin
+- **Template Tagihan Rutin**: Catat langganan bulanan (Netflix, Spotify, Kos, Listrik, Internet) atau cicilan.
+- **Eksekusi "Jalankan Semua"**: Catat semua transaksi rutin sekaligus dalam satu klik. Template dilewati otomatis jika saldo akun tidak mencukupi.
+
+### 🎯 9. Wishlist Menabung (Saving Target)
+- **Target Tabungan**: Setel foto barang impian, target nominal, dan estimasi waktu pencapaian.
+- **Setor Bertahap**: Nabung berkala dengan indikator *Progress Bar* persentase tabungan.
+- **Auto-Complete**: Otomatis menandai target selesai saat dana terkumpul 100%.
+
+### 📊 10. Laporan Keuangan & Ekspor Data
+- **Grafik Pie Chart**: Visualisasi pengeluaran per kategori secara intuitif.
+- **Murni Tanpa Bias**: Transfer antar akun pribadi tidak dihitung sebagai pengeluaran/pemasukan agar grafik tetap akurat.
+- **Ekspor Excel (.xlsx)**: Unduh seluruh riwayat transaksi ke dalam file format Excel.
+
+### 🔒 11. Keamanan, Biometrik, & Enkripsi Cloud
+- **Layar Kunci (Lock Screen)**: Dilengkapi Keamanan PIN 6-Digit dan Sidik Jari / Biometrik (Fingerprint & Face ID).
+- **Kunci Sesi Otomatis**: Aplikasi terkunci otomatis saat ditinggalkan di latar belakang.
+- **Cloud Sync Terenkripsi**: Sinkronisasi data ke Firebase Firestore menggunakan enkripsi *End-to-End*.
+- **Mode Offline**: Aplikasi tetap berfungsi penuh saat tidak ada koneksi internet (data tersimpan di lokal dan tersinkron otomatis saat online).
+
+---
+
+## 🛠️ Panduan Developer & Deployment
+
+Proyek dibangun menggunakan **Flutter** (SDK `^3.6.0`).
+
+### Perintah Utama:
 ```bash
-# Install dependensi
+# 1. Install dependensi
 flutter pub get
 
-# Jalankan aplikasi (Mobile / Emulator)
+# 2. Jalankan di perangkat/emulator (Mobile)
 flutter run
 
-# Jalankan aplikasi (Web local)
+# 3. Jalankan di browser (Web)
 flutter run -d chrome
 
-# Uji Unit & Analisis Statis
+# 4. Uji Unit & Analisis Statis
 flutter test
 flutter analyze
 
-# Build APK Release (Android)
+# 5. Build APK Release (Android)
 flutter build apk --release
 
-# Build Web Release
+# 6. Build Web Release
 flutter build web --release
 ```
 
 ### Deploy Web ke Cloudflare Pages:
 ```bash
-# Build bundle web
+# Build berkas web
 flutter build web --release
 
 # Deploy folder build/web ke Cloudflare Pages
@@ -87,12 +123,12 @@ npx wrangler pages deploy build/web --project-name=moneywork
 
 ---
 
-## 🔒 Keamanan & Repositori Publik
+## 🛡️ Kebijakan Keamanan Repositori
 
-Berkas berikut di-ignore oleh `.gitignore` dan **tidak pernah di-commit ke repositori publik**:
-- `android/key.properties`, `*.jks`, `*.keystore` *(Signing key release)*
-- `android/app/google-services.json`, `lib/firebase_options.dart` *(Firebase project config)*
-- `.wrangler/` *(Cloudflare wrangler cache)*
+File-file sensitif berikut **di-ignore oleh `.gitignore`** dan **tidak pernah di-commit ke repositori publik**:
+- `android/key.properties`, `*.jks`, `*.keystore` *(Keystore signing rilis)*
+- `android/app/google-services.json`, `lib/firebase_options.dart` *(Konfigurasi project Firebase)*
+- `.wrangler/` *(Folder cache build Cloudflare)*
 
 ---
 
