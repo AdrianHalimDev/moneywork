@@ -1,0 +1,67 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+nul
+
+# === Rahasia signing (JANGAN pernah di-commit) ===
+# Berisi password keystore dalam teks biasa. Jika bocor ke repo public,
+# siapa pun bisa menandatangani APK palsu seolah update resmi aplikasimu.
+key.properties
+android/key.properties
+*.jks
+*.keystore
+
+# === Konfigurasi Firebase ===
+# API key Firebase tidak rahasia (memang tertanam di APK), tapi untuk repo
+# public lebih aman tidak mengekspos konfigurasi project. Hapus baris ini
+# bila repo tetap private dan kamu ingin clone bisa langsung build.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+
+# Wrangler & temporary plans
+.wrangler/
+**/.wrangler/
+implementation_plan.md

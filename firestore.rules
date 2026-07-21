@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Aturan keamanan Firestore untuk MoneyWork.
+//
+// Prinsip: setiap dokumen pengguna terisolasi per-UID. Hanya pemilik UID yang
+// sah (request.auth.uid == uid) boleh membaca/menulis datanya sendiri. Tidak
+// ada akses publik, dan tidak ada akses antar-pengguna.
+//
+// Lapisan keamanan:
+//   1. Aturan ini  → mencegah pengguna A membaca data pengguna B, dan
+//      mencegah akses tanpa login.
+//   2. Enkripsi sisi-klien (E2EE) → meski kamu (pemilik project) punya akses
+//      admin yang menembus aturan ini, data yang tersimpan hanya ciphertext.
+//      Tanpa sandi/recovery key, data tak terbaca.
+//
+// Dokumen:
+//   users/{uid}/data/state  → AppState terenkripsi (ciphertext).
+//   users/{uid}/data/keys   → DEK yang dibungkus (wrapped) password & recovery.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Root: tolak semua secara default (fail-closed).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Data per pengguna: hanya pemilik UID yang diautentikasi.
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Metadata aplikasi (seperti info versi rilis OTA) boleh dibaca oleh siapa saja.
+    match /meta/app_version {
+      allow read: if true;
+    }
+  }
+}

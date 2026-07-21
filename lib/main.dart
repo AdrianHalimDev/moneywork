@@ -1,0 +1,147 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
+import 'core/theme.dart';
+import 'data/app_controller.dart';
+import 'firebase/auth.dart';
+import 'firebase/firebase_config.dart';
+import 'firebase/key_session.dart';
+import 'firebase_options.dart';
+import 'router.dart';
+import 'screens/complete_account_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/security_upgrade_screen.dart';
+import 'screens/unlock_screen.dart';
+import 'services/notification_service.dart';
+import 'widgets/update_checker.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Format tanggal & angka Indonesia.
+  await initializeDateFormatting('id_ID', null);
+  // Inisialisasi Firebase hanya bila diaktifkan (lihat firebase_config.dart).
+  if (useFirebase) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+  // Siapkan notifikasi lokal (no-op di web).
+  await NotificationService.instance.init();
+  runApp(const ProviderScope(child: MoneyWorkApp()));
+}
+
+class MoneyWorkApp extends ConsumerWidget {
+  const MoneyWorkApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
+    return MaterialApp.router(
+      title: 'MoneyWork',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: themeMode,
+      routerConfig: appRouter,
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      // Gerbang autentikasi: membungkus seluruh aplikasi tanpa mengubah router.
+      // Mode lokal melewati ini sepenuhnya.
+      builder: (context, child) => _AuthGate(child: child ?? const SizedBox()),
+    );
+  }
+}
+
+/// Menentukan apakah menampilkan aplikasi atau layar login.
+///
+/// - Firebase nonaktif → langsung tampilkan aplikasi (tanpa login).
+/// - Firebase aktif → ikuti status login: belum login tampilkan [LoginScreen],
+///   sudah login tampilkan aplikasi.
+class _AuthGate extends ConsumerWidget {
+  const _AuthGate({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!useFirebase) return child;
+
+    final auth = ref.watch(authStateProvider);
+    return auth.when(
+      skipLoadingOnReload: true,
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        body: Center(child: Text(AppLocalizations.of(context)?.errorLoadSession(e.toString()) ?? 'Failed to load session: $e')),
+      ),
+      data: (user) {
+        if (user == null) {
+          return Navigator(
+            key: const ValueKey('nav-login'),
+            onGenerateRoute: (_) =>
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        }
+        // Akun Google yang belum punya kata sandi wajib melengkapi dulu.
+        if (!user.hasPassword) {
+          return Navigator(
+            key: const ValueKey('nav-complete'),
+            onGenerateRoute: (_) =>
+                MaterialPageRoute(builder: (_) => CompleteAccountScreen(user: user)),
+          );
+        }
+        // Gerbang enkripsi end-to-end: pastikan data terenkripsi & terbuka
+        // sebelum aplikasi menampilkan data keuangan.
+        return _SecurityGate(uid: user.uid, child: child);
+      },
+    );
+  }
+}
+
+/// Gerbang keamanan E2EE setelah login. Menentukan perlu setup (migrasi data
+/// lama), perlu unlock (perangkat baru), atau sudah siap.
+class _SecurityGate extends ConsumerWidget {
+  const _SecurityGate({required this.uid, required this.child});
+  final String uid;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(securityStatusProvider);
+    return status.when(
+      skipLoadingOnReload: true,
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        body: Center(child: Text(AppLocalizations.of(context)?.errorLoadSecurity(e.toString()) ?? 'Failed to load security: $e')),
+      ),
+      data: (s) {
+        switch (s) {
+          case SecurityStatus.needsUpgrade:
+            return Navigator(
+              key: const ValueKey('nav-upgrade'),
+              onGenerateRoute: (_) =>
+                  MaterialPageRoute(builder: (_) => SecurityUpgradeScreen(uid: uid)),
+            );
+          case SecurityStatus.locked:
+            return Navigator(
+              key: const ValueKey('nav-unlock'),
+              onGenerateRoute: (_) =>
+                  MaterialPageRoute(builder: (_) => UnlockScreen(uid: uid)),
+            );
+          case SecurityStatus.disabled:
+          case SecurityStatus.ready:
+            // Pengguna sudah masuk penuh & kunci siap: bungkus aplikasi
+            // dengan pengecek update OTA.
+            return UpdateChecker(key: const ValueKey('nav-main'), child: child);
+        }
+      },
+    );
+  }
+}
