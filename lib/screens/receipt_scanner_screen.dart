@@ -30,6 +30,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
   late List<ReceiptItem> _items;
   late TextEditingController _serviceCtrl;
   late TextEditingController _taxCtrl;
+  late TextEditingController _discountCtrl;
   late TextEditingController _grandTotalCtrl;
 
   @override
@@ -40,6 +41,8 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
         text: widget.initialData.serviceCharge.toStringAsFixed(0));
     _taxCtrl =
         TextEditingController(text: widget.initialData.tax.toStringAsFixed(0));
+    _discountCtrl = TextEditingController(
+        text: widget.initialData.discount.toStringAsFixed(0));
     _grandTotalCtrl = TextEditingController(
         text: widget.initialData.grandTotal.toStringAsFixed(0));
   }
@@ -48,6 +51,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
   void dispose() {
     _serviceCtrl.dispose();
     _taxCtrl.dispose();
+    _discountCtrl.dispose();
     _grandTotalCtrl.dispose();
     super.dispose();
   }
@@ -57,6 +61,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
         subtotal: _items.fold<double>(0, (s, i) => s + i.totalPrice),
         serviceCharge: double.tryParse(_serviceCtrl.text) ?? 0,
         tax: double.tryParse(_taxCtrl.text) ?? 0,
+        discount: double.tryParse(_discountCtrl.text) ?? 0,
         grandTotal: double.tryParse(_grandTotalCtrl.text) ?? 0,
       );
 
@@ -96,6 +101,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
           items: extractedItems,
           tax: receipt.tax,
           serviceCharge: receipt.serviceCharge,
+          discount: receipt.discount,
         ),
       ),
     );
@@ -147,6 +153,14 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
           _NumberField(
             label: l10n.receiptTax,
             controller: _taxCtrl,
+            onChanged: _onChanged,
+          ),
+          const SizedBox(height: 12),
+
+          // Discount / Diskon
+          _NumberField(
+            label: l10n.receiptDiscount,
+            controller: _discountCtrl,
             onChanged: _onChanged,
           ),
           const SizedBox(height: 12),

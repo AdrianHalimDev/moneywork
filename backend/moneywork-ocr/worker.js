@@ -18,7 +18,7 @@
  *   4. npx wrangler deploy
  */
 
-const SYSTEM_PROMPT = `You are a receipt/bill data extractor. Analyze the receipt image and extract ALL items, quantities, prices, subtotal, service charge, tax, and grand total.
+const SYSTEM_PROMPT = `You are a receipt/bill data extractor. Analyze the receipt image and extract ALL items, quantities, prices, subtotal, service charge, tax, discount, and grand total.
 
 RULES:
 1. Respond ONLY with valid JSON. No explanations, no markdown.
@@ -28,8 +28,9 @@ RULES:
 5. "subtotal" is the sum of all item totalPrice values.
 6. "serviceCharge" is any service fee listed (0 if none).
 7. "tax" is any tax/PPN listed (0 if none).
-8. "grandTotal" is the final total printed on the receipt.
-9. Extract item names exactly as printed. Keep them concise.
+8. "discount" is any discount/promo/deduction listed (0 if none). Note: discount should be a positive number representing the deduction amount (e.g. 10000 for a Rp 10.000 discount).
+9. "grandTotal" is the final total printed on the receipt.
+10. Extract item names exactly as printed. Keep them concise.
 
 REQUIRED JSON FORMAT:
 {
@@ -39,6 +40,7 @@ REQUIRED JSON FORMAT:
   "subtotal": 50000,
   "serviceCharge": 0,
   "tax": 5500,
+  "discount": 0,
   "grandTotal": 55500
 }`;
 

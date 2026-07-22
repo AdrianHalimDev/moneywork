@@ -4,6 +4,8 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'package:flutter/gestures.dart';
+
 import 'core/theme.dart';
 import 'data/app_controller.dart';
 import 'firebase/auth.dart';
@@ -17,6 +19,19 @@ import 'screens/security_upgrade_screen.dart';
 import 'screens/unlock_screen.dart';
 import 'services/notification_service.dart';
 import 'widgets/update_checker.dart';
+
+/// Memungkinkan geser/drag menggunakan mouse, touchpad, dan layar sentuh di Web/Desktop.
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +65,7 @@ class MoneyWorkApp extends ConsumerWidget {
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
+      scrollBehavior: const AppScrollBehavior(),
       // Gerbang autentikasi: membungkus seluruh aplikasi tanpa mengubah router.
       // Mode lokal melewati ini sepenuhnya.
       builder: (context, child) => _AuthGate(child: child ?? const SizedBox()),

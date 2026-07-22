@@ -644,6 +644,7 @@
   "receiptUnitPrice": "Harga Satuan",
   "receiptServiceCharge": "Biaya Layanan",
   "receiptTax": "Pajak",
+  "receiptDiscount": "Diskon",
   "receiptGrandTotalPaper": "Grand Total (Kertas)",
   "receiptGrandTotalCalc": "Grand Total (Terhitung)",
   "receiptSaveAsTransaction": "Simpan sbg Transaksi",

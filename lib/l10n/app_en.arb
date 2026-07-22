@@ -572,6 +572,7 @@
   "receiptUnitPrice": "Unit Price",
   "receiptServiceCharge": "Service Charge",
   "receiptTax": "Tax",
+  "receiptDiscount": "Discount",
   "receiptGrandTotalPaper": "Grand Total (Paper)",
   "receiptGrandTotalCalc": "Grand Total (Calculated)",
   "receiptSaveAsTransaction": "Save as Transaction",

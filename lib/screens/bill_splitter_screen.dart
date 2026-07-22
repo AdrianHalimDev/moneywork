@@ -17,6 +17,7 @@ class BillSplitterScreen extends ConsumerStatefulWidget {
     this.initialPeople,
     this.initialPpn,
     this.initialService,
+    this.initialDiscount,
   });
 
   /// Item bersama dari hasil OCR bon (opsional, mode lama).
@@ -31,6 +32,9 @@ class BillSplitterScreen extends ConsumerStatefulWidget {
   /// Service charge dari bon (nominal Rupiah, bukan persen). Opsional.
   final double? initialService;
 
+  /// Diskon dari bon (nominal Rupiah, bukan persen). Opsional.
+  final double? initialDiscount;
+
   @override
   ConsumerState<BillSplitterScreen> createState() => _BillSplitterScreenState();
 }
@@ -42,7 +46,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
 
   late final TextEditingController _ppnCtrl;
   late final TextEditingController _serviceCtrl;
-  final _discountCtrl = TextEditingController(text: '0');
+  late final TextEditingController _discountCtrl;
 
   // Diskon dibagi rata ke tiap orang (true) atau proporsional ke pesanan.
   bool _splitDiscountEvenly = true;
@@ -85,6 +89,14 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
       _serviceCtrl = TextEditingController(text: scPct.toStringAsFixed(1));
     } else {
       _serviceCtrl = TextEditingController(text: '0');
+    }
+
+    // Diskon
+    if (widget.initialDiscount != null && widget.initialDiscount! > 0) {
+      _discountCtrl = TextEditingController(
+          text: Fmt.group(widget.initialDiscount!));
+    } else {
+      _discountCtrl = TextEditingController(text: '0');
     }
   }
 

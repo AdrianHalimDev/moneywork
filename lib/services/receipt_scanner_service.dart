@@ -69,9 +69,9 @@ class ReceiptScannerService {
       (sum, item) => sum + item.totalPrice,
     );
 
-    // Hitung grand total: subtotal + service + tax
+    // Hitung grand total: subtotal + service + tax - discount
     final calculatedGrandTotal =
-        calculatedSubtotal + receipt.serviceCharge + receipt.tax;
+        calculatedSubtotal + receipt.serviceCharge + receipt.tax - receipt.discount;
 
     // Selisih dengan grand total kertas
     final diff = (calculatedGrandTotal - receipt.grandTotal).abs();

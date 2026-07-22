@@ -572,6 +572,7 @@
   "receiptUnitPrice": "单价",
   "receiptServiceCharge": "服务费",
   "receiptTax": "税",
+  "receiptDiscount": "折扣",
   "receiptGrandTotalPaper": "总计（纸面）",
   "receiptGrandTotalCalc": "总计（计算）",
   "receiptSaveAsTransaction": "保存为交易",

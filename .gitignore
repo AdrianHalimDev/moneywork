@@ -65,3 +65,8 @@ lib/firebase_options.dart
 .wrangler/
 **/.wrangler/
 implementation_plan.md
+
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example

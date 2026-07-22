@@ -44,6 +44,7 @@ class ReceiptScanResult {
     required this.subtotal,
     this.serviceCharge = 0,
     this.tax = 0,
+    this.discount = 0,
     required this.grandTotal,
   });
 
@@ -51,6 +52,7 @@ class ReceiptScanResult {
   final double subtotal;
   final double serviceCharge;
   final double tax;
+  final double discount;
 
   /// Grand Total yang tercetak di kertas bon asli.
   final double grandTotal;
@@ -60,6 +62,7 @@ class ReceiptScanResult {
     double? subtotal,
     double? serviceCharge,
     double? tax,
+    double? discount,
     double? grandTotal,
   }) =>
       ReceiptScanResult(
@@ -67,6 +70,7 @@ class ReceiptScanResult {
         subtotal: subtotal ?? this.subtotal,
         serviceCharge: serviceCharge ?? this.serviceCharge,
         tax: tax ?? this.tax,
+        discount: discount ?? this.discount,
         grandTotal: grandTotal ?? this.grandTotal,
       );
 
@@ -80,6 +84,7 @@ class ReceiptScanResult {
         subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
         serviceCharge: (json['serviceCharge'] as num?)?.toDouble() ?? 0,
         tax: (json['tax'] as num?)?.toDouble() ?? 0,
+        discount: (json['discount'] as num?)?.toDouble() ?? 0,
         grandTotal: (json['grandTotal'] as num?)?.toDouble() ?? 0,
       );
 }

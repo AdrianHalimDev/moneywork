@@ -26,6 +26,7 @@ class ReceiptAssignScreen extends StatefulWidget {
     required this.items,
     required this.tax,
     required this.serviceCharge,
+    this.discount = 0,
   });
 
   /// Item dari hasil scan bon (sudah dikonversi ke BillItem, qty = qty di bon, price = unit price).
@@ -36,6 +37,9 @@ class ReceiptAssignScreen extends StatefulWidget {
 
   /// Service charge nominal dari bon.
   final double serviceCharge;
+
+  /// Diskon nominal dari bon.
+  final double discount;
 
   @override
   State<ReceiptAssignScreen> createState() => _ReceiptAssignScreenState();
@@ -158,6 +162,7 @@ class _ReceiptAssignScreenState extends State<ReceiptAssignScreen> {
               unassignedSharedItems.isNotEmpty ? unassignedSharedItems : null,
           initialPpn: widget.tax,
           initialService: widget.serviceCharge,
+          initialDiscount: widget.discount,
         ),
       ),
     );
