@@ -42,7 +42,7 @@ dependencies:
   # Navigation
   go_router: ^14.6.2
   # Formatting (Rupiah, tanggal)
-  intl: ^0.19.0
+  intl: ^0.20.2
   # ID unik untuk entitas
   uuid: ^4.5.1
   # Penyimpanan lokal (sebelum Firebase wiring)

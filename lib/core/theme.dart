@@ -32,11 +32,11 @@ class AppTheme {
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
-      bottomAppBarTheme: const BottomAppBarTheme(
+      bottomAppBarTheme: const BottomAppBarThemeData(
         shape: CircularNotchedRectangle(),
         height: 64,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

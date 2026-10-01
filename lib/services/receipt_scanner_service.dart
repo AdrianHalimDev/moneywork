@@ -25,7 +25,6 @@ class ReceiptScannerService {
   /// Toleransi pembulatan POS kasir: Rp 100.
   static const double _tolerance = 100.0;
 
-
   /// Memindai bon dari gambar. Mengembalikan [ReceiptScanResult] atau throw
   /// [Exception] jika gagal.
   Future<ReceiptScanResult> scanReceipt(XFile image) async {
@@ -69,9 +68,12 @@ class ReceiptScannerService {
       (sum, item) => sum + item.totalPrice,
     );
 
-    // Hitung grand total: subtotal + service + tax - discount
-    final calculatedGrandTotal =
-        calculatedSubtotal + receipt.serviceCharge + receipt.tax - receipt.discount;
+    // Hitung grand total: subtotal + service + tax + biaya lain - diskon.
+    final calculatedGrandTotal = calculatedSubtotal +
+        receipt.serviceCharge +
+        receipt.tax +
+        receipt.additionalFees -
+        receipt.discount;
 
     // Selisih dengan grand total kertas
     final diff = (calculatedGrandTotal - receipt.grandTotal).abs();

@@ -2,14 +2,14 @@
  * MoneyWork — OCR Receipt Scanner Proxy (Cloudflare Workers).
  *
  * Meneruskan gambar bon (Base64) ke Gemini API dan mengembalikan
- * data terstruktur (JSON) berisi daftar item, pajak, service, & grand total.
+ * data terstruktur (JSON) berisi item, pajak, service, diskon, biaya lain, & total.
  *
  * API Key Gemini disimpan sebagai Cloudflare Secret — tidak pernah ada
  * di kode sumber maupun di aplikasi mobile.
  *
  * Endpoint: POST /scan
  * Body    : { "imageBase64": "..." }
- * Respons : { "items": [...], "subtotal": ..., "serviceCharge": ..., "tax": ..., "grandTotal": ... }
+ * Respons : { "items": [...], "subtotal": ..., "serviceCharge": ..., "tax": ..., "discount": ..., "additionalFees": ..., "grandTotal": ... }
  *
  * Deploy:
  *   1. cd backend/moneywork-ocr
@@ -18,19 +18,20 @@
  *   4. npx wrangler deploy
  */
 
-const SYSTEM_PROMPT = `You are a receipt/bill data extractor. Analyze the receipt image and extract ALL items, quantities, prices, subtotal, service charge, tax, discount, and grand total.
+const SYSTEM_PROMPT = `You are a receipt/bill data extractor. Analyze the receipt image and extract ALL items, quantities, prices, subtotal, service charge, tax, discounts, other fees, and grand total.
 
 RULES:
 1. Respond ONLY with valid JSON. No explanations, no markdown.
 2. All prices must be numbers (not strings). Use the currency shown on the receipt (usually IDR for Indonesian receipts).
 3. If quantity is not shown, assume 1.
-4. "unitPrice" is the price per single unit. "totalPrice" is qty * unitPrice.
+4. "unitPrice" is the price per single unit before separately printed discounts. "totalPrice" is qty * unitPrice.
 5. "subtotal" is the sum of all item totalPrice values.
 6. "serviceCharge" is any service fee listed (0 if none).
 7. "tax" is any tax/PPN listed (0 if none).
-8. "discount" is any discount/promo/deduction listed (0 if none). Note: discount should be a positive number representing the deduction amount (e.g. 10000 for a Rp 10.000 discount).
-9. "grandTotal" is the final total printed on the receipt.
-10. Extract item names exactly as printed. Keep them concise.
+8. "discount" is the SUM of every separate discount, promo, voucher, cashback applied at checkout, or negative adjustment. Return a POSITIVE deduction amount, even if printed with a minus sign or in parentheses. Never include discount lines as purchased items. Do not count a discount twice: if only an already-discounted net item price is shown, use that net price and set its separate discount to zero.
+9. "additionalFees" is the SUM of other positive charges such as packaging, delivery, or admin fees. Do not include tax or service charge again.
+10. "grandTotal" is the final amount payable printed on the receipt. Check that subtotal + serviceCharge + tax + additionalFees - discount equals grandTotal when the receipt is legible. Do not invent missing values to force a match.
+11. Extract item names exactly as printed. Keep them concise.
 
 REQUIRED JSON FORMAT:
 {
@@ -41,6 +42,7 @@ REQUIRED JSON FORMAT:
   "serviceCharge": 0,
   "tax": 5500,
   "discount": 0,
+  "additionalFees": 0,
   "grandTotal": 55500
 }`;
 
@@ -171,18 +173,38 @@ export default {
       }
 
       // Ensure numeric fields have defaults
-      receiptData.subtotal = Number(receiptData.subtotal) || 0;
-      receiptData.serviceCharge = Number(receiptData.serviceCharge) || 0;
-      receiptData.tax = Number(receiptData.tax) || 0;
-      receiptData.grandTotal = Number(receiptData.grandTotal) || 0;
+      receiptData.subtotal = parseMoney(receiptData.subtotal);
+      receiptData.serviceCharge = parseMoney(receiptData.serviceCharge);
+      receiptData.tax = parseMoney(receiptData.tax);
+      receiptData.discount = Math.abs(parseMoney(receiptData.discount));
+      receiptData.additionalFees = Math.max(0, parseMoney(receiptData.additionalFees));
+      receiptData.grandTotal = parseMoney(receiptData.grandTotal);
 
       // Sanitize items
-      receiptData.items = receiptData.items.map((item) => ({
-        name: String(item.name || 'Unknown'),
-        qty: Math.max(1, Math.round(Number(item.qty) || 1)),
-        unitPrice: Number(item.unitPrice) || 0,
-        totalPrice: Number(item.totalPrice) || 0,
-      }));
+      let discountFromItems = 0;
+      receiptData.items = receiptData.items.map((item) => {
+        const qty = Math.max(1, Math.round(Number(item.qty) || 1));
+        const unitPrice = parseMoney(item.unitPrice);
+        return {
+          name: String(item.name || 'Unknown'),
+          qty,
+          unitPrice,
+          totalPrice: item.totalPrice == null
+            ? qty * unitPrice
+            : parseMoney(item.totalPrice),
+        };
+      }).filter((item) => {
+        const discountLabel = /^(?:diskon|discount|potongan|voucher|cashback)(?:\s|:|-|$)/i
+          .test(item.name.trim());
+        if (item.totalPrice < 0 || item.unitPrice < 0 || discountLabel) {
+          discountFromItems += Math.abs(item.totalPrice || item.unitPrice * item.qty);
+          return false;
+        }
+        return true;
+      });
+      // Sebagian model menaruh potongan sebagai baris item. Ambil nilainya
+      // tanpa menggandakan diskon yang juga sudah dilaporkan di field diskon.
+      receiptData.discount = Math.max(receiptData.discount, discountFromItems);
 
       return jsonResponse(receiptData, 200, cors);
     } catch (e) {
@@ -190,6 +212,26 @@ export default {
     }
   },
 };
+
+// Gemini kadang mengembalikan "Rp 10.000" meski diminta angka JSON.
+function parseMoney(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value !== 'string') return 0;
+  let raw = value.trim().replace(/[^\d.,()-]/g, '');
+  const negative = raw.includes('-') || (raw.startsWith('(') && raw.endsWith(')'));
+  raw = raw.replace(/[()-]/g, '');
+  if (/^\d{1,3}([.,]\d{3})+$/.test(raw)) {
+    raw = raw.replace(/[.,]/g, '');
+  } else if (raw.includes(',') && raw.includes('.')) {
+    const decimalSeparator = raw.lastIndexOf(',') > raw.lastIndexOf('.') ? ',' : '.';
+    raw = raw.replace(decimalSeparator === ',' ? /\./g : /,/g, '')
+      .replace(decimalSeparator, '.');
+  } else {
+    raw = raw.replace(',', '.');
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? (negative ? -parsed : parsed) : 0;
+}
 
 function jsonResponse(body, status, cors) {
   return new Response(JSON.stringify(body), {

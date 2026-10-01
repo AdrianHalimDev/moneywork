@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:moneywork/l10n/app_localizations.dart';
 
 import '../core/formatters.dart';
 import '../services/bill_splitter.dart';
@@ -27,6 +27,7 @@ class ReceiptAssignScreen extends StatefulWidget {
     required this.tax,
     required this.serviceCharge,
     this.discount = 0,
+    this.additionalFees = 0,
   });
 
   /// Item dari hasil scan bon (sudah dikonversi ke BillItem, qty = qty di bon, price = unit price).
@@ -40,6 +41,7 @@ class ReceiptAssignScreen extends StatefulWidget {
 
   /// Diskon nominal dari bon.
   final double discount;
+  final double additionalFees;
 
   @override
   State<ReceiptAssignScreen> createState() => _ReceiptAssignScreenState();
@@ -163,6 +165,7 @@ class _ReceiptAssignScreenState extends State<ReceiptAssignScreen> {
           initialPpn: widget.tax,
           initialService: widget.serviceCharge,
           initialDiscount: widget.discount,
+          initialAdditionalFees: widget.additionalFees,
         ),
       ),
     );
@@ -218,8 +221,9 @@ class _ReceiptAssignScreenState extends State<ReceiptAssignScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton.filled(
-                onPressed:
-                    _personCount > 2 ? () => setState(() => _personCount--) : null,
+                onPressed: _personCount > 2
+                    ? () => setState(() => _personCount--)
+                    : null,
                 icon: const Icon(Icons.remove),
               ),
               const SizedBox(width: 24),
@@ -399,7 +403,8 @@ class _ReceiptAssignScreenState extends State<ReceiptAssignScreen> {
                     Container(
                       decoration: BoxDecoration(
                         color: currentQty > 0
-                            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+                            ? theme.colorScheme.primaryContainer
+                                .withValues(alpha: 0.4)
                             : theme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(

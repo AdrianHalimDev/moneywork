@@ -35,6 +35,7 @@ Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter**
 - **Sumber Gambar**: Ambil foto dari Kamera langsung atau pilih dari Galeri HP.
 - **Ekstraksi Presisi**: Membaca nama toko, item, qty, harga satuan, PPN/pajak, dan service charge dari gambar bon.
 - **Verifikasi Matematika**: Fitur *Cross-Check* otomatis mencocokkan total fisik di kertas bon dengan hasil hitungan item.
+- **Diskon & Biaya Tambahan**: Hasil OCR membaca potongan harga dan biaya lain (misalnya kemasan atau admin); keduanya dapat dikoreksi di layar review dan diteruskan ke Split Bill.
 - **Aksi Instan**: Hasil scan bisa langsung disimpankan sebagai **Transaksi Pengeluaran Baru** atau dilempar ke **Split Bill**.
 
 ### 👥 4. Split Bill Interaktif (Patungan Makan Bareng)
@@ -45,6 +46,7 @@ Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter**
 - **Selector Qty `[ - ] qty [ + ]`**: Memilih kuantitas item spesifik per orang. Tombol `+` dibatasi hingga sisa item yang belum diambil di bon (mencegah pelipatgandaan item).
 - **Auto Shared Items**: Kuantitas item yang belum habis dibagi otomatis dijadikan *Item Bersama* dan dibagi rata.
 - **Perhitungan Pajak & Diskon**: PPN dan Service Charge dihitung sebelum diskon. Diskon dapat dibagi rata atau proporsional.
+- **Input Persen atau Nominal**: PPN dan Service Charge bisa diisi dalam persen atau Rupiah; nilai pasangannya dihitung otomatis. Biaya tambahan ikut dibagi proporsional.
 - **Langsung ke Piutang**: Hasil perhitungan per orang bisa langsung disimpan sebagai Piutang atas nama mereka jika kamu yang menalangi tagihan.
 
 ### 🤝 5. Pengelolaan Piutang (Uang Kamu yang Dipinjam Orang)

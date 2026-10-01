@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:moneywork/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/formatters.dart';
@@ -31,6 +31,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
   late TextEditingController _serviceCtrl;
   late TextEditingController _taxCtrl;
   late TextEditingController _discountCtrl;
+  late TextEditingController _additionalFeesCtrl;
   late TextEditingController _grandTotalCtrl;
 
   @override
@@ -43,6 +44,8 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
         TextEditingController(text: widget.initialData.tax.toStringAsFixed(0));
     _discountCtrl = TextEditingController(
         text: widget.initialData.discount.toStringAsFixed(0));
+    _additionalFeesCtrl = TextEditingController(
+        text: widget.initialData.additionalFees.toStringAsFixed(0));
     _grandTotalCtrl = TextEditingController(
         text: widget.initialData.grandTotal.toStringAsFixed(0));
   }
@@ -52,6 +55,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
     _serviceCtrl.dispose();
     _taxCtrl.dispose();
     _discountCtrl.dispose();
+    _additionalFeesCtrl.dispose();
     _grandTotalCtrl.dispose();
     super.dispose();
   }
@@ -62,6 +66,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
         serviceCharge: double.tryParse(_serviceCtrl.text) ?? 0,
         tax: double.tryParse(_taxCtrl.text) ?? 0,
         discount: double.tryParse(_discountCtrl.text) ?? 0,
+        additionalFees: double.tryParse(_additionalFeesCtrl.text) ?? 0,
         grandTotal: double.tryParse(_grandTotalCtrl.text) ?? 0,
       );
 
@@ -91,7 +96,10 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
     final receipt = _currentReceipt();
     // Konversi ReceiptItem → BillItem
     final extractedItems = receipt.items
-        .map((i) => BillItem(name: i.itemName, price: i.unitPrice, qty: i.qty))
+        .map((i) => BillItem(
+            name: i.itemName,
+            price: i.qty > 0 ? i.totalPrice / i.qty : i.unitPrice,
+            qty: i.qty))
         .toList();
 
     Navigator.push(
@@ -102,6 +110,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
           tax: receipt.tax,
           serviceCharge: receipt.serviceCharge,
           discount: receipt.discount,
+          additionalFees: receipt.additionalFees,
         ),
       ),
     );
@@ -161,6 +170,13 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
           _NumberField(
             label: l10n.receiptDiscount,
             controller: _discountCtrl,
+            onChanged: _onChanged,
+          ),
+          const SizedBox(height: 12),
+
+          _NumberField(
+            label: l10n.additionalFeesLabel,
+            controller: _additionalFeesCtrl,
             onChanged: _onChanged,
           ),
           const SizedBox(height: 12),
@@ -265,7 +281,8 @@ class _VerificationBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
+        border:
+            Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [

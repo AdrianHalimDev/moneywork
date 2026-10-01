@@ -48,7 +48,7 @@ class BillShare {
   /// Subtotal item orang ini (termasuk porsi item bersama).
   final double subtotal;
 
-  /// Jumlah akhir yang harus dia bayar (setelah diskon, service, PPN).
+  /// Jumlah akhir setelah diskon, service, PPN, dan biaya tambahan.
   final double total;
 }
 
@@ -61,6 +61,7 @@ class BillResult {
     required this.discount,
     required this.serviceAmount,
     required this.taxAmount,
+    required this.additionalFees,
     required this.grandTotal,
   });
 
@@ -69,6 +70,7 @@ class BillResult {
   final double discount;
   final double serviceAmount;
   final double taxAmount;
+  final double additionalFees;
   final double grandTotal;
 }
 
@@ -78,8 +80,8 @@ class BillResult {
 ///   1. subtotal per orang = item sendiri + porsi item bersama (dibagi rata)
 ///   2. service charge = subtotal × serviceRate
 ///   3. PPN = (subtotal + service charge) × ppnRate
-///   4. total dengan pajak = subtotal + service charge + PPN
-///   5. grand total = total dengan pajak − diskon
+///   4. biaya tambahan ditambahkan setelah PPN
+///   5. grand total = subtotal + service + PPN + biaya tambahan − diskon
 ///
 /// Service & PPN selalu dibagi proporsional terhadap subtotal tiap orang.
 /// Diskon dipotong terakhir (di luar hitungan PPN & service) dan distribusinya
@@ -97,6 +99,9 @@ class BillSplitter {
     double discount = 0,
     double serviceRate = 0,
     double ppnRate = 0.11,
+    double? serviceAmount,
+    double? taxAmount,
+    double additionalFees = 0,
     bool splitDiscountEvenly = true,
   }) {
     final n = people.length;
@@ -110,23 +115,29 @@ class BillSplitter {
     final subtotal = subtotals.fold<double>(0, (s, v) => s + v);
 
     // Service & PPN dihitung dari subtotal penuh (sebelum diskon).
-    final serviceAmount = subtotal * serviceRate;
-    final taxAmount = (subtotal + serviceAmount) * ppnRate;
-    final totalWithTax = subtotal + serviceAmount + taxAmount;
+    final effectiveService = (serviceAmount ?? subtotal * serviceRate)
+        .clamp(0, double.infinity)
+        .toDouble();
+    final effectiveTax = (taxAmount ?? (subtotal + effectiveService) * ppnRate)
+        .clamp(0, double.infinity)
+        .toDouble();
+    final effectiveFees = additionalFees.clamp(0, double.infinity).toDouble();
+    final totalWithTax =
+        subtotal + effectiveService + effectiveTax + effectiveFees;
 
     // Diskon dipotong paling akhir, di luar pajak. Dibatasi agar tak melebihi
     // total dengan pajak (grand total tidak bisa minus).
     final effDiscount = discount.clamp(0, totalWithTax).toDouble();
     final grandTotal = totalWithTax - effDiscount;
 
-    // Pengali pajak per orang: subtotal × (1+service) × (1+ppn).
-    final taxMultiplier = (1 + serviceRate) * (1 + ppnRate);
     final discountPerPerson = n == 0 ? 0.0 : effDiscount / n;
 
     // Tiap orang: (subtotal + pajak) lalu dikurangi porsi diskon.
     final rawShares = <double>[];
     for (var i = 0; i < n; i++) {
-      final withTax = subtotals[i] * taxMultiplier;
+      final weight = subtotal > 0 ? subtotals[i] / subtotal : 1 / n;
+      final withTax = subtotals[i] +
+          (effectiveService + effectiveTax + effectiveFees) * weight;
       final disc = splitDiscountEvenly
           ? discountPerPerson
           : (subtotal == 0 ? 0.0 : effDiscount * (subtotals[i] / subtotal));
@@ -158,8 +169,9 @@ class BillSplitter {
       shares: shares,
       subtotal: subtotal,
       discount: effDiscount,
-      serviceAmount: serviceAmount,
-      taxAmount: taxAmount,
+      serviceAmount: effectiveService,
+      taxAmount: effectiveTax,
+      additionalFees: effectiveFees,
       grandTotal: grandTotal,
     );
   }

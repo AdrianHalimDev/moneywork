@@ -8,6 +8,8 @@ import 'package:moneywork/models/account.dart' as model;
 import 'package:moneywork/screens/accounts_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'package:moneywork/l10n/app_localizations.dart';
+
 import 'helpers.dart';
 
 void main() {
@@ -41,6 +43,9 @@ void main() {
           storageProvider.overrideWithValue(InMemoryStorage(appState)),
         ],
         child: const MaterialApp(
+          locale: Locale('id'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: AccountsScreen(),
         ),
       ),

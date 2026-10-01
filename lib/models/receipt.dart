@@ -45,6 +45,7 @@ class ReceiptScanResult {
     this.serviceCharge = 0,
     this.tax = 0,
     this.discount = 0,
+    this.additionalFees = 0,
     required this.grandTotal,
   });
 
@@ -53,6 +54,7 @@ class ReceiptScanResult {
   final double serviceCharge;
   final double tax;
   final double discount;
+  final double additionalFees;
 
   /// Grand Total yang tercetak di kertas bon asli.
   final double grandTotal;
@@ -63,6 +65,7 @@ class ReceiptScanResult {
     double? serviceCharge,
     double? tax,
     double? discount,
+    double? additionalFees,
     double? grandTotal,
   }) =>
       ReceiptScanResult(
@@ -71,20 +74,21 @@ class ReceiptScanResult {
         serviceCharge: serviceCharge ?? this.serviceCharge,
         tax: tax ?? this.tax,
         discount: discount ?? this.discount,
+        additionalFees: additionalFees ?? this.additionalFees,
         grandTotal: grandTotal ?? this.grandTotal,
       );
 
   factory ReceiptScanResult.fromJson(Map<String, dynamic> json) =>
       ReceiptScanResult(
         items: (json['items'] as List<dynamic>?)
-                ?.map((e) =>
-                    ReceiptItem.fromJson(e as Map<String, dynamic>))
+                ?.map((e) => ReceiptItem.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [],
         subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
         serviceCharge: (json['serviceCharge'] as num?)?.toDouble() ?? 0,
         tax: (json['tax'] as num?)?.toDouble() ?? 0,
-        discount: (json['discount'] as num?)?.toDouble() ?? 0,
+        discount: ((json['discount'] as num?)?.toDouble() ?? 0).abs(),
+        additionalFees: (json['additionalFees'] as num?)?.toDouble() ?? 0,
         grandTotal: (json['grandTotal'] as num?)?.toDouble() ?? 0,
       );
 }

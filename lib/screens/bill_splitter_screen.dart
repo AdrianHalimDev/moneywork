@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter/services.dart';
+import 'package:moneywork/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/formatters.dart';
@@ -18,6 +19,7 @@ class BillSplitterScreen extends ConsumerStatefulWidget {
     this.initialPpn,
     this.initialService,
     this.initialDiscount,
+    this.initialAdditionalFees,
   });
 
   /// Item bersama dari hasil OCR bon (opsional, mode lama).
@@ -34,6 +36,7 @@ class BillSplitterScreen extends ConsumerStatefulWidget {
 
   /// Diskon dari bon (nominal Rupiah, bukan persen). Opsional.
   final double? initialDiscount;
+  final double? initialAdditionalFees;
 
   @override
   ConsumerState<BillSplitterScreen> createState() => _BillSplitterScreenState();
@@ -45,8 +48,13 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
   final List<BillItem> _shared = [];
 
   late final TextEditingController _ppnCtrl;
+  late final TextEditingController _ppnAmountCtrl;
   late final TextEditingController _serviceCtrl;
+  late final TextEditingController _serviceAmountCtrl;
   late final TextEditingController _discountCtrl;
+  late final TextEditingController _additionalFeesCtrl;
+  late bool _taxByAmount;
+  late bool _serviceByAmount;
 
   // Diskon dibagi rata ke tiap orang (true) atau proporsional ke pesanan.
   bool _splitDiscountEvenly = true;
@@ -61,8 +69,8 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
     // Mode baru: initialPeople (dari layar Assign)
     if (widget.initialPeople != null) {
       for (final p in widget.initialPeople!) {
-        final entry = _PersonEntry(
-            nameCtrl: TextEditingController(text: p.name));
+        final entry =
+            _PersonEntry(nameCtrl: TextEditingController(text: p.name));
         entry.items = List.of(p.items);
         _people.add(entry);
         subtotal += p.items.fold<double>(0, (s, i) => s + i.total);
@@ -71,49 +79,103 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
     // Shared items (bisa ada bersama initialPeople maupun berdiri sendiri)
     if (widget.initialSharedItems != null) {
       _shared.addAll(widget.initialSharedItems!);
-      subtotal += widget.initialSharedItems!
-          .fold<double>(0, (s, i) => s + i.total);
+      subtotal +=
+          widget.initialSharedItems!.fold<double>(0, (s, i) => s + i.total);
     }
 
-    // PPN
-    if (widget.initialPpn != null && subtotal > 0) {
-      final ppnPct = widget.initialPpn! / subtotal * 100;
-      _ppnCtrl = TextEditingController(text: ppnPct.toStringAsFixed(1));
-    } else {
-      _ppnCtrl = TextEditingController(text: '11');
-    }
-
-    // Service
-    if (widget.initialService != null && subtotal > 0) {
-      final scPct = widget.initialService! / subtotal * 100;
-      _serviceCtrl = TextEditingController(text: scPct.toStringAsFixed(1));
-    } else {
-      _serviceCtrl = TextEditingController(text: '0');
-    }
+    // Nilai OCR tetap nominal persis; input manual dimulai dari persentase.
+    _taxByAmount = widget.initialPpn != null;
+    _serviceByAmount = widget.initialService != null;
+    _ppnCtrl = TextEditingController(text: _taxByAmount ? '0' : '11');
+    _ppnAmountCtrl = TextEditingController(
+        text: Fmt.group((widget.initialPpn ?? 0).round()));
+    _serviceCtrl = TextEditingController(text: '0');
+    _serviceAmountCtrl = TextEditingController(
+        text: Fmt.group((widget.initialService ?? 0).round()));
 
     // Diskon
     if (widget.initialDiscount != null && widget.initialDiscount! > 0) {
-      _discountCtrl = TextEditingController(
-          text: Fmt.group(widget.initialDiscount!));
+      _discountCtrl =
+          TextEditingController(text: Fmt.group(widget.initialDiscount!));
     } else {
       _discountCtrl = TextEditingController(text: '0');
     }
+    _additionalFeesCtrl = TextEditingController(
+        text: Fmt.group((widget.initialAdditionalFees ?? 0).round()));
+    _syncChargeFields(subtotal);
   }
 
   @override
   void dispose() {
     _ppnCtrl.dispose();
+    _ppnAmountCtrl.dispose();
     _serviceCtrl.dispose();
+    _serviceAmountCtrl.dispose();
     _discountCtrl.dispose();
+    _additionalFeesCtrl.dispose();
     for (final p in _people) {
       p.nameCtrl.dispose();
     }
     super.dispose();
   }
 
-  double get _ppnRate => (double.tryParse(_ppnCtrl.text.trim()) ?? 0) / 100;
-  double get _serviceRate =>
-      (double.tryParse(_serviceCtrl.text.trim()) ?? 0) / 100;
+  double _rate(TextEditingController controller) =>
+      ((double.tryParse(controller.text.trim().replaceAll(',', '.')) ?? 0)
+          .clamp(0, double.infinity)) /
+      100;
+  double _amount(TextEditingController controller) =>
+      (Fmt.tryParseInput(controller.text) ?? 0)
+          .clamp(0, double.infinity)
+          .toDouble();
+  String _rateText(double amount, double base) {
+    if (base <= 0) return '0';
+    return (amount / base * 100)
+        .toStringAsFixed(4)
+        .replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  void _setDerived(TextEditingController controller, String value) {
+    if (controller.text == value) return;
+    controller.value = TextEditingValue(
+        text: value, selection: TextSelection.collapsed(offset: value.length));
+  }
+
+  double get _subtotal =>
+      _people.fold<double>(
+          0, (s, p) => s + p.items.fold<double>(0, (v, i) => v + i.total)) +
+      _shared.fold<double>(0, (s, i) => s + i.total);
+  double _serviceAmount(double subtotal) => _serviceByAmount
+      ? _amount(_serviceAmountCtrl)
+      : (subtotal * _rate(_serviceCtrl)).roundToDouble();
+  double _taxAmount(double subtotal, double service) => _taxByAmount
+      ? _amount(_ppnAmountCtrl)
+      : ((subtotal + service) * _rate(_ppnCtrl)).roundToDouble();
+  void _syncChargeFields(double subtotal) {
+    final service = _serviceAmount(subtotal);
+    if (_serviceByAmount) {
+      _setDerived(_serviceCtrl, _rateText(service, subtotal));
+    } else {
+      _setDerived(_serviceAmountCtrl, Fmt.group(service));
+    }
+    final taxBase = subtotal + service;
+    final tax = _taxAmount(subtotal, service);
+    if (_taxByAmount) {
+      _setDerived(_ppnCtrl, _rateText(tax, taxBase));
+    } else {
+      _setDerived(_ppnAmountCtrl, Fmt.group(tax));
+    }
+  }
+
+  void _itemsChanged() => setState(() => _syncChargeFields(_subtotal));
+  void _chargeChanged({required bool service, required bool byAmount}) {
+    if (service) {
+      _serviceByAmount = byAmount;
+    } else {
+      _taxByAmount = byAmount;
+    }
+    setState(() => _syncChargeFields(_subtotal));
+  }
+
   double get _discount => Fmt.tryParseInput(_discountCtrl.text) ?? 0;
 
   BillResult _compute() {
@@ -124,15 +186,18 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
       ],
       sharedItems: _shared,
       discount: _discount,
-      serviceRate: _serviceRate,
-      ppnRate: _ppnRate,
+      serviceAmount: _serviceAmount(_subtotal),
+      taxAmount: _taxAmount(_subtotal, _serviceAmount(_subtotal)),
+      additionalFees: _amount(_additionalFeesCtrl),
       splitDiscountEvenly: _splitDiscountEvenly,
     );
   }
 
   void _addPerson() {
     setState(() => _people.add(_PersonEntry(
-        nameCtrl: TextEditingController(text: AppLocalizations.of(context)!.personLabel((_people.length + 1).toString())))));
+        nameCtrl: TextEditingController(
+            text: AppLocalizations.of(context)!
+                .personLabel((_people.length + 1).toString())))));
   }
 
   Future<void> _addItem({_PersonEntry? person}) async {
@@ -144,6 +209,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
       } else {
         _shared.add(item);
       }
+      _syncChargeFields(_subtotal);
     });
   }
 
@@ -158,62 +224,63 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
       builder: (context) {
         final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-        title: Text(l10n.addBillItem),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nameCtrl,
-                autofocus: true,
-                decoration: InputDecoration(
-                    labelText: l10n.menuNameLabel, hintText: l10n.menuNameHint),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: priceCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsInputFormatter()],
-                decoration:
-                    InputDecoration(labelText: l10n.priceLabel, prefixText: 'Rp '),
-                validator: (v) {
-                  final n = Fmt.tryParseInput(v ?? '');
-                  if (n == null || n <= 0) return l10n.invalidNumber;
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: qtyCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: l10n.qtyLabel),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(l10n.cancelButton)),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              Navigator.pop(
-                context,
-                BillItem(
-                  name: nameCtrl.text.trim(),
-                  price: Fmt.tryParseInput(priceCtrl.text)!,
-                  qty: int.tryParse(qtyCtrl.text.trim()) ?? 1,
+          title: Text(l10n.addBillItem),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                      labelText: l10n.menuNameLabel,
+                      hintText: l10n.menuNameHint),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
                 ),
-              );
-            },
-            child: Text(l10n.addButton),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: priceCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [ThousandsInputFormatter()],
+                  decoration: InputDecoration(
+                      labelText: l10n.priceLabel, prefixText: 'Rp '),
+                  validator: (v) {
+                    final n = Fmt.tryParseInput(v ?? '');
+                    if (n == null || n <= 0) return l10n.invalidNumber;
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: l10n.qtyLabel),
+                ),
+              ],
+            ),
           ),
-        ],
-      );
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l10n.cancelButton)),
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.pop(
+                  context,
+                  BillItem(
+                    name: nameCtrl.text.trim(),
+                    price: Fmt.tryParseInput(priceCtrl.text)!,
+                    qty: int.tryParse(qtyCtrl.text.trim()) ?? 1,
+                  ),
+                );
+              },
+              child: Text(l10n.addButton),
+            ),
+          ],
+        );
       },
     );
   }
@@ -253,9 +320,8 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
       showDragHandle: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setSheet) {
-          final deduct = fundingId != null
-              ? friendsTotal + ownerShare
-              : friendsTotal;
+          final deduct =
+              fundingId != null ? friendsTotal + ownerShare : friendsTotal;
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -281,7 +347,8 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                       children: [
                         Text(s.name),
                         Text(Fmt.rupiah(s.total),
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -300,11 +367,13 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                   DropdownButtonFormField<String?>(
                     value: fundingId,
                     decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.fundFromAccountLabel),
+                        labelText:
+                            AppLocalizations.of(context)!.fundFromAccountLabel),
                     items: [
                       DropdownMenuItem(
                           value: null,
-                          child: Text(AppLocalizations.of(context)!.doNotDeductBalance)),
+                          child: Text(AppLocalizations.of(context)!
+                              .doNotDeductBalance)),
                       for (final a in accounts)
                         DropdownMenuItem(
                             value: a.id,
@@ -326,7 +395,8 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                     children: [
                       Text(fundingId != null
                           ? AppLocalizations.of(context)!.totalOutFromAccount
-                          : AppLocalizations.of(context)!.totalReceivableRecorded),
+                          : AppLocalizations.of(context)!
+                              .totalReceivableRecorded),
                       Text(Fmt.rupiah(deduct),
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
@@ -367,19 +437,23 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
         messenger.showSnackBar(SnackBar(content: Text(error)));
         return;
       }
-      messenger.showSnackBar(SnackBar(content: Text(
-          AppLocalizations.of(context)!.receivableSavedDeducted(valid.length.toString(), Fmt.rupiah(friendsTotal + ownerShare)))));
+      messenger.showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!.receivableSavedDeducted(
+              valid.length.toString(),
+              Fmt.rupiah(friendsTotal + ownerShare)))));
     } else {
       // Tanpa sumber dana: catat piutang teman saja (saldo tidak berubah).
       for (final s in valid) {
         await ctrl.addReceivable(
           personName: s.name,
           remaining: s.total,
-          note: '${AppLocalizations.of(context)!.splitBillNotePrefix} ${Fmt.date(DateTime.now())}',
+          note:
+              '${AppLocalizations.of(context)!.splitBillNotePrefix} ${Fmt.date(DateTime.now())}',
         );
       }
-      messenger.showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.receivableSavedOnly(valid.length.toString()))));
+      messenger.showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .receivableSavedOnly(valid.length.toString()))));
     }
     if (!mounted) return;
     navigator.pop();
@@ -407,8 +481,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                     Icon(Icons.receipt_long_outlined,
                         size: 40, color: Theme.of(context).colorScheme.outline),
                     const SizedBox(height: 12),
-                    Text(
-                        AppLocalizations.of(context)!.splitBillEmptyState,
+                    Text(AppLocalizations.of(context)!.splitBillEmptyState,
                         textAlign: TextAlign.center),
                   ],
                 ),
@@ -437,15 +510,23 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                 Expanded(
                   child: TextField(
                     controller: p.nameCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Nama', isDense: true),
+                    decoration:
+                        const InputDecoration(labelText: 'Nama', isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppTheme.expense),
+                  icon:
+                      const Icon(Icons.delete_outline, color: AppTheme.expense),
                   tooltip: AppLocalizations.of(context)!.deletePersonTooltip,
-                  onPressed: () => setState(() => _people.remove(p)),
+                  onPressed: () {
+                    setState(() {
+                      _people.remove(p);
+                      _syncChargeFields(_subtotal);
+                    });
+                    WidgetsBinding.instance.addPostFrameCallback(
+                        (_) => p.nameCtrl.dispose());
+                  },
                 ),
               ],
             ),
@@ -466,7 +547,10 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
               ),
             ),
             for (final item in p.items)
-              _itemRow(item, () => setState(() => p.items = [...p.items]..remove(item))),
+              _itemRow(item, () {
+                p.items = [...p.items]..remove(item);
+                _itemsChanged();
+              }),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -497,7 +581,10 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
               ],
             ),
             for (final item in _shared)
-              _itemRow(item, () => setState(() => _shared.remove(item))),
+              _itemRow(item, () {
+                _shared.remove(item);
+                _itemsChanged();
+              }),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -518,8 +605,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-                item.qty > 1 ? '${item.name} ×${item.qty}' : item.name),
+            child: Text(item.qty > 1 ? '${item.name} ×${item.qty}' : item.name),
           ),
           Text(Fmt.rupiah(item.total)),
           IconButton(
@@ -542,28 +628,24 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
             Text(AppLocalizations.of(context)!.taxAndDiscountLabel,
                 style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _ppnCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.ppnLabel, suffixText: '%', isDense: true),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _serviceCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.serviceChargeLabel, suffixText: '%', isDense: true),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ],
+            _chargeRow(
+              label: AppLocalizations.of(context)!.serviceChargeLabel,
+              rateCtrl: _serviceCtrl,
+              amountCtrl: _serviceAmountCtrl,
+              onRateChanged: () =>
+                  _chargeChanged(service: true, byAmount: false),
+              onAmountChanged: () =>
+                  _chargeChanged(service: true, byAmount: true),
+            ),
+            const SizedBox(height: 12),
+            _chargeRow(
+              label: AppLocalizations.of(context)!.ppnLabel,
+              rateCtrl: _ppnCtrl,
+              amountCtrl: _ppnAmountCtrl,
+              onRateChanged: () =>
+                  _chargeChanged(service: false, byAmount: false),
+              onAmountChanged: () =>
+                  _chargeChanged(service: false, byAmount: true),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -571,12 +653,26 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsInputFormatter()],
               decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.discountLabel, prefixText: 'Rp ', isDense: true),
+                  labelText: AppLocalizations.of(context)!.discountLabel,
+                  prefixText: 'Rp ',
+                  isDense: true),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _additionalFeesCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsInputFormatter()],
+              decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.additionalFeesLabel,
+                  prefixText: 'Rp ',
+                  isDense: true),
               onChanged: (_) => setState(() {}),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(AppLocalizations.of(context)!.splitDiscountEvenlyLabel),
+              title:
+                  Text(AppLocalizations.of(context)!.splitDiscountEvenlyLabel),
               subtitle: Text(_splitDiscountEvenly
                   ? AppLocalizations.of(context)!.discountEvenlyDesc
                   : AppLocalizations.of(context)!.discountProportionalDesc),
@@ -589,6 +685,48 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
     );
   }
 
+  Widget _chargeRow({
+    required String label,
+    required TextEditingController rateCtrl,
+    required TextEditingController amountCtrl,
+    required VoidCallback onRateChanged,
+    required VoidCallback onAmountChanged,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(
+              child: TextField(
+            controller: rateCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]'))
+            ],
+            decoration: InputDecoration(
+                labelText: l10n.percentageLabel,
+                suffixText: '%',
+                isDense: true),
+            onChanged: (_) => onRateChanged(),
+          )),
+          const SizedBox(width: 12),
+          Expanded(
+              child: TextField(
+            controller: amountCtrl,
+            keyboardType: TextInputType.number,
+            inputFormatters: [ThousandsInputFormatter()],
+            decoration: InputDecoration(
+                labelText: l10n.nominalLabel, prefixText: 'Rp ', isDense: true),
+            onChanged: (_) => onAmountChanged(),
+          )),
+        ]),
+      ],
+    );
+  }
+
   Widget _resultCard(BillResult result) {
     final theme = Theme.of(context);
     return Card(
@@ -598,18 +736,30 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(AppLocalizations.of(context)!.detailsLabel, style: theme.textTheme.titleMedium),
+            Text(AppLocalizations.of(context)!.detailsLabel,
+                style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            _summaryRow(AppLocalizations.of(context)!.subtotalLabel, result.subtotal),
+            _summaryRow(
+                AppLocalizations.of(context)!.subtotalLabel, result.subtotal),
             if (result.serviceAmount > 0)
-              _summaryRow(AppLocalizations.of(context)!.serviceChargeLabel, result.serviceAmount),
-            if (result.taxAmount > 0) _summaryRow(AppLocalizations.of(context)!.ppnLabel, result.taxAmount),
+              _summaryRow(AppLocalizations.of(context)!.serviceChargeLabel,
+                  result.serviceAmount),
+            if (result.taxAmount > 0)
+              _summaryRow(
+                  AppLocalizations.of(context)!.ppnLabel, result.taxAmount),
+            if (result.additionalFees > 0)
+              _summaryRow(AppLocalizations.of(context)!.additionalFeesLabel,
+                  result.additionalFees),
             if (result.discount > 0)
-              _summaryRow(AppLocalizations.of(context)!.discountLabel, -result.discount),
+              _summaryRow(AppLocalizations.of(context)!.discountLabel,
+                  -result.discount),
             const Divider(),
-            _summaryRow(AppLocalizations.of(context)!.totalLabel, result.grandTotal, bold: true),
+            _summaryRow(
+                AppLocalizations.of(context)!.totalLabel, result.grandTotal,
+                bold: true),
             const SizedBox(height: 12),
-            Text(AppLocalizations.of(context)!.billPerPersonLabel, style: theme.textTheme.titleSmall),
+            Text(AppLocalizations.of(context)!.billPerPersonLabel,
+                style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             for (final s in result.shares)
               Padding(
@@ -617,7 +767,9 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(s.name.isEmpty ? AppLocalizations.of(context)!.unnamedLabel : s.name),
+                    Text(s.name.isEmpty
+                        ? AppLocalizations.of(context)!.unnamedLabel
+                        : s.name),
                     Text(Fmt.rupiah(s.total),
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                   ],
@@ -641,9 +793,8 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
   }
 
   Widget _summaryRow(String label, double value, {bool bold = false}) {
-    final style = bold
-        ? const TextStyle(fontWeight: FontWeight.bold)
-        : const TextStyle();
+    final style =
+        bold ? const TextStyle(fontWeight: FontWeight.bold) : const TextStyle();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(

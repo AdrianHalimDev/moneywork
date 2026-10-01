@@ -10,7 +10,7 @@ import '../core/formatters.dart';
 import '../data/app_state.dart';
 import '../models/account.dart';
 import '../models/transaction.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:moneywork/l10n/app_localizations.dart';
 import 'report.dart';
 
 class ExportService {
