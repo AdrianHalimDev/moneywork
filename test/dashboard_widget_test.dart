@@ -7,6 +7,7 @@ import 'package:moneywork/data/app_controller.dart';
 import 'package:moneywork/data/app_state.dart';
 import 'package:moneywork/models/account.dart';
 import 'package:moneywork/screens/dashboard_screen.dart';
+import 'package:moneywork/screens/cash_flow_forecast_screen.dart';
 
 import 'package:moneywork/l10n/app_localizations.dart';
 
@@ -65,5 +66,10 @@ void main() {
     
     // Pastikan label "Belum ada transaksi." tampil
     expect(find.text('Belum ada transaksi.'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Proyeksi arus kas 30 hari'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CashFlowForecastScreen), findsOneWidget);
+    expect(find.text('Proyeksi arus kas'), findsOneWidget);
   });
 }

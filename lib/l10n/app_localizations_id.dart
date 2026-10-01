@@ -42,6 +42,51 @@ class AppLocalizationsId extends AppLocalizations {
   String get tooltipProfile => 'Profil & Pengaturan';
 
   @override
+  String get tooltipForecast => 'Proyeksi arus kas 30 hari';
+
+  @override
+  String get tooltipImportStatementPdf => 'Impor mutasi rekening PDF';
+
+  @override
+  String importSuccess(int count) {
+    return '$count transaksi ditambahkan. Periksa status penyimpanan.';
+  }
+
+  @override
+  String get syncStatusLoading => 'Memuat data';
+
+  @override
+  String get syncStatusSynced => 'Data tersimpan';
+
+  @override
+  String get syncStatusPending => 'Menyimpan perubahan';
+
+  @override
+  String get syncCache => 'Data dari cache; menunggu konfirmasi server';
+
+  @override
+  String get syncStatusError => 'Gagal menyimpan perubahan';
+
+  @override
+  String get syncRetry => 'Coba lagi';
+
+  @override
+  String get syncLoadCloud => 'Muat versi cloud';
+
+  @override
+  String get syncDiscardTitle => 'Buang perubahan yang belum tersimpan?';
+
+  @override
+  String get syncDiscardBody =>
+      'Versi cloud akan dimuat. Perubahan di perangkat ini yang gagal tersimpan akan hilang.';
+
+  @override
+  String get syncCancel => 'Batal';
+
+  @override
+  String get syncContinue => 'Muat cloud';
+
+  @override
   String get errorLoadData => 'Gagal memuat data';
 
   @override
@@ -898,6 +943,15 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get saveToReceivablesBtn => 'Simpan ke Piutang';
+
+  @override
+  String get splitBillShare => 'Bagikan';
+
+  @override
+  String get splitBillCopied => 'Rincian split bill disalin.';
+
+  @override
+  String get splitBillShareFailed => 'Gagal membagikan rincian split bill.';
 
   @override
   String get createAccountSubtitle => 'Buat akun baru';

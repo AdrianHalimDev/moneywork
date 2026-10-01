@@ -14,8 +14,10 @@ rules_version = '2';
 //      Tanpa sandi/recovery key, data tak terbaca.
 //
 // Dokumen:
-//   users/{uid}/data/state  → AppState terenkripsi (ciphertext).
-//   users/{uid}/data/keys   → DEK yang dibungkus (wrapped) password & recovery.
+//   users/{uid}/data/state   → snapshot lama, dibaca saat migrasi.
+//   users/{uid}/data/schema  → versi format penyimpanan.
+//   users/{uid}/records/{id} → entitas terenkripsi per dokumen.
+//   users/{uid}/data/keys    → DEK yang dibungkus sandi & recovery.
 service cloud.firestore {
   match /databases/{database}/documents {
 

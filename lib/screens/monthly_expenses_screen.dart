@@ -126,11 +126,15 @@ class _RecurringTile extends ConsumerWidget {
             if (recurring.category.isNotEmpty) recurring.category,
             accountName,
           ].join(' · ');
+    final dueDay = recurring.dueDay;
+    final scheduleText = dueDay == null
+        ? _dueDayText(context, 'noDay')
+        : '${_dueDayText(context, 'dayPrefix')} $dueDay';
 
     return ListTile(
       leading: IconBadge(icon: icon, color: color),
       title: Text(recurring.label),
-      subtitle: Text(sub),
+      subtitle: Text('$sub · $scheduleText'),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -256,6 +260,8 @@ Future<void> showRecurringDialog(
   final amountCtrl = TextEditingController(
       text: existing != null ? Fmt.groupInput(existing.amount) : '');
   final categoryCtrl = TextEditingController(text: existing?.category ?? '');
+  final dueDayCtrl = TextEditingController(
+      text: existing?.dueDay?.toString() ?? '');
   var type = existing?.type ?? TxType.expense;
   var accountId = existing?.accountId ?? state.accounts.first.id;
   String? toAccountId = existing?.toAccountId ??
@@ -277,9 +283,10 @@ Future<void> showRecurringDialog(
           top: 8,
           bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
         ),
-        child: Form(
-          key: formKey,
-          child: Column(
+        child: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -319,8 +326,24 @@ Future<void> showRecurringDialog(
                 },
               ),
               const SizedBox(height: 12),
+              TextFormField(
+                controller: dueDayCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: _dueDayText(context, 'label'),
+                  helperText: _dueDayText(context, 'helper'),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return null;
+                  final day = int.tryParse(value.trim());
+                  return day != null && day >= 1 && day <= 31
+                      ? null
+                      : _dueDayText(context, 'invalid');
+                },
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: accountId,
+                initialValue: accountId,
                 decoration: InputDecoration(
                     labelText: type == TxType.transfer ? l10n.fromAccountLabel : l10n.accountLabel),
                 items: [
@@ -332,7 +355,7 @@ Future<void> showRecurringDialog(
               if (type == TxType.transfer) ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: toAccountId,
+                  initialValue: toAccountId,
                   decoration: InputDecoration(labelText: l10n.toAccountLabel),
                   items: [
                     for (final a in state.accounts)
@@ -376,6 +399,7 @@ Future<void> showRecurringDialog(
                     onPressed: () {
                       if (!formKey.currentState!.validate()) return;
                       final amount = Fmt.tryParseInput(amountCtrl.text)!;
+                      final dueDay = int.tryParse(dueDayCtrl.text.trim());
                       final ctrl = ref.read(appStateProvider.notifier);
                       final isTransfer = type == TxType.transfer;
                       if (isEdit) {
@@ -385,7 +409,10 @@ Future<void> showRecurringDialog(
                           amount: amount,
                           accountId: accountId,
                           toAccountId: isTransfer ? toAccountId : null,
+                          clearToAccountId: !isTransfer,
                           category: isTransfer ? '' : categoryCtrl.text.trim(),
+                          dueDay: dueDay,
+                          clearDueDay: dueDay == null,
                         ));
                       } else {
                         ctrl.addRecurring(
@@ -395,6 +422,7 @@ Future<void> showRecurringDialog(
                           accountId: accountId,
                           toAccountId: isTransfer ? toAccountId : null,
                           category: isTransfer ? '' : categoryCtrl.text.trim(),
+                          dueDay: dueDay,
                         );
                       }
                       Navigator.pop(context);
@@ -404,10 +432,43 @@ Future<void> showRecurringDialog(
                 ],
               ),
             ],
+            ),
           ),
         ),
       ),
       );
     },
   );
+  labelCtrl.dispose();
+  amountCtrl.dispose();
+  categoryCtrl.dispose();
+  dueDayCtrl.dispose();
+}
+
+String _dueDayText(BuildContext context, String key) {
+  final language = Localizations.localeOf(context).languageCode;
+  final labels = switch (language) {
+    'en' => {
+        'label': 'Monthly day (optional)',
+        'helper': 'For the 30-day forecast only. Run all remains manual.',
+        'invalid': 'Enter a day from 1 to 31.',
+        'dayPrefix': 'Day',
+        'noDay': 'No forecast day',
+      },
+    'zh' => {
+        'label': '每月日期（可选）',
+        'helper': '仅用于 30 天预测；批量执行仍需手动操作。',
+        'invalid': '请输入 1 至 31 的日期。',
+        'dayPrefix': '每月',
+        'noDay': '未设置预测日期',
+      },
+    _ => {
+        'label': 'Tanggal bulanan (opsional)',
+        'helper': 'Hanya untuk proyeksi 30 hari. Jalankan semua tetap manual.',
+        'invalid': 'Isi tanggal 1 sampai 31.',
+        'dayPrefix': 'Tiap tanggal',
+        'noDay': 'Belum dijadwalkan untuk proyeksi',
+      },
+  };
+  return labels[key]!;
 }

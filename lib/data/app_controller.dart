@@ -16,6 +16,7 @@ import '../models/recurring_transaction.dart';
 import '../models/transaction.dart';
 import '../models/wishlist_item.dart';
 import '../services/price_service.dart';
+import '../services/bank_statement_import_service.dart';
 import 'app_state.dart';
 import 'storage.dart';
 
@@ -56,6 +57,19 @@ final priceServiceProvider = Provider<PriceService>(
 final appStateProvider =
     AsyncNotifierProvider<AppController, AppState>(AppController.new);
 
+enum SyncPhase { loading, synced, pending, error }
+
+class SyncStatus {
+  const SyncStatus(this.phase, {this.message});
+
+  final SyncPhase phase;
+  final String? message;
+}
+
+final syncStatusProvider = StateProvider<SyncStatus>(
+  (_) => const SyncStatus(SyncPhase.loading),
+);
+
 /// Preferensi tema aktif, diturunkan dari [AppState]. Dipakai di MaterialApp.
 final themeModeProvider = Provider<ThemeMode>((ref) {
   final mode = ref.watch(appStateProvider).valueOrNull?.themeMode ?? 'system';
@@ -80,19 +94,38 @@ final localeProvider = Provider<Locale?>((ref) {
 /// Setiap mutasi: (1) hitung state baru, (2) tulis ke storage,
 /// (3) update state UI. Saldo akun dijaga konsisten dengan transaksi.
 class AppController extends AsyncNotifier<AppState> {
+  bool _disposed = false;
+
+  void _setSyncStatus(SyncStatus next) {
+    if (!_disposed) ref.read(syncStatusProvider.notifier).state = next;
+  }
+
   // Watch agar build ulang otomatis saat backend berganti (login/logout).
   StorageBackend get _storage => ref.read(storageProvider);
 
   @override
   Future<AppState> build() async {
+    _disposed = false;
+    ref.onDispose(() => _disposed = true);
     final storage = ref.watch(storageProvider);
-    final state = await storage.load();
+    _setSyncStatus(const SyncStatus(SyncPhase.loading));
+    AppState loaded;
+    try {
+      loaded = await storage.load();
+    } catch (error) {
+      _setSyncStatus(SyncStatus(SyncPhase.error, message: error.toString()));
+      rethrow;
+    }
+    _setSyncStatus(storage is FirestoreStorage && storage.lastReadFromCache
+            ? const SyncStatus(SyncPhase.pending,
+                message: 'cache')
+            : const SyncStatus(SyncPhase.synced));
     
     // Sort transactions by date descending immediately upon load
     // so even old data without _commit will be displayed correctly.
-    final sortedTx = List<Transaction>.from(state.transactions)
+    final sortedTx = List<Transaction>.from(loaded.transactions)
       ..sort((a, b) => b.date.compareTo(a.date));
-    return state.copyWith(transactions: sortedTx);
+    return loaded.copyWith(transactions: sortedTx);
   }
 
   Future<void> _commit(AppState next) async {
@@ -115,21 +148,30 @@ class AppController extends AsyncNotifier<AppState> {
   // tulisan berlangsung akan menimpa target sehingga state final yang disimpan.
   AppState? _pendingSave;
   bool _saving = false;
+  Future<void>? _saveTask;
 
   void _enqueueSave(AppState next) {
     _pendingSave = next;
+    _setSyncStatus(const SyncStatus(SyncPhase.pending));
     if (_saving) return;
     _saving = true;
-    Future(() async {
+    final storage = _storage;
+    _saveTask = Future(() async {
       while (_pendingSave != null) {
         final toSave = _pendingSave!;
         _pendingSave = null;
         try {
-          await _storage.save(toSave);
-        } catch (_) {
-          // Abaikan kegagalan tulisan sesaat; commit berikutnya akan
-          // menyimpan state terbaru, dan Firestore menyinkronkan ulang
-          // dari cache offline begitu kembali online.
+          await storage.save(toSave);
+          if (_pendingSave == null) {
+            _setSyncStatus(const SyncStatus(SyncPhase.synced));
+          }
+        } catch (error) {
+          // Simpan target terbaru untuk retry. Jangan tampilkan 'tersimpan'
+          // ketika server menolak transaksi atau perangkat offline.
+          _pendingSave ??= toSave;
+          _setSyncStatus(
+              SyncStatus(SyncPhase.error, message: error.toString()));
+          break;
         }
       }
       _saving = false;
@@ -137,6 +179,52 @@ class AppController extends AsyncNotifier<AppState> {
   }
 
   AppState get _current => state.valueOrNull ?? const AppState();
+
+  /// Ulangi tulisan yang belum diakui server tanpa membuang perubahan di UI.
+  Future<void> retrySync() async {
+    if (_pendingSave case final pending?) {
+      _enqueueSave(pending);
+    } else if (ref.read(syncStatusProvider).phase == SyncPhase.error) {
+      await reloadFromStorage();
+    }
+  }
+
+  /// Baca ulang setelah konflik. Perubahan lokal yang belum tersimpan harus
+  /// diselesaikan lebih dulu agar tidak hilang diam-diam.
+  Future<void> reloadFromStorage() async {
+    if (_saving || _pendingSave != null) {
+      throw StateError('Ada perubahan yang belum tersimpan. Coba sinkronkan dulu.');
+    }
+    _setSyncStatus(const SyncStatus(SyncPhase.loading));
+    try {
+      final storage = _storage;
+      final loaded = storage is FirestoreStorage
+          ? await storage.loadFromServer()
+          : await storage.load();
+      final sorted = List<Transaction>.from(loaded.transactions)
+        ..sort((a, b) => b.date.compareTo(a.date));
+      state = AsyncData(loaded.copyWith(transactions: sorted));
+      _setSyncStatus(const SyncStatus(SyncPhase.synced));
+    } catch (error) {
+      _setSyncStatus(SyncStatus(SyncPhase.error, message: error.toString()));
+      rethrow;
+    }
+  }
+
+  /// Dipanggil hanya setelah pengguna memilih versi cloud saat konflik.
+  Future<void> discardPendingAndReload() async {
+    if (_saving) {
+      throw StateError('Penyimpanan masih berjalan. Tunggu sebentar.');
+    }
+    final previous = _pendingSave;
+    _pendingSave = null;
+    try {
+      await reloadFromStorage();
+    } catch (_) {
+      _pendingSave = previous;
+      rethrow;
+    }
+  }
 
   /// Ubah preferensi tema ('system' | 'light' | 'dark'), tersimpan & sinkron.
   Future<void> setThemeMode(String mode) async {
@@ -159,8 +247,13 @@ class AppController extends AsyncNotifier<AppState> {
   /// Hapus seluruh data pengguna dari penyimpanan dan reset state.
   /// Dipakai saat menghapus akun.
   Future<void> clearAllData() async {
+    // Tunggu tulisan yang sudah berjalan agar tidak menulis ulang data
+    // sesudah seluruh dokumen dihapus.
+    if (_saveTask case final task?) await task;
+    _pendingSave = null;
     await _storage.clear();
     state = const AsyncData(AppState());
+    _setSyncStatus(const SyncStatus(SyncPhase.synced));
   }
 
   // ---------------------------------------------------------------------------
@@ -215,6 +308,7 @@ class AppController extends AsyncNotifier<AppState> {
     Transaction tx, {
     bool reverse = false,
   }) {
+    if (!tx.balanceApplied) return accounts;
     final factor = reverse ? -1 : 1;
     return accounts.map((a) {
       var balance = a.balance;
@@ -302,6 +396,53 @@ class AppController extends AsyncNotifier<AppState> {
     return null;
   }
 
+  /// Tambahkan hasil review PDF dalam satu commit. Mutasi lama secara default
+  /// hanya menambah riwayat karena sudah tercermin pada saldo akun hari ini.
+  Future<String?> importStatementTransactions(
+      StatementImportApproval approval) async {
+    final matches = _current.accounts.where((a) => a.id == approval.accountId);
+    if (matches.isEmpty) return 'Akun tujuan tidak ditemukan.';
+    if (approval.rows.isEmpty || approval.rows.length > 500) {
+      return 'Pilih 1 sampai 500 transaksi untuk diimpor.';
+    }
+    final account = matches.first;
+    final newTransactions = <Transaction>[];
+    var difference = 0.0;
+    for (final row in approval.rows) {
+      if (row.type == TxType.transfer ||
+          !row.amount.isFinite || row.amount <= 0 ||
+          row.note.trim().isEmpty) {
+        return 'Ada mutasi yang tidak valid. Tinjau PDF kembali.';
+      }
+      difference += row.type == TxType.income ? row.amount : -row.amount;
+      newTransactions.add(Transaction(
+        id: _uuid.v4(),
+        type: row.type,
+        amount: row.amount,
+        accountId: account.id,
+        category: row.category.trim().isEmpty
+            ? 'Mutasi Rekening' : row.category.trim(),
+        note: row.note.trim(),
+        balanceApplied: approval.applyToBalance,
+        date: row.date,
+      ));
+    }
+    if (approval.applyToBalance && account.balance + difference < 0) {
+      return 'Saldo akan menjadi negatif setelah impor. Periksa mutasi dan saldo awal.';
+    }
+    var accounts = _current.accounts;
+    if (approval.applyToBalance) {
+      for (final tx in newTransactions) {
+        accounts = _applyTx(accounts, tx);
+      }
+    }
+    await _commit(_current.copyWith(
+      accounts: accounts,
+      transactions: [...newTransactions, ..._current.transactions],
+    ));
+    return null;
+  }
+
   /// Perbarui transaksi.
   Future<String?> updateTransaction({
     required String id,
@@ -358,6 +499,7 @@ class AppController extends AsyncNotifier<AppState> {
       date: when,
       linkedDebtId: oldTx.linkedDebtId,
       linkedReceivableId: oldTx.linkedReceivableId,
+      balanceApplied: oldTx.balanceApplied,
     );
     
     final newTxns = <Transaction>[newTx];
@@ -370,6 +512,7 @@ class AppController extends AsyncNotifier<AppState> {
         category: 'Biaya Admin',
         note: note.isEmpty ? 'Admin transfer' : 'Admin: $note',
         linkedTransferId: newTx.id,
+        balanceApplied: oldTx.balanceApplied,
         date: when,
       ));
     }
@@ -1168,6 +1311,7 @@ class AppController extends AsyncNotifier<AppState> {
     required String accountId,
     String? toAccountId,
     String category = '',
+    int? dueDay,
   }) async {
     final r = RecurringTransaction(
       id: _uuid.v4(),
@@ -1177,6 +1321,7 @@ class AppController extends AsyncNotifier<AppState> {
       accountId: accountId,
       toAccountId: toAccountId,
       category: category,
+      dueDay: dueDay,
       createdAt: DateTime.now(),
     );
     await _commit(_current.copyWith(recurring: [..._current.recurring, r]));

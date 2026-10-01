@@ -78,7 +78,7 @@ class _CompleteAccountScreenState
                           ?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Text(
-                    l10n.completeAccountDesc(widget.user.email ?? ''),
+                    l10n.completeAccountDesc(widget.user.email),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: theme.colorScheme.outline),

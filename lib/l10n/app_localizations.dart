@@ -166,6 +166,90 @@ abstract class AppLocalizations {
   /// **'Profil & Pengaturan'**
   String get tooltipProfile;
 
+  /// No description provided for @tooltipForecast.
+  ///
+  /// In id, this message translates to:
+  /// **'Proyeksi arus kas 30 hari'**
+  String get tooltipForecast;
+
+  /// No description provided for @tooltipImportStatementPdf.
+  ///
+  /// In id, this message translates to:
+  /// **'Impor mutasi rekening PDF'**
+  String get tooltipImportStatementPdf;
+
+  /// No description provided for @importSuccess.
+  ///
+  /// In id, this message translates to:
+  /// **'{count} transaksi ditambahkan. Periksa status penyimpanan.'**
+  String importSuccess(int count);
+
+  /// No description provided for @syncStatusLoading.
+  ///
+  /// In id, this message translates to:
+  /// **'Memuat data'**
+  String get syncStatusLoading;
+
+  /// No description provided for @syncStatusSynced.
+  ///
+  /// In id, this message translates to:
+  /// **'Data tersimpan'**
+  String get syncStatusSynced;
+
+  /// No description provided for @syncStatusPending.
+  ///
+  /// In id, this message translates to:
+  /// **'Menyimpan perubahan'**
+  String get syncStatusPending;
+
+  /// No description provided for @syncCache.
+  ///
+  /// In id, this message translates to:
+  /// **'Data dari cache; menunggu konfirmasi server'**
+  String get syncCache;
+
+  /// No description provided for @syncStatusError.
+  ///
+  /// In id, this message translates to:
+  /// **'Gagal menyimpan perubahan'**
+  String get syncStatusError;
+
+  /// No description provided for @syncRetry.
+  ///
+  /// In id, this message translates to:
+  /// **'Coba lagi'**
+  String get syncRetry;
+
+  /// No description provided for @syncLoadCloud.
+  ///
+  /// In id, this message translates to:
+  /// **'Muat versi cloud'**
+  String get syncLoadCloud;
+
+  /// No description provided for @syncDiscardTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Buang perubahan yang belum tersimpan?'**
+  String get syncDiscardTitle;
+
+  /// No description provided for @syncDiscardBody.
+  ///
+  /// In id, this message translates to:
+  /// **'Versi cloud akan dimuat. Perubahan di perangkat ini yang gagal tersimpan akan hilang.'**
+  String get syncDiscardBody;
+
+  /// No description provided for @syncCancel.
+  ///
+  /// In id, this message translates to:
+  /// **'Batal'**
+  String get syncCancel;
+
+  /// No description provided for @syncContinue.
+  ///
+  /// In id, this message translates to:
+  /// **'Muat cloud'**
+  String get syncContinue;
+
   /// No description provided for @errorLoadData.
   ///
   /// In id, this message translates to:
@@ -1773,6 +1857,24 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Simpan ke Piutang'**
   String get saveToReceivablesBtn;
+
+  /// No description provided for @splitBillShare.
+  ///
+  /// In id, this message translates to:
+  /// **'Bagikan'**
+  String get splitBillShare;
+
+  /// No description provided for @splitBillCopied.
+  ///
+  /// In id, this message translates to:
+  /// **'Rincian split bill disalin.'**
+  String get splitBillCopied;
+
+  /// No description provided for @splitBillShareFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Gagal membagikan rincian split bill.'**
+  String get splitBillShareFailed;
 
   /// No description provided for @createAccountSubtitle.
   ///

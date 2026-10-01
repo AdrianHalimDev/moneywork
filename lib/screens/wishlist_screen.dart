@@ -231,7 +231,7 @@ class _WishTile extends ConsumerWidget {
                 if (accounts.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String?>(
-                    value: accountId,
+                    initialValue: accountId,
                     decoration:
                         InputDecoration(labelText: l10n.dialogNabungAmbilDari),
                     items: [
@@ -384,7 +384,7 @@ Future<void> showWishDialog(
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<WishPriority>(
-                value: priority,
+                initialValue: priority,
                 decoration: InputDecoration(labelText: l10n.priorityLabel),
                 items: [
                   for (final p in WishPriority.values)
@@ -482,7 +482,7 @@ Future<void> showWishDialog(
               if (accounts.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String?>(
-                  value: savingAccountId,
+                  initialValue: savingAccountId,
                   decoration:
                       InputDecoration(labelText: l10n.saveFromAccountLabel),
                   items: [
@@ -495,7 +495,7 @@ Future<void> showWishDialog(
               ],
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
-                value: reminderDay,
+                initialValue: reminderDay,
                 decoration: InputDecoration(
                     labelText: l10n.reminderDayLabel),
                 items: [

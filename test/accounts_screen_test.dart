@@ -6,6 +6,7 @@ import 'package:moneywork/data/app_state.dart';
 import 'package:moneywork/models/transaction.dart' as model;
 import 'package:moneywork/models/account.dart' as model;
 import 'package:moneywork/screens/accounts_screen.dart';
+import 'package:moneywork/screens/bank_statement_import_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:moneywork/l10n/app_localizations.dart';
@@ -77,5 +78,12 @@ void main() {
 
     // Ensure autocomplete suggestion "Makanan Enak" appears
     expect(find.text('Makanan Enak'), findsWidgets);
+
+    Navigator.of(tester.element(find.byType(AccountsScreen, skipOffstage: false))).pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Impor mutasi rekening PDF'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BankStatementImportScreen), findsOneWidget);
+    expect(find.text('Pilih PDF mutasi'), findsOneWidget);
   });
 }

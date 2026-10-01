@@ -31,21 +31,25 @@ class LocalStorage implements StorageBackend {
     try {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return AppState.fromJson(json);
-    } catch (_) {
-      // Data korup/format lama — mulai bersih daripada crash.
-      return const AppState();
+    } catch (error) {
+      throw FormatException(
+        'Data lokal tidak dapat dibaca. Data asli tetap disimpan; pulihkan dari cadangan sebelum menghapus aplikasi.',
+        error,
+      );
     }
   }
 
   @override
   Future<void> save(AppState state) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, jsonEncode(state.toJson()));
+    final saved = await prefs.setString(key, jsonEncode(state.toJson()));
+    if (!saved) throw StateError('Perubahan gagal disimpan di perangkat.');
   }
 
   @override
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(key);
+    final removed = await prefs.remove(key);
+    if (!removed) throw StateError('Data lokal gagal dihapus.');
   }
 }

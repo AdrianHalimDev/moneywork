@@ -43,36 +43,46 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                       style: Theme.of(ctx).textTheme.titleLarge),
                   const SizedBox(height: 16),
                   if (selectedFormat != 'xlsx_all') ...[
-                    Text(AppLocalizations.of(ctx)!.exportPeriodLabel, style: Theme.of(ctx).textTheme.titleSmall),
+                    Text(AppLocalizations.of(ctx)!.exportPeriodLabel,
+                        style: Theme.of(ctx).textTheme.titleSmall),
                     _MonthPicker(
                       month: selectedMonth,
                       onChanged: (m) => setSheetState(() => selectedMonth = m),
                     ),
                     const SizedBox(height: 16),
                   ],
-                  Text(AppLocalizations.of(ctx)!.exportTypeFormatLabel, style: Theme.of(ctx).textTheme.titleSmall),
+                  Text(AppLocalizations.of(ctx)!.exportTypeFormatLabel,
+                      style: Theme.of(ctx).textTheme.titleSmall),
                   const SizedBox(height: 8),
-                  RadioListTile<String>(
-                    title: Text(AppLocalizations.of(ctx)!.exportMonthlyPdf),
-                    value: 'pdf',
+                  RadioGroup<String>(
                     groupValue: selectedFormat,
-                    onChanged: (v) => setSheetState(() => selectedFormat = v!),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  RadioListTile<String>(
-                    title: Text(AppLocalizations.of(ctx)!.exportMonthlyExcel),
-                    value: 'xlsx',
-                    groupValue: selectedFormat,
-                    onChanged: (v) => setSheetState(() => selectedFormat = v!),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  RadioListTile<String>(
-                    title: Text(AppLocalizations.of(ctx)!.exportAllExcel),
-                    subtitle: Text(AppLocalizations.of(ctx)!.exportAllExcelSubtitle),
-                    value: 'xlsx_all',
-                    groupValue: selectedFormat,
-                    onChanged: (v) => setSheetState(() => selectedFormat = v!),
-                    contentPadding: EdgeInsets.zero,
+                    onChanged: (v) {
+                      if (v != null) setSheetState(() => selectedFormat = v);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<String>(
+                          title:
+                              Text(AppLocalizations.of(ctx)!.exportMonthlyPdf),
+                          value: 'pdf',
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<String>(
+                          title: Text(
+                              AppLocalizations.of(ctx)!.exportMonthlyExcel),
+                          value: 'xlsx',
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<String>(
+                          title: Text(AppLocalizations.of(ctx)!.exportAllExcel),
+                          subtitle: Text(
+                              AppLocalizations.of(ctx)!.exportAllExcelSubtitle),
+                          value: 'xlsx_all',
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -82,12 +92,15 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                       label: Text(AppLocalizations.of(ctx)!.exportNowBtn),
                       onPressed: () async {
                         Navigator.pop(ctx);
-                        
+
                         if (selectedFormat == 'xlsx_all') {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(AppLocalizations.of(ctx)!.snackPrepBackup)),
+                            SnackBar(
+                                content: Text(
+                                    AppLocalizations.of(ctx)!.snackPrepBackup)),
                           );
-                          await ExportService.exportAllToExcel(state, AppLocalizations.of(context)!);
+                          await ExportService.exportAllToExcel(
+                              state, AppLocalizations.of(context)!);
                           return;
                         }
 
@@ -99,7 +112,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                             .toList();
 
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(AppLocalizations.of(ctx)!.snackPrepMonth(monthStr))),
+                          SnackBar(
+                              content: Text(AppLocalizations.of(ctx)!
+                                  .snackPrepMonth(monthStr))),
                         );
 
                         if (selectedFormat == 'pdf') {
@@ -135,7 +150,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider).valueOrNull ?? const AppState();
     final summary = Report.forMonth(state.transactions, _month);
-    final categories = Report.expenseByCategory(state.transactions, _month, categoryFallback: AppLocalizations.of(context)!.categoryOther);
+    final categories = Report.expenseByCategory(state.transactions, _month,
+        categoryFallback: AppLocalizations.of(context)!.categoryOther);
     final series = Report.lastMonths(state.transactions, _month, count: 6);
 
     return Scaffold(
@@ -229,12 +245,20 @@ class _SummaryCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _stat(context, AppLocalizations.of(context)!.summaryIncome, summary.income,
-                      AppTheme.income, Icons.south_west),
+                  child: _stat(
+                      context,
+                      AppLocalizations.of(context)!.summaryIncome,
+                      summary.income,
+                      AppTheme.income,
+                      Icons.south_west),
                 ),
                 Expanded(
-                  child: _stat(context, AppLocalizations.of(context)!.summaryExpense, summary.expense,
-                      AppTheme.expense, Icons.north_east),
+                  child: _stat(
+                      context,
+                      AppLocalizations.of(context)!.summaryExpense,
+                      summary.expense,
+                      AppTheme.expense,
+                      Icons.north_east),
                 ),
               ],
             ),
@@ -242,7 +266,8 @@ class _SummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(AppLocalizations.of(context)!.summaryNet, style: Theme.of(context).textTheme.titleSmall),
+                Text(AppLocalizations.of(context)!.summaryNet,
+                    style: Theme.of(context).textTheme.titleSmall),
                 Text(
                   Fmt.rupiahSigned(summary.net),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -371,9 +396,21 @@ class _AssetPie extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = <(String, double, Color)>[
-      (AppLocalizations.of(context)!.pieAssetCash, state.totalCash, AppTheme.income),
-      (AppLocalizations.of(context)!.pieAssetInvestment, state.totalInvestment, AppTheme.investment),
-      (AppLocalizations.of(context)!.pieAssetReceivable, state.totalReceivable, Colors.teal),
+      (
+        AppLocalizations.of(context)!.pieAssetCash,
+        state.totalCash,
+        AppTheme.income
+      ),
+      (
+        AppLocalizations.of(context)!.pieAssetInvestment,
+        state.totalInvestment,
+        AppTheme.investment
+      ),
+      (
+        AppLocalizations.of(context)!.pieAssetReceivable,
+        state.totalReceivable,
+        Colors.teal
+      ),
     ].where((e) => e.$2 > 0).toList();
 
     if (data.isEmpty) {

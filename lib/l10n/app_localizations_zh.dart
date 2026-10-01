@@ -42,6 +42,50 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tooltipProfile => '个人资料和设置';
 
   @override
+  String get tooltipForecast => '未来30天现金流预测';
+
+  @override
+  String get tooltipImportStatementPdf => '导入银行流水 PDF';
+
+  @override
+  String importSuccess(int count) {
+    return '已添加 $count 笔交易。请检查保存状态。';
+  }
+
+  @override
+  String get syncStatusLoading => '正在加载数据';
+
+  @override
+  String get syncStatusSynced => '数据已保存';
+
+  @override
+  String get syncStatusPending => '正在保存更改';
+
+  @override
+  String get syncCache => '正在显示缓存数据，等待服务器确认';
+
+  @override
+  String get syncStatusError => '保存更改失败';
+
+  @override
+  String get syncRetry => '重试';
+
+  @override
+  String get syncLoadCloud => '加载云端版本';
+
+  @override
+  String get syncDiscardTitle => '丢弃未保存的更改？';
+
+  @override
+  String get syncDiscardBody => '将加载云端版本。本设备上保存失败的更改将丢失。';
+
+  @override
+  String get syncCancel => '取消';
+
+  @override
+  String get syncContinue => '加载云端';
+
+  @override
   String get errorLoadData => '加载数据失败';
 
   @override
@@ -884,6 +928,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get saveToReceivablesBtn => '保存为应收账款';
+
+  @override
+  String get splitBillShare => '分享';
+
+  @override
+  String get splitBillCopied => '分账详情已复制。';
+
+  @override
+  String get splitBillShareFailed => '无法分享分账详情。';
 
   @override
   String get createAccountSubtitle => '创建新账户';

@@ -9,8 +9,10 @@ import '../data/app_controller.dart';
 import '../data/app_state.dart';
 import '../models/account.dart';
 import '../models/transaction.dart';
+import '../services/bank_statement_import_service.dart';
 import '../widgets/common.dart';
 import '../widgets/responsive_layout.dart';
+import 'bank_statement_import_screen.dart';
 import 'monthly_expenses_screen.dart';
 
 /// Layar Akun: kelola rekening/dompet dan catat transaksi.
@@ -20,10 +22,54 @@ class AccountsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(appStateProvider);
+    final syncPhase = ref.watch(syncStatusProvider).phase;
+    final l10n = AppLocalizations.of(context)!;
+    final (syncIcon, syncLabel) = switch (syncPhase) {
+      SyncPhase.loading => (Icons.cloud_sync_outlined, l10n.syncStatusLoading),
+      SyncPhase.synced => (Icons.cloud_done_outlined, l10n.syncStatusSynced),
+      SyncPhase.pending => (Icons.cloud_upload_outlined, l10n.syncStatusPending),
+      SyncPhase.error => (Icons.cloud_off_outlined, l10n.syncStatusError),
+    };
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.titleAccounts),
+        title: Row(children: [
+          Flexible(child: Text(l10n.titleAccounts)),
+          const SizedBox(width: 4),
+          Tooltip(
+            message: syncLabel,
+            child: Icon(syncIcon, size: 18,
+                color: syncPhase == SyncPhase.error
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.primary),
+          ),
+        ]),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: AppLocalizations.of(context)!.tooltipImportStatementPdf,
+            onPressed: async.valueOrNull == null
+                ? null
+                : () async {
+                    final state = async.valueOrNull!;
+                    final approval = await Navigator.of(context)
+                        .push<StatementImportApproval>(MaterialPageRoute(
+                      builder: (_) => BankStatementImportScreen(
+                        accounts: state.accounts,
+                        existingTransactions: state.transactions,
+                        statementScanEndpoint: Uri.parse(
+                            'https://moneywork-ocr.tompel-adrian-6ef.workers.dev/statement-scan'),
+                      ),
+                    ));
+                    if (approval == null || !context.mounted) return;
+                    final result = await ref.read(appStateProvider.notifier)
+                        .importStatementTransactions(approval);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(result ?? AppLocalizations.of(context)!
+                          .importSuccess(approval.rows.length)),
+                    ));
+                  },
+          ),
           IconButton(
             icon: const Icon(Icons.event_repeat_outlined),
             tooltip: AppLocalizations.of(context)!.tooltipMonthlyExpenses,
@@ -455,7 +501,7 @@ Future<void> showAccountDialog(
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<AccountType>(
-                value: type,
+                initialValue: type,
                 decoration: InputDecoration(labelText: AppLocalizations.of(context)!.labelAccountType),
                 items: [
                   for (final t in AccountType.values)
@@ -687,7 +733,7 @@ Future<void> showTransactionDialog(
               }),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: accountId,
+                initialValue: accountId,
                 decoration: InputDecoration(
                     labelText:
                         type == TxType.transfer ? AppLocalizations.of(context)!.labelFromAccount : AppLocalizations.of(context)!.accountLabel),
@@ -700,7 +746,7 @@ Future<void> showTransactionDialog(
               if (type == TxType.transfer) ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: toAccountId,
+                  initialValue: toAccountId,
                   decoration: InputDecoration(labelText: AppLocalizations.of(context)!.labelToAccount),
                   items: [
                     for (final a in state.accounts)

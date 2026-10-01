@@ -11,6 +11,7 @@ import '../models/wishlist_item.dart';
 import '../services/reminders.dart';
 import '../widgets/responsive_layout.dart';
 import 'profile_screen.dart';
+import 'cash_flow_forecast_screen.dart';
 import 'report_screen.dart';
 import 'wishlist_screen.dart';
 
@@ -23,9 +24,20 @@ class DashboardScreen extends ConsumerWidget {
     final async = ref.watch(appStateProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.appTitle),
+        title: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(AppLocalizations.of(context)!.appTitle),
+          const SizedBox(width: 6),
+          const _SyncIcon(),
+        ]),
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.insights_outlined),
+            tooltip: AppLocalizations.of(context)!.tooltipForecast,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CashFlowForecastScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.favorite_outline),
             tooltip: AppLocalizations.of(context)!.tooltipWishlist,
@@ -78,6 +90,7 @@ class _DashboardBody extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
+          const _SyncBanner(),
           for (final r in reminders) ...[
             _ReminderBanner(reminder: r),
             const SizedBox(height: 8),
@@ -93,6 +106,116 @@ class _DashboardBody extends StatelessWidget {
           _RecentTransactions(state: state),
         ],
       ),
+    );
+  }
+}
+
+class _SyncBanner extends ConsumerWidget {
+  const _SyncBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(syncStatusProvider);
+    if (status.phase == SyncPhase.synced) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    final (icon, color, label) = switch (status.phase) {
+      SyncPhase.loading =>
+        (Icons.cloud_sync_outlined, scheme.outline, l10n.syncStatusLoading),
+      SyncPhase.synced =>
+        (Icons.cloud_done_outlined, scheme.primary, l10n.syncStatusSynced),
+      SyncPhase.pending =>
+        (Icons.cloud_upload_outlined, scheme.tertiary,
+          status.message == 'cache' ? l10n.syncCache : l10n.syncStatusPending),
+      SyncPhase.error =>
+        (Icons.cloud_off_outlined, scheme.error, l10n.syncStatusError),
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+      color: status.phase == SyncPhase.error ? scheme.errorContainer : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.labelMedium),
+              if (status.phase == SyncPhase.error && status.message != null)
+                Text(status.message!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall),
+            ],
+          )),
+          if (status.phase == SyncPhase.error) ...[
+            TextButton(
+              onPressed: () => ref.read(appStateProvider.notifier).retrySync(),
+              child: Text(l10n.syncRetry),
+            ),
+            PopupMenuButton<String>(
+              tooltip: l10n.syncLoadCloud,
+              onSelected: (_) async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: Text(l10n.syncDiscardTitle),
+                    content: Text(l10n.syncDiscardBody),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: Text(l10n.syncCancel),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: Text(l10n.syncContinue),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true || !context.mounted) return;
+                try {
+                  await ref.read(appStateProvider.notifier)
+                      .discardPendingAndReload();
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(error.toString())),
+                  );
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'reload', child: Text(l10n.syncLoadCloud)),
+              ],
+            ),
+          ],
+        ]),
+      ),
+      ),
+    );
+  }
+}
+
+class _SyncIcon extends ConsumerWidget {
+  const _SyncIcon();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phase = ref.watch(syncStatusProvider).phase;
+    final l10n = AppLocalizations.of(context)!;
+    final (icon, label) = switch (phase) {
+      SyncPhase.loading => (Icons.cloud_sync_outlined, l10n.syncStatusLoading),
+      SyncPhase.synced => (Icons.cloud_done_outlined, l10n.syncStatusSynced),
+      SyncPhase.pending => (Icons.cloud_upload_outlined, l10n.syncStatusPending),
+      SyncPhase.error => (Icons.cloud_off_outlined, l10n.syncStatusError),
+    };
+    return Tooltip(
+      message: label,
+      child: Icon(icon, size: 18, color: phase == SyncPhase.error
+          ? Theme.of(context).colorScheme.error
+          : Theme.of(context).colorScheme.primary),
     );
   }
 }

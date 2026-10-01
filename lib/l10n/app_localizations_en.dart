@@ -42,6 +42,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tooltipProfile => 'Profile & Settings';
 
   @override
+  String get tooltipForecast => '30-day cash flow forecast';
+
+  @override
+  String get tooltipImportStatementPdf => 'Import PDF bank statement';
+
+  @override
+  String importSuccess(int count) {
+    return '$count transactions added. Check the save status.';
+  }
+
+  @override
+  String get syncStatusLoading => 'Loading data';
+
+  @override
+  String get syncStatusSynced => 'Data saved';
+
+  @override
+  String get syncStatusPending => 'Saving changes';
+
+  @override
+  String get syncCache => 'Showing cached data; waiting for server';
+
+  @override
+  String get syncStatusError => 'Could not save changes';
+
+  @override
+  String get syncRetry => 'Retry';
+
+  @override
+  String get syncLoadCloud => 'Load cloud version';
+
+  @override
+  String get syncDiscardTitle => 'Discard unsaved changes?';
+
+  @override
+  String get syncDiscardBody =>
+      'The cloud version will load. Changes on this device that failed to save will be lost.';
+
+  @override
+  String get syncCancel => 'Cancel';
+
+  @override
+  String get syncContinue => 'Load cloud';
+
+  @override
   String get errorLoadData => 'Failed to load data';
 
   @override
@@ -895,6 +940,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get saveToReceivablesBtn => 'Save to Receivables';
+
+  @override
+  String get splitBillShare => 'Share';
+
+  @override
+  String get splitBillCopied => 'Split bill details copied.';
+
+  @override
+  String get splitBillShareFailed => 'Could not share split bill details.';
 
   @override
   String get createAccountSubtitle => 'Create a new account';

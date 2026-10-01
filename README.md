@@ -30,6 +30,7 @@ Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter**
 - **Biaya Admin Transfer**: Opsi pencatatan biaya admin saat transfer (misal: top up e-wallet Rp 50.000 + admin Rp 1.000 → BCA berkurang Rp 51.000, GoPay bertambah Rp 50.000). Biaya admin dicatat sebagai pengeluaran terpisah berkategori "Biaya Admin" untuk pelaporan presisi.
 - **Edit Transaksi**: Ketuk baris transaksi untuk mengubah Catatan dan Kategori. Kolom nominal, akun, dan tanggal dikunci untuk menjaga integritas pembukuan.
 - **Auto-Formatting Ribuan**: Nominal angka otomatis memiliki titik pemisah ribuan saat diketik.
+- **Impor Mutasi PDF**: Dari layar Akun, pilih PDF mutasi bulanan, tinjau debit/kredit dan kemungkinan duplikat, lalu setujui baris yang ingin ditambahkan. Saldo saat ini tidak berubah secara bawaan karena mutasi historis biasanya sudah tercermin di saldo. PDF dikirim ke Worker dan Gemini hanya setelah persetujuan pada layar impor. Lihat [panduan Worker](backend/moneywork-ocr/README.md).
 
 ### 📸 3. Pemindai Bon & Struk Otomatis (AI OCR)
 - **Sumber Gambar**: Ambil foto dari Kamera langsung atau pilih dari Galeri HP.
@@ -69,6 +70,8 @@ Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter**
 ### 🔄 8. Transaksi Bulanan & Tagihan Rutin
 - **Template Tagihan Rutin**: Catat langganan bulanan (Netflix, Spotify, Kos, Listrik, Internet) atau cicilan.
 - **Eksekusi "Jalankan Semua"**: Catat semua transaksi rutin sekaligus dalam satu klik. Template dilewati otomatis jika saldo akun tidak mencukupi.
+- **Hari Bulanan untuk Proyeksi**: Template dapat diberi tanggal 1–31. Tanggal yang melebihi panjang bulan jatuh pada hari terakhir bulan tersebut. Tanggal ini hanya untuk perkiraan dan tidak menjalankan transaksi otomatis.
+- **Proyeksi Arus Kas 30 Hari**: Buka dari Beranda untuk melihat saldo perkiraan per rekening, hari terendah, transaksi rutin terjadwal, dan kewajiban utang yang jatuh tempo. Perkiraan tidak mengubah saldo atau mencatat transaksi.
 
 ### 🎯 9. Wishlist Menabung (Saving Target)
 - **Target Tabungan**: Setel foto barang impian, target nominal, dan estimasi waktu pencapaian.
@@ -84,7 +87,9 @@ Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter**
 - **Layar Kunci (Lock Screen)**: Dilengkapi Keamanan PIN 6-Digit dan Sidik Jari / Biometrik (Fingerprint & Face ID).
 - **Kunci Sesi Otomatis**: Aplikasi terkunci otomatis saat ditinggalkan di latar belakang.
 - **Cloud Sync Terenkripsi**: Sinkronisasi data ke Firebase Firestore menggunakan enkripsi *End-to-End*.
-- **Mode Offline**: Aplikasi tetap berfungsi penuh saat tidak ada koneksi internet (data tersimpan di lokal dan tersinkron otomatis saat online).
+- **Status Simpan**: Beranda dan Akun menampilkan status memuat, menyimpan, tersimpan, atau gagal. Kesalahan tidak disembunyikan; pengguna dapat mencoba lagi atau memilih memuat versi cloud setelah konfirmasi.
+- **Dokumen per Entitas**: Transaksi dan data lain disimpan sebagai dokumen terenkripsi terpisah, sehingga satu simpan tidak mengganti seluruh riwayat. Perubahan bersamaan pada akun atau kewajiban yang sama ditandai sebagai konflik agar saldo tidak menjadi keliru.
+- **Saat Offline**: Data cache yang sudah ada dapat ditampilkan. Perubahan yang gagal dikirim perlu dicoba lagi dari sesi aplikasi yang masih terbuka; tutup aplikasi sebelum status tersimpan dapat menghilangkan perubahan tersebut. Jangan gunakan "Muat versi cloud" bila perubahan lokal masih ingin dipertahankan.
 
 ---
 

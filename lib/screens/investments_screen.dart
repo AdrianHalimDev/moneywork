@@ -266,7 +266,7 @@ Future<void> showInvestmentDialog(
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<InvestmentType>(
-                value: type,
+                initialValue: type,
                 decoration: InputDecoration(labelText: l10n.typeLabel),
                 items: [
                   for (final t in InvestmentType.values)
@@ -550,7 +550,7 @@ Future<void> showStockTradeDialog(
                   )
                 else
                   DropdownButtonFormField<String?>(
-                    value: stockId,
+                    initialValue: stockId,
                     decoration: InputDecoration(labelText: l10n.stockDropdownLabel),
                     items: [
                       if (isBuy)
@@ -585,7 +585,7 @@ Future<void> showStockTradeDialog(
                 ],
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: rdnId,
+                  initialValue: rdnId,
                   decoration: InputDecoration(labelText: l10n.rdnAccountLabel),
                   items: [
                     for (final a in rdnAccounts)

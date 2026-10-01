@@ -37,7 +37,9 @@ class ProfileScreen extends ConsumerWidget {
           _SectionLabel(AppLocalizations.of(context)!.sectionAppearance),
           _ThemeTile(current: themeMode),
           _SectionLabel(AppLocalizations.of(context)!.sectionLanguage),
-          _LocaleTile(current: ref.watch(appStateProvider).valueOrNull?.locale ?? 'system'),
+          _LocaleTile(
+              current:
+                  ref.watch(appStateProvider).valueOrNull?.locale ?? 'system'),
           if (!kIsWeb) ...[
             _SectionLabel(AppLocalizations.of(context)!.sectionReminders),
             const _NotificationTile(),
@@ -68,23 +70,28 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const Divider(height: 24),
             ListTile(
-              leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.primary),
+              leading: Icon(Icons.logout,
+                  color: Theme.of(context).colorScheme.primary),
               title: Text(AppLocalizations.of(context)!.logout),
               onTap: () => ref.read(authServiceProvider).signOut(),
             ),
             ListTile(
-              leading: const Icon(Icons.delete_forever, color: AppTheme.expense),
+              leading:
+                  const Icon(Icons.delete_forever, color: AppTheme.expense),
               title: Text(AppLocalizations.of(context)!.deleteAccount,
                   style: const TextStyle(color: AppTheme.expense)),
-              subtitle: Text(AppLocalizations.of(context)!.deleteAccountSubtitle),
+              subtitle:
+                  Text(AppLocalizations.of(context)!.deleteAccountSubtitle),
               onTap: () => _showDeleteAccount(context, ref),
             ),
           ],
           const SizedBox(height: 24),
           Center(
             child: Text('MoneyWork',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline)),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.outline)),
           ),
           const SizedBox(height: 24),
         ],
@@ -164,28 +171,30 @@ class _ThemeTile extends ConsumerWidget {
           builder: (context) {
             return AlertDialog(
               title: Text(AppLocalizations.of(context)!.sectionAppearance),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<String>(
-                    value: 'system',
-                    groupValue: current,
-                    onChanged: (v) { set(v!); Navigator.pop(context); },
-                    title: Text(AppLocalizations.of(context)!.themeSystem),
-                  ),
-                  RadioListTile<String>(
-                    value: 'light',
-                    groupValue: current,
-                    onChanged: (v) { set(v!); Navigator.pop(context); },
-                    title: Text(AppLocalizations.of(context)!.themeLight),
-                  ),
-                  RadioListTile<String>(
-                    value: 'dark',
-                    groupValue: current,
-                    onChanged: (v) { set(v!); Navigator.pop(context); },
-                    title: Text(AppLocalizations.of(context)!.themeDark),
-                  ),
-                ],
+              content: RadioGroup<String>(
+                groupValue: current,
+                onChanged: (v) {
+                  if (v == null) return;
+                  set(v);
+                  Navigator.pop(context);
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RadioListTile<String>(
+                      value: 'system',
+                      title: Text(AppLocalizations.of(context)!.themeSystem),
+                    ),
+                    RadioListTile<String>(
+                      value: 'light',
+                      title: Text(AppLocalizations.of(context)!.themeLight),
+                    ),
+                    RadioListTile<String>(
+                      value: 'dark',
+                      title: Text(AppLocalizations.of(context)!.themeDark),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -220,34 +229,34 @@ class _LocaleTile extends ConsumerWidget {
           builder: (context) {
             return AlertDialog(
               title: Text(AppLocalizations.of(context)!.languageDialogTitle),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<String>(
-                    value: 'system',
-                    groupValue: current,
-                    onChanged: (v) { set(v!); Navigator.pop(context); },
-                    title: Text(AppLocalizations.of(context)!.languageSystem),
-                  ),
-                  RadioListTile<String>(
-                    value: 'id',
-                    groupValue: current,
-                    onChanged: (v) { set(v!); Navigator.pop(context); },
-                    title: Text(AppLocalizations.of(context)!.languageId),
-                  ),
-                  RadioListTile<String>(
-                    value: 'en',
-                    groupValue: current,
-                    onChanged: (v) { set(v!); Navigator.pop(context); },
-                    title: Text(AppLocalizations.of(context)!.languageEn),
-                  ),
-                  RadioListTile<String>(
-                    value: 'zh',
-                    groupValue: current,
-                    onChanged: (v) { set(v!); Navigator.pop(context); },
-                    title: Text(AppLocalizations.of(context)!.languageZh),
-                  ),
-                ],
+              content: RadioGroup<String>(
+                groupValue: current,
+                onChanged: (v) {
+                  if (v == null) return;
+                  set(v);
+                  Navigator.pop(context);
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RadioListTile<String>(
+                      value: 'system',
+                      title: Text(AppLocalizations.of(context)!.languageSystem),
+                    ),
+                    RadioListTile<String>(
+                      value: 'id',
+                      title: Text(AppLocalizations.of(context)!.languageId),
+                    ),
+                    RadioListTile<String>(
+                      value: 'en',
+                      title: Text(AppLocalizations.of(context)!.languageEn),
+                    ),
+                    RadioListTile<String>(
+                      value: 'zh',
+                      title: Text(AppLocalizations.of(context)!.languageZh),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -284,26 +293,29 @@ class _NotificationTileState extends ConsumerState<_NotificationTile> {
     setState(() => _busy = true);
     final svc = NotificationService.instance;
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final state = ref.read(appStateProvider).valueOrNull;
     if (value) {
       final granted = await svc.requestPermissions();
+      if (!mounted) return;
       if (granted) {
         await svc.scheduleDailyReminder(
-          AppLocalizations.of(context)!,
+          l10n,
           hour: state?.reminderHour ?? 20,
           minute: state?.reminderMinute ?? 0,
         );
-        await svc.scheduleWishlistReminders(state?.wishlist ?? const [], AppLocalizations.of(context)!);
-        messenger.showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.reminderActiveDesc)));
+        await svc.scheduleWishlistReminders(state?.wishlist ?? const [], l10n);
+        if (!mounted) return;
+        messenger
+            .showSnackBar(SnackBar(content: Text(l10n.reminderActiveDesc)));
       } else {
-        messenger.showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.reminderNoPermission)));
+        messenger
+            .showSnackBar(SnackBar(content: Text(l10n.reminderNoPermission)));
       }
     } else {
       await svc.cancelAll();
-      messenger
-          .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.reminderDisabled)));
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(l10n.reminderDisabled)));
     }
     await _refresh();
     if (mounted) setState(() => _busy = false);
@@ -323,17 +335,18 @@ class _NotificationTileState extends ConsumerState<_NotificationTile> {
     if (picked == null || !mounted) return;
     // Tangkap sebelum await berikutnya untuk hindari akses context lintas async.
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final label = picked.format(context);
     // Simpan & jadwalkan ulang dengan jam baru.
     await ref
         .read(appStateProvider.notifier)
         .setReminderTime(picked.hour, picked.minute);
     await NotificationService.instance
-        .scheduleDailyReminder(AppLocalizations.of(context)!, hour: picked.hour, minute: picked.minute);
+        .scheduleDailyReminder(l10n, hour: picked.hour, minute: picked.minute);
     if (mounted) {
       setState(() {});
       messenger.showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.reminderDailySetTo(label))));
+          SnackBar(content: Text(l10n.reminderDailySetTo(label))));
     }
   }
 
@@ -357,7 +370,8 @@ class _NotificationTileState extends ConsumerState<_NotificationTile> {
           ListTile(
             leading: const Icon(Icons.schedule_outlined),
             title: Text(AppLocalizations.of(context)!.reminderTimeTitle),
-            subtitle: Text(AppLocalizations.of(context)!.dailyReminderDesc(time.format(context))),
+            subtitle: Text(AppLocalizations.of(context)!
+                .dailyReminderDesc(time.format(context))),
             trailing: const Icon(Icons.edit_outlined, size: 18),
             onTap: _busy ? null : _pickTime,
           ),
@@ -398,7 +412,8 @@ class _CheckUpdateTileState extends ConsumerState<_CheckUpdateTile> {
             content: Text(AppLocalizations.of(context)!.alreadyLatestVersion)));
       case UpdateStatus.unsupported:
         messenger.showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.autoUpdateAndroidOnly)));
+            content:
+                Text(AppLocalizations.of(context)!.autoUpdateAndroidOnly)));
       case UpdateStatus.failed:
         messenger.showSnackBar(SnackBar(
             content: Text(AppLocalizations.of(context)!.updateCheckFailed)));
@@ -440,9 +455,11 @@ Future<void> _showEditName(
         child: TextFormField(
           controller: ctrl,
           autofocus: true,
-          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.nameLabel),
-          validator: (v) =>
-              (v == null || v.trim().isEmpty) ? AppLocalizations.of(context)!.nameRequired : null,
+          decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.nameLabel),
+          validator: (v) => (v == null || v.trim().isEmpty)
+              ? AppLocalizations.of(context)!.nameRequired
+              : null,
         ),
       ),
       actions: [
@@ -491,16 +508,18 @@ Future<void> _showChangePassword(BuildContext context, WidgetRef ref) async {
               controller: currentCtrl,
               labelText: AppLocalizations.of(context)!.currentPasswordLabel,
               prefixIcon: null,
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? AppLocalizations.of(context)!.requiredField : null,
+              validator: (v) => (v == null || v.isEmpty)
+                  ? AppLocalizations.of(context)!.requiredField
+                  : null,
             ),
             const SizedBox(height: 12),
             PasswordField(
               controller: newCtrl,
               labelText: AppLocalizations.of(context)!.newPasswordLabel,
               prefixIcon: null,
-              validator: (v) =>
-                  (v == null || v.length < 6) ? AppLocalizations.of(context)!.passwordMinLen : null,
+              validator: (v) => (v == null || v.length < 6)
+                  ? AppLocalizations.of(context)!.passwordMinLen
+                  : null,
             ),
           ],
         ),
@@ -514,16 +533,18 @@ Future<void> _showChangePassword(BuildContext context, WidgetRef ref) async {
             if (!formKey.currentState!.validate()) return;
             final messenger = ScaffoldMessenger.of(context);
             final navigator = Navigator.of(context);
+            final l10n = AppLocalizations.of(context)!;
             final error = await ref
                 .read(authServiceProvider)
                 .changePassword(currentCtrl.text, newCtrl.text);
+            if (!context.mounted) return;
             if (error != null) {
               messenger.showSnackBar(SnackBar(content: Text(error)));
               return;
             }
             navigator.pop();
-            messenger.showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.passwordChanged)));
+            messenger
+                .showSnackBar(SnackBar(content: Text(l10n.passwordChanged)));
           },
           child: Text(AppLocalizations.of(context)!.saveButton),
         ),
@@ -556,8 +577,9 @@ Future<void> _showDeleteAccount(BuildContext context, WidgetRef ref) async {
               controller: passCtrl,
               labelText: AppLocalizations.of(context)!.currentPasswordLabel,
               prefixIcon: null,
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? AppLocalizations.of(context)!.requiredField : null,
+              validator: (v) => (v == null || v.isEmpty)
+                  ? AppLocalizations.of(context)!.requiredField
+                  : null,
             ),
           ],
         ),
@@ -601,7 +623,8 @@ Future<void> _showDeleteAccount(BuildContext context, WidgetRef ref) async {
 // Dialog: lihat/buat ulang kunci pemulihan
 // ============================================================================
 
-Future<void> _showRecoveryKey(BuildContext context, WidgetRef ref, String uid) async {
+Future<void> _showRecoveryKey(
+    BuildContext context, WidgetRef ref, String uid) async {
   await showDialog<void>(
     context: context,
     barrierDismissible: false,
@@ -626,9 +649,10 @@ class _RecoveryKeyDialogState extends ConsumerState<_RecoveryKeyDialog> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     final messenger = ScaffoldMessenger.of(context);
-    
+
     // 1) Verifikasi kata sandi
-    final reauth = await ref.read(authServiceProvider).reauthenticate(_passCtrl.text);
+    final reauth =
+        await ref.read(authServiceProvider).reauthenticate(_passCtrl.text);
     if (reauth != null) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -638,7 +662,8 @@ class _RecoveryKeyDialogState extends ConsumerState<_RecoveryKeyDialog> {
 
     // 2) Buat ulang kunci pemulihan
     try {
-      final newKey = await KeyManager.instance.regenerateRecoveryKey(widget.uid);
+      final newKey =
+          await KeyManager.instance.regenerateRecoveryKey(widget.uid);
       if (!mounted) return;
       setState(() {
         _newKey = newKey;
@@ -647,7 +672,9 @@ class _RecoveryKeyDialogState extends ConsumerState<_RecoveryKeyDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      messenger.showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.recoveryKeyCreateFailed(e.toString()))));
+      messenger.showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .recoveryKeyCreateFailed(e.toString()))));
     }
   }
 
@@ -686,7 +713,9 @@ class _RecoveryKeyDialogState extends ConsumerState<_RecoveryKeyDialog> {
           OutlinedButton.icon(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: _newKey!));
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.recoveryKeyCopied)));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content:
+                      Text(AppLocalizations.of(context)!.recoveryKeyCopied)));
             },
             icon: const Icon(Icons.copy),
             label: Text(AppLocalizations.of(context)!.copy),
@@ -715,7 +744,9 @@ class _RecoveryKeyDialogState extends ConsumerState<_RecoveryKeyDialog> {
               controller: _passCtrl,
               labelText: AppLocalizations.of(context)!.currentPasswordLabel,
               prefixIcon: null,
-              validator: (v) => (v == null || v.isEmpty) ? AppLocalizations.of(context)!.requiredField : null,
+              validator: (v) => (v == null || v.isEmpty)
+                  ? AppLocalizations.of(context)!.requiredField
+                  : null,
             ),
           ],
         ),
@@ -728,7 +759,10 @@ class _RecoveryKeyDialogState extends ConsumerState<_RecoveryKeyDialog> {
         FilledButton(
           onPressed: _loading ? null : _verifyAndGenerate,
           child: _loading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : Text(AppLocalizations.of(context)!.recoveryKeyNew),
         ),
       ],

@@ -109,7 +109,7 @@ class _CollectFromPersonSheetState extends ConsumerState<_CollectFromPersonSheet
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _accountId,
+              initialValue: _accountId,
               decoration: InputDecoration(labelText: l10n.receiveIntoLabel),
               items: [
                 for (final a in state.accounts)
@@ -343,7 +343,7 @@ class _ReceivableDialogSheetState extends ConsumerState<_ReceivableDialogSheet> 
               ),
               if (_fundFromAccount)
                 DropdownButtonFormField<String>(
-                  value: _fundingAccountId,
+                  initialValue: _fundingAccountId,
                   decoration: InputDecoration(labelText: l10n.fromAccountLabel),
                   items: [
                     for (final a in accounts)

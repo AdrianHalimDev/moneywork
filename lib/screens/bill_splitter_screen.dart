@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:moneywork/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
+import '../services/bill_share_formatter.dart';
 import '../services/bill_splitter.dart';
 import 'receipt_assign_screen.dart';
 
@@ -193,6 +195,39 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
     );
   }
 
+  String _billText(BillResult result) => BillShareFormatter.format(
+        result: result,
+        people: [
+          for (final p in _people)
+            BillPerson(name: p.nameCtrl.text.trim(), items: p.items),
+        ],
+        sharedItems: _shared,
+        l10n: AppLocalizations.of(context)!,
+      );
+
+  Future<void> _copyBill(BillResult result) async {
+    await Clipboard.setData(ClipboardData(text: _billText(result)));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.splitBillCopied)));
+  }
+
+  Future<void> _shareBill(BillResult result, BuildContext buttonContext) async {
+    final box = buttonContext.findRenderObject() as RenderBox?;
+    final position =
+        box == null ? null : box.localToGlobal(Offset.zero) & box.size;
+    final text = _billText(result);
+    try {
+      await SharePlus.instance.share(
+        ShareParams(text: text, sharePositionOrigin: position),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!.splitBillShareFailed)));
+    }
+  }
+
   void _addPerson() {
     setState(() => _people.add(_PersonEntry(
         nameCtrl: TextEditingController(
@@ -365,7 +400,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                 const SizedBox(height: 16),
                 if (accounts.isNotEmpty)
                   DropdownButtonFormField<String?>(
-                    value: fundingId,
+                    initialValue: fundingId,
                     decoration: InputDecoration(
                         labelText:
                             AppLocalizations.of(context)!.fundFromAccountLabel),
@@ -421,6 +456,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
 
     if (selected != true || !mounted) return;
 
+    final l10n = AppLocalizations.of(context)!;
     final ctrl = ref.read(appStateProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
@@ -433,29 +469,28 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
         shares: [for (final s in valid) (name: s.name, amount: s.total)],
         ownerShare: ownerShare,
       );
+      if (!mounted) return;
       if (error != null) {
         messenger.showSnackBar(SnackBar(content: Text(error)));
         return;
       }
       messenger.showSnackBar(SnackBar(
-          content: Text(AppLocalizations.of(context)!.receivableSavedDeducted(
-              valid.length.toString(),
+          content: Text(l10n.receivableSavedDeducted(valid.length.toString(),
               Fmt.rupiah(friendsTotal + ownerShare)))));
     } else {
       // Tanpa sumber dana: catat piutang teman saja (saldo tidak berubah).
+      final note = '${l10n.splitBillNotePrefix} ${Fmt.date(DateTime.now())}';
       for (final s in valid) {
         await ctrl.addReceivable(
           personName: s.name,
           remaining: s.total,
-          note:
-              '${AppLocalizations.of(context)!.splitBillNotePrefix} ${Fmt.date(DateTime.now())}',
+          note: note,
         );
       }
+      if (!mounted) return;
       messenger.showSnackBar(SnackBar(
-          content: Text(AppLocalizations.of(context)!
-              .receivableSavedOnly(valid.length.toString()))));
+          content: Text(l10n.receivableSavedOnly(valid.length.toString()))));
     }
-    if (!mounted) return;
     navigator.pop();
   }
 
@@ -524,8 +559,8 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                       _people.remove(p);
                       _syncChargeFields(_subtotal);
                     });
-                    WidgetsBinding.instance.addPostFrameCallback(
-                        (_) => p.nameCtrl.dispose());
+                    WidgetsBinding.instance
+                        .addPostFrameCallback((_) => p.nameCtrl.dispose());
                   },
                 ),
               ],
@@ -776,6 +811,32 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
                 ),
               ),
             const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: result.shares.isEmpty || result.grandTotal <= 0
+                        ? null
+                        : () => _copyBill(result),
+                    icon: const Icon(Icons.copy_outlined),
+                    label: Text(AppLocalizations.of(context)!.copy),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Builder(
+                    builder: (buttonContext) => OutlinedButton.icon(
+                      onPressed: result.shares.isEmpty || result.grandTotal <= 0
+                          ? null
+                          : () => _shareBill(result, buttonContext),
+                      icon: const Icon(Icons.share_outlined),
+                      label: Text(AppLocalizations.of(context)!.splitBillShare),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(

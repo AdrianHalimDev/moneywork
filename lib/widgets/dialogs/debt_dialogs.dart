@@ -110,7 +110,7 @@ class _PayDebtSheetState extends ConsumerState<_PayDebtSheet> {
             }),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _accountId,
+              initialValue: _accountId,
               decoration: InputDecoration(labelText: l10n.payFromLabel),
               items: [
                 for (final a in state.accounts)
@@ -244,7 +244,7 @@ class _DebtDialogSheetState extends ConsumerState<_DebtDialogSheet> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<DebtType>(
-              value: _type,
+              initialValue: _type,
               decoration: InputDecoration(labelText: l10n.typeLabel),
               items: [
                 for (final t in DebtType.values)

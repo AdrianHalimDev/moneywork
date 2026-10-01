@@ -32,6 +32,7 @@ class Transaction {
     this.linkedDebtId,
     this.linkedReceivableId,
     this.linkedTransferId,
+    this.balanceApplied = true,
     required this.date,
   });
 
@@ -56,6 +57,9 @@ class Transaction {
   /// "Biaya Admin") agar tetap tertracking, dan ikut terhapus bila transfernya
   /// dihapus.
   final String? linkedTransferId;
+  /// False for imported historical statement rows already included in the
+  /// account's current balance. Editing or deleting them must not move cash.
+  final bool balanceApplied;
   final DateTime date;
 
   /// Dampak ke saldo akun [accountId].
@@ -76,6 +80,7 @@ class Transaction {
     String? linkedDebtId,
     String? linkedReceivableId,
     String? linkedTransferId,
+    bool? balanceApplied,
     DateTime? date,
   }) {
     return Transaction(
@@ -89,6 +94,7 @@ class Transaction {
       linkedDebtId: linkedDebtId ?? this.linkedDebtId,
       linkedReceivableId: linkedReceivableId ?? this.linkedReceivableId,
       linkedTransferId: linkedTransferId ?? this.linkedTransferId,
+      balanceApplied: balanceApplied ?? this.balanceApplied,
       date: date ?? this.date,
     );
   }
@@ -104,6 +110,7 @@ class Transaction {
         'linkedDebtId': linkedDebtId,
         'linkedReceivableId': linkedReceivableId,
         'linkedTransferId': linkedTransferId,
+        'balanceApplied': balanceApplied,
         'date': date.toIso8601String(),
       };
 
@@ -118,6 +125,7 @@ class Transaction {
         linkedDebtId: json['linkedDebtId'] as String?,
         linkedReceivableId: json['linkedReceivableId'] as String?,
         linkedTransferId: json['linkedTransferId'] as String?,
+        balanceApplied: json['balanceApplied'] as bool? ?? true,
         date: DateTime.parse(json['date'] as String),
       );
 }
