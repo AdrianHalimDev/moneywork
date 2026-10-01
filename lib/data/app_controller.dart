@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseException;
 import 'package:flutter/material.dart' show ThemeMode, Locale;
 import 'package:moneywork/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,6 +98,7 @@ final localeProvider = Provider<Locale?>((ref) {
 /// (3) update state UI. Saldo akun dijaga konsisten dengan transaksi.
 class AppController extends AsyncNotifier<AppState> {
   bool _disposed = false;
+  Timer? _retryTimer;
 
   void _setSyncStatus(SyncStatus next) {
     if (!_disposed) ref.read(syncStatusProvider.notifier).state = next;
@@ -106,7 +110,10 @@ class AppController extends AsyncNotifier<AppState> {
   @override
   Future<AppState> build() async {
     _disposed = false;
-    ref.onDispose(() => _disposed = true);
+    ref.onDispose(() {
+      _disposed = true;
+      _retryTimer?.cancel();
+    });
     final storage = ref.watch(storageProvider);
     _setSyncStatus(const SyncStatus(SyncPhase.loading));
     AppState loaded;
@@ -125,7 +132,15 @@ class AppController extends AsyncNotifier<AppState> {
     // so even old data without _commit will be displayed correctly.
     final sortedTx = List<Transaction>.from(loaded.transactions)
       ..sort((a, b) => b.date.compareTo(a.date));
-    return loaded.copyWith(transactions: sortedTx);
+    final sorted = loaded.copyWith(transactions: sortedTx);
+    if (storage is FirestoreStorage && storage.hasPendingLocalChanges) {
+      // Antrean offline terenkripsi dipulihkan dan dicoba lagi tanpa menunggu
+      // tindakan pengguna. Firestore akan tetap menolak saat jaringan putus.
+      Future<void>.delayed(Duration.zero, () {
+        if (!_disposed) _enqueueSave(sorted);
+      });
+    }
+    return sorted;
   }
 
   Future<void> _commit(AppState next) async {
@@ -133,6 +148,13 @@ class AppController extends AsyncNotifier<AppState> {
     final sortedTx = List<Transaction>.from(next.transactions)
       ..sort((a, b) => b.date.compareTo(a.date));
     final finalState = next.copyWith(transactions: sortedTx);
+
+    // Pengeditan cloud disimpan terenkripsi di perangkat sebelum ditampilkan.
+    // Bila browser/OS menolak penyimpanan, jangan mengaku perubahan berhasil.
+    final storage = _storage;
+    if (storage is FirestoreStorage) {
+      await storage.stageLocalState(finalState);
+    }
 
     // Update state secara optimistic agar UI langsung responsif, lalu
     // persist di latar tanpa memblok pemanggil. Penting: backend Firestore
@@ -151,6 +173,7 @@ class AppController extends AsyncNotifier<AppState> {
   Future<void>? _saveTask;
 
   void _enqueueSave(AppState next) {
+    _retryTimer?.cancel();
     _pendingSave = next;
     _setSyncStatus(const SyncStatus(SyncPhase.pending));
     if (_saving) return;
@@ -171,6 +194,13 @@ class AppController extends AsyncNotifier<AppState> {
           _pendingSave ??= toSave;
           _setSyncStatus(
               SyncStatus(SyncPhase.error, message: error.toString()));
+          if (error is FirebaseException &&
+              (error.code == 'unavailable' ||
+                  error.code == 'deadline-exceeded')) {
+            _retryTimer = Timer(const Duration(seconds: 30), () {
+              if (!_disposed && _pendingSave != null) retrySync();
+            });
+          }
           break;
         }
       }
@@ -184,7 +214,8 @@ class AppController extends AsyncNotifier<AppState> {
   Future<void> retrySync() async {
     if (_pendingSave case final pending?) {
       _enqueueSave(pending);
-    } else if (ref.read(syncStatusProvider).phase == SyncPhase.error) {
+    } else if (ref.read(syncStatusProvider).phase == SyncPhase.error ||
+        ref.read(syncStatusProvider).message == 'cache') {
       await reloadFromStorage();
     }
   }

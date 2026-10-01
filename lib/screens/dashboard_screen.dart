@@ -150,11 +150,20 @@ class _SyncBanner extends ConsumerWidget {
                     style: Theme.of(context).textTheme.bodySmall),
             ],
           )),
-          if (status.phase == SyncPhase.error) ...[
+          if (status.phase == SyncPhase.error ||
+              status.message == 'cache') ...[
             TextButton(
-              onPressed: () => ref.read(appStateProvider.notifier).retrySync(),
+              onPressed: () async {
+                try {
+                  await ref.read(appStateProvider.notifier).retrySync();
+                } catch (_) {
+                  // Status sinkronisasi sudah menampilkan kegagalan.
+                }
+              },
               child: Text(l10n.syncRetry),
             ),
+          ],
+          if (status.phase == SyncPhase.error) ...[
             PopupMenuButton<String>(
               tooltip: l10n.syncLoadCloud,
               onSelected: (_) async {
@@ -203,12 +212,14 @@ class _SyncIcon extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final phase = ref.watch(syncStatusProvider).phase;
+    final status = ref.watch(syncStatusProvider);
+    final phase = status.phase;
     final l10n = AppLocalizations.of(context)!;
     final (icon, label) = switch (phase) {
       SyncPhase.loading => (Icons.cloud_sync_outlined, l10n.syncStatusLoading),
       SyncPhase.synced => (Icons.cloud_done_outlined, l10n.syncStatusSynced),
-      SyncPhase.pending => (Icons.cloud_upload_outlined, l10n.syncStatusPending),
+      SyncPhase.pending => (Icons.cloud_upload_outlined,
+          status.message == 'cache' ? l10n.syncCache : l10n.syncStatusPending),
       SyncPhase.error => (Icons.cloud_off_outlined, l10n.syncStatusError),
     };
     return Tooltip(

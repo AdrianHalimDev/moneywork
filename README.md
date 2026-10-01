@@ -89,7 +89,7 @@ Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter**
 - **Cloud Sync Terenkripsi**: Sinkronisasi data ke Firebase Firestore menggunakan enkripsi *End-to-End*.
 - **Status Simpan**: Beranda dan Akun menampilkan status memuat, menyimpan, tersimpan, atau gagal. Kesalahan tidak disembunyikan; pengguna dapat mencoba lagi atau memilih memuat versi cloud setelah konfirmasi.
 - **Dokumen per Entitas**: Transaksi dan data lain disimpan sebagai dokumen terenkripsi terpisah, sehingga satu simpan tidak mengganti seluruh riwayat. Perubahan bersamaan pada akun atau kewajiban yang sama ditandai sebagai konflik agar saldo tidak menjadi keliru.
-- **Saat Offline**: Data cache yang sudah ada dapat ditampilkan. Perubahan yang gagal dikirim perlu dicoba lagi dari sesi aplikasi yang masih terbuka; tutup aplikasi sebelum status tersimpan dapat menghilangkan perubahan tersebut. Jangan gunakan "Muat versi cloud" bila perubahan lokal masih ingin dipertahankan.
+- **Saat Offline**: Setelah data pernah dibuka dengan versi aplikasi ini saat online, salinan terenkripsi per pengguna tersedia di perangkat. Aplikasi dapat dibuka tanpa koneksi dan perubahan disimpan ke antrean lokal terenkripsi sebelum ditampilkan. Antrean dicoba lagi saat aplikasi dibuka atau berkala selama aplikasi aktif. Status "tersimpan" berarti server sudah menerima perubahan. Jika data yang sama diubah pada perangkat lain, konflik tetap perlu diselesaikan dengan memuat ulang cloud atau mengulangi perubahan. Jangan pilih "Muat versi cloud" bila perubahan lokal masih ingin dipertahankan. Perangkat baru tetap memerlukan koneksi untuk login dan mengunduh data pertama kali.
 
 ---
 

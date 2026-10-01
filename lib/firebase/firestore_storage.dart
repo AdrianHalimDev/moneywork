@@ -5,6 +5,7 @@ import '../data/app_state.dart';
 import '../data/storage.dart';
 import 'crypto_service.dart';
 import 'key_manager.dart';
+import 'offline_snapshot.dart';
 import 'record_codec.dart';
 
 /// Perubahan pada dokumen yang sama dari perangkat lain tidak boleh diam-diam
@@ -17,6 +18,14 @@ class SyncConflictException implements Exception {
   String toString() => message;
 }
 
+class OfflineDataUnavailableException implements Exception {
+  const OfflineDataUnavailableException();
+
+  @override
+  String toString() =>
+      'Belum ada salinan data di perangkat ini. Sambungkan internet dan buka aplikasi sekali untuk menyiapkan mode offline.';
+}
+
 /// Penyimpanan E2EE v2: satu dokumen per entitas, ditulis sebagai delta.
 ///
 /// `users/{uid}/records/{encoded-key}` berisi ciphertext, nonce, MAC, dan
@@ -26,10 +35,13 @@ class SyncConflictException implements Exception {
 /// `users/{uid}/data/schema` menandai migrasi dari dokumen `data/state` v1.
 class FirestoreStorage implements StorageBackend {
   FirestoreStorage(this.uid, {FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? FirebaseFirestore.instance,
+        _offline = OfflineSnapshotStore(uid,
+            keyProvider: KeyManager.instance.requireDek);
 
   final String uid;
   final FirebaseFirestore _firestore;
+  final OfflineSnapshotStore _offline;
 
   DocumentReference<Map<String, dynamic>> get _legacy => _firestore
       .collection('users')
@@ -52,14 +64,71 @@ class FirestoreStorage implements StorageBackend {
   Map<String, dynamic>? _legacySource;
   bool _needsMigration = false;
   bool lastReadFromCache = false;
+  bool hasPendingLocalChanges = false;
+  AppState? _latestLocalState;
+  Future<void> _cacheWriteTail = Future.value();
 
   @override
-  Future<AppState> load() => _load(const GetOptions());
+  Future<AppState> load() async {
+    if (!KeyManager.instance.isUnlocked) return const AppState();
+    final local = await _offline.load();
+    // Perubahan yang belum dikirim selalu didahulukan. Memuat server lebih
+    // dahulu akan menghilangkan pekerjaan offline saat aplikasi dibuka lagi.
+    if (local?.pending == true) return _restoreOffline(local!);
+    try {
+      return await _load(const GetOptions(source: Source.server));
+    } on FirebaseException catch (error) {
+      if (error.code != 'unavailable' && error.code != 'deadline-exceeded') {
+        rethrow;
+      }
+      if (local == null) throw const OfflineDataUnavailableException();
+      return _restoreOffline(local);
+    }
+  }
 
   /// Saat pengguna sengaja mengganti perubahan lokal dengan versi cloud,
   /// jangan diam-diam memakai cache offline yang mungkin usang.
   Future<AppState> loadFromServer() =>
       _load(const GetOptions(source: Source.server));
+
+  AppState _restoreOffline(OfflineSnapshot snapshot) {
+    _baseline = Map<String, Map<String, dynamic>>.from(snapshot.baseline);
+    _revisions
+      ..clear()
+      ..addAll(snapshot.revisions);
+    _legacySource = snapshot.legacySource;
+    _needsMigration = snapshot.needsMigration;
+    hasPendingLocalChanges = snapshot.pending;
+    _latestLocalState = snapshot.pending ? snapshot.state : null;
+    lastReadFromCache = true;
+    return snapshot.state;
+  }
+
+  Future<void> _storeOffline(AppState state, {required bool pending}) async {
+    final baseline = _baseline;
+    if (baseline == null) throw StateError('Data belum dimuat.');
+    final snapshot = OfflineSnapshot(
+      state: state,
+      baseline: Map<String, Map<String, dynamic>>.from(baseline),
+      revisions: Map<String, int>.from(_revisions),
+      pending: pending,
+      needsMigration: _needsMigration,
+      legacySource: _legacySource,
+    );
+    final write = _cacheWriteTail.catchError((Object _) {}).then(
+          (_) => _offline.save(snapshot),
+        );
+    _cacheWriteTail = write;
+    await write;
+    hasPendingLocalChanges = pending;
+  }
+
+  /// Tulis perubahan lokal terenkripsi sebelum UI menganggapnya berhasil.
+  Future<void> stageLocalState(AppState state) async {
+    if (_baseline == null) await load();
+    _latestLocalState = state;
+    await _storeOffline(state, pending: true);
+  }
 
   Future<AppState> _load(GetOptions options) async {
     // Gerbang kunci memuat ulang controller setelah DEK tersedia. Jangan
@@ -93,7 +162,11 @@ class FirestoreStorage implements StorageBackend {
         ..addAll(revisions);
       _legacySource = null;
       _needsMigration = false;
-      return RecordCodec.decode(records);
+      final state = RecordCodec.decode(records);
+      _latestLocalState = null;
+      await _storeOffline(state, pending: false);
+      lastReadFromCache = false;
+      return state;
     }
 
     final legacy = await _legacy.get(options);
@@ -121,6 +194,9 @@ class FirestoreStorage implements StorageBackend {
     _revisions.clear();
     _legacySource = data;
     _needsMigration = true;
+    _latestLocalState = null;
+    await _storeOffline(state, pending: false);
+    lastReadFromCache = false;
     return state;
   }
 
@@ -211,6 +287,8 @@ class FirestoreStorage implements StorageBackend {
     _needsMigration = false;
     _legacySource = null;
     _revisions.addEntries(baseline.keys.map((key) => MapEntry(key, 1)));
+    await _storeOffline(_latestLocalState ?? RecordCodec.decode(baseline),
+        pending: true);
   }
 
   @override
@@ -219,11 +297,16 @@ class FirestoreStorage implements StorageBackend {
       throw StateError('Kunci data belum dibuka; tulis dibatalkan.');
     }
     if (_baseline == null) await load();
+    _latestLocalState ??= state;
+    await _storeOffline(_latestLocalState!, pending: true);
     await _migrate();
 
     final desired = RecordCodec.encode(state);
     final changes = RecordCodec.changedKeys(_baseline!, desired).toList();
-    if (changes.isEmpty) return;
+    if (changes.isEmpty) {
+      await _finishOfflineSave(state);
+      return;
+    }
     // Perubahan satu kewajiban atau penghapusan akun harus atomik dengan
     // transaksi terkait. Jangan pecah pembayaran menjadi beberapa commit.
     if (changes.length > 90 && changes.any((key) =>
@@ -294,11 +377,24 @@ class FirestoreStorage implements StorageBackend {
           _revisions[key] = (_revisions[key] ?? 0) + 1;
         }
       }
+      await _storeOffline(_latestLocalState ?? state, pending: true);
+    }
+    await _finishOfflineSave(state);
+  }
+
+  Future<void> _finishOfflineSave(AppState saved) async {
+    final latest = _latestLocalState;
+    final isLatest = latest == null || const DeepCollectionEquality()
+        .equals(latest.toJson(), saved.toJson());
+    await _storeOffline(isLatest ? saved : latest, pending: !isLatest);
+    if (isLatest && identical(_latestLocalState, latest)) {
+      _latestLocalState = null;
     }
   }
 
   @override
   Future<void> clear() async {
+    await _cacheWriteTail;
     final snap = await _records.get();
     for (var start = 0; start < snap.docs.length; start += 400) {
       final batch = _firestore.batch();
@@ -315,5 +411,8 @@ class FirestoreStorage implements StorageBackend {
     _revisions.clear();
     _legacySource = null;
     _needsMigration = true;
+    await _offline.clear();
+    hasPendingLocalChanges = false;
+    _latestLocalState = null;
   }
 }

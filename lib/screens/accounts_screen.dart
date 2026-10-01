@@ -22,12 +22,14 @@ class AccountsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(appStateProvider);
-    final syncPhase = ref.watch(syncStatusProvider).phase;
+    final syncStatus = ref.watch(syncStatusProvider);
+    final syncPhase = syncStatus.phase;
     final l10n = AppLocalizations.of(context)!;
     final (syncIcon, syncLabel) = switch (syncPhase) {
       SyncPhase.loading => (Icons.cloud_sync_outlined, l10n.syncStatusLoading),
       SyncPhase.synced => (Icons.cloud_done_outlined, l10n.syncStatusSynced),
-      SyncPhase.pending => (Icons.cloud_upload_outlined, l10n.syncStatusPending),
+      SyncPhase.pending => (Icons.cloud_upload_outlined,
+          syncStatus.message == 'cache' ? l10n.syncCache : l10n.syncStatusPending),
       SyncPhase.error => (Icons.cloud_off_outlined, l10n.syncStatusError),
     };
     return Scaffold(

@@ -57,15 +57,15 @@ final securityStatusProvider =
   if (auth == null || auth.isLocal || !auth.hasPassword) {
     return SecurityStatus.disabled;
   }
-  final hasBlob = await KeyManager.instance.hasKeyBlob(auth.uid);
-  if (!hasBlob) return SecurityStatus.needsUpgrade;
-
-  // Coba buka dari cache perangkat (sesi yang masih hidup).
+  // Kunci perangkat yang sudah tersimpan cukup untuk membaca salinan offline.
+  // Jangan meminta Firestore sebelum mencoba cache ini.
   final fromCache = await KeyManager.instance.tryUnlockFromCache(auth.uid);
   if (fromCache) {
     ref.read(keySessionProvider).markUnlocked(auth.uid);
     return SecurityStatus.ready;
   }
+  final hasBlob = await KeyManager.instance.hasKeyBlob(auth.uid);
+  if (!hasBlob) return SecurityStatus.needsUpgrade;
   // Ada blob tapi belum di-unlocked → cek apakah sandi tertahan dari login
   // barusan (mis. login email+sandi di sesi ini).
   final session = ref.read(keySessionProvider);
