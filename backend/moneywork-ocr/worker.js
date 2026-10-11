@@ -111,7 +111,7 @@ export default {
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) {
       return jsonResponse(
-        { error: 'GEMINI_API_KEY secret not configured' },
+        { error: 'GEMINI_API_KEY secret not configured ' },
         500,
         cors,
       );
