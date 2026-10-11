@@ -53,6 +53,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String importSkipped(int count) {
+    return '已跳过 $count 笔已导入的交易。';
+  }
+
+  @override
   String get syncStatusLoading => '正在加载数据';
 
   @override

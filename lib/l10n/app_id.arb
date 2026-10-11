@@ -39,6 +39,8 @@
   "tooltipImportStatementPdf": "Impor mutasi rekening PDF",
   "importSuccess": "{count} transaksi ditambahkan. Periksa status penyimpanan.",
   "@importSuccess": {"placeholders": {"count": {"type": "int"}}},
+  "importSkipped": "{count} transaksi yang sudah diimpor dilewati.",
+  "@importSkipped": {"placeholders": {"count": {"type": "int"}}},
   "syncStatusLoading": "Memuat data",
   "syncStatusSynced": "Data tersimpan",
   "syncStatusPending": "Menyimpan perubahan",

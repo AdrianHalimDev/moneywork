@@ -65,6 +65,7 @@ test('PDF statement endpoint forwards PDF and returns reviewable rows', async ()
     upstreamBody = JSON.parse(options.body);
     return new Response(JSON.stringify({
       candidates: [{finishReason: 'STOP', content: {parts: [{text: JSON.stringify({
+        currency: 'IDR',
         pageCount: 1,
         transactionCount: 2,
         openingBalance: 'Rp 100.000',
@@ -90,6 +91,80 @@ test('PDF statement endpoint forwards PDF and returns reviewable rows', async ()
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+async function scanMockStatement(data) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    candidates: [{finishReason: 'STOP', content: {parts: [
+      {text: JSON.stringify(data)},
+    ]}}],
+  }), {status: 200});
+  try {
+    const response = await worker.fetch(new Request('https://example.test/statement-scan', {
+      method: 'POST',
+      body: JSON.stringify({pdfBase64: Buffer.from('%PDF-1.4\n').toString('base64')}),
+    }), {GEMINI_API_KEY: 'test-key'});
+    return {status: response.status, body: await response.json()};
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+test('statement rejects ambiguous numbers without replacing them with zero', async () => {
+  const response = await scanMockStatement({
+    currency: 'IDR', pageCount: 1, transactionCount: 3,
+    openingBalance: '12.34.56', closingBalance: 'Rp 1.000,50',
+    transactions: [
+      {date: '2026-09-01', direction: ' CREDIT ', amount: 'Rp 1.000,50',
+        description: 'Valid row', page: 1},
+      {date: '2026-09-02', direction: 'debit', amount: '1.23.45',
+        description: 'Malformed amount', page: 1},
+      {date: '2026-09-01junk', direction: 'debit', amount: 100,
+        description: 'Invalid date and page', page: 1.5},
+    ],
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.openingBalance, null);
+  assert.equal(response.body.closingBalance, 1000.50);
+  assert.equal(response.body.transactions[0].direction, 'credit');
+  assert.equal(response.body.transactions[1].amount, null);
+  assert.equal(response.body.transactions[2].date, '2026-09-01junk');
+  assert.equal(response.body.transactions[2].page, 0);
+  assert.equal(response.body.transactionCount, 3);
+});
+
+test('non-IDR statement cannot be recorded as Rupiah', async () => {
+  const response = await scanMockStatement({
+    currency: 'USD', pageCount: 1, transactionCount: 1,
+    transactions: [{date: '2026-09-01', direction: 'debit', amount: 100,
+      description: 'Dollar transfer'}],
+  });
+  assert.equal(response.status, 422);
+  assert.deepEqual(response.body, {code: 'UNSUPPORTED_CURRENCY'});
+});
+
+test('statement preserves repeated genuine transactions for review', async () => {
+  const row = {date: '2026-09-01', direction: 'debit', amount: '10.000',
+    description: 'Same merchant', page: 1};
+  const response = await scanMockStatement({
+    currency: 'IDR', pageCount: 1, transactionCount: 2,
+    openingBalance: 100000, closingBalance: 80000, transactions: [row, row],
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.transactions.length, 2);
+  assert.equal(response.body.transactions[0].amount, 10000);
+  assert.equal(response.body.transactions[1].amount, 10000);
+});
+
+test('statement refuses an incomplete list even if model reports STOP', async () => {
+  const response = await scanMockStatement({
+    currency: 'IDR', pageCount: 1, transactionCount: 2,
+    transactions: [{date: '2026-09-01', direction: 'debit', amount: 100,
+      description: 'Only returned row'}],
+  });
+  assert.equal(response.status, 422);
+  assert.deepEqual(response.body, {code: 'OUTPUT_TRUNCATED'});
 });
 
 test('PDF statement endpoint rejects truncated model output', async () => {

@@ -184,6 +184,12 @@ abstract class AppLocalizations {
   /// **'{count} transaksi ditambahkan. Periksa status penyimpanan.'**
   String importSuccess(int count);
 
+  /// No description provided for @importSkipped.
+  ///
+  /// In id, this message translates to:
+  /// **'{count} transaksi yang sudah diimpor dilewati.'**
+  String importSkipped(int count);
+
   /// No description provided for @syncStatusLoading.
   ///
   /// In id, this message translates to:

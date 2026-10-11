@@ -429,25 +429,56 @@ class AppController extends AsyncNotifier<AppState> {
 
   /// Tambahkan hasil review PDF dalam satu commit. Mutasi lama secara default
   /// hanya menambah riwayat karena sudah tercermin pada saldo akun hari ini.
-  Future<String?> importStatementTransactions(
+  Future<StatementImportResult> importStatementTransactions(
       StatementImportApproval approval) async {
     final matches = _current.accounts.where((a) => a.id == approval.accountId);
-    if (matches.isEmpty) return 'Akun tujuan tidak ditemukan.';
+    if (matches.isEmpty) {
+      return const StatementImportResult(error: 'Akun tujuan tidak ditemukan.');
+    }
     if (approval.rows.isEmpty || approval.rows.length > 500) {
-      return 'Pilih 1 sampai 500 transaksi untuk diimpor.';
+      return const StatementImportResult(
+          error: 'Pilih 1 sampai 500 transaksi untuk diimpor.');
     }
     final account = matches.first;
     final newTransactions = <Transaction>[];
-    var difference = 0.0;
+    final seenImports = <String>{
+      for (final tx in _current.transactions)
+        if (tx.accountId == account.id && tx.statementImportKey != null)
+          tx.statementImportKey!,
+    };
+    final seenTransactionIds = _current.transactions.map((tx) => tx.id).toSet();
+    var netCents = 0;
+    var skipped = 0;
     for (final row in approval.rows) {
       if (row.type == TxType.transfer ||
           !row.amount.isFinite || row.amount <= 0 ||
-          row.note.trim().isEmpty) {
-        return 'Ada mutasi yang tidak valid. Tinjau PDF kembali.';
+          row.note.trim().isEmpty ||
+          (row.importKey != null &&
+              !RegExp(r'^[a-f0-9]{64}$').hasMatch(row.importKey!))) {
+        return const StatementImportResult(
+            error: 'Ada mutasi yang tidak valid. Tinjau PDF kembali.');
       }
-      difference += row.type == TxType.income ? row.amount : -row.amount;
+      final cents = row.amount * 100;
+      if (!cents.isFinite || cents > 9007199254740991 ||
+          (cents - cents.round()).abs() > 0.00001) {
+        return const StatementImportResult(
+            error: 'Nominal mutasi tidak valid. Gunakan paling banyak dua angka desimal.');
+      }
+      final transactionId = row.importKey == null ? _uuid.v4()
+          : 'statement_${account.id}_${row.importKey}';
+      if (row.importKey != null &&
+          (!seenImports.add(row.importKey!) ||
+              !seenTransactionIds.add(transactionId))) {
+        skipped++;
+        continue;
+      }
+      netCents += row.type == TxType.income ? cents.round() : -cents.round();
+      if (netCents.abs() > 9007199254740991) {
+        return const StatementImportResult(
+            error: 'Total nominal mutasi terlalu besar untuk dihitung dengan aman.');
+      }
       newTransactions.add(Transaction(
-        id: _uuid.v4(),
+        id: transactionId,
         type: row.type,
         amount: row.amount,
         accountId: account.id,
@@ -455,23 +486,29 @@ class AppController extends AsyncNotifier<AppState> {
             ? 'Mutasi Rekening' : row.category.trim(),
         note: row.note.trim(),
         balanceApplied: approval.applyToBalance,
+        statementImportKey: row.importKey,
         date: row.date,
       ));
     }
+    final difference = netCents / 100;
     if (approval.applyToBalance && account.balance + difference < 0) {
-      return 'Saldo akan menjadi negatif setelah impor. Periksa mutasi dan saldo awal.';
+      return const StatementImportResult(
+          error: 'Saldo akan menjadi negatif setelah impor. Periksa mutasi dan saldo awal.');
+    }
+    if (newTransactions.isEmpty) {
+      return StatementImportResult(skippedCount: skipped);
     }
     var accounts = _current.accounts;
     if (approval.applyToBalance) {
-      for (final tx in newTransactions) {
-        accounts = _applyTx(accounts, tx);
-      }
+      accounts = accounts.map((a) => a.id == account.id
+          ? a.copyWith(balance: a.balance + difference) : a).toList();
     }
     await _commit(_current.copyWith(
       accounts: accounts,
       transactions: [...newTransactions, ..._current.transactions],
     ));
-    return null;
+    return StatementImportResult(
+        importedCount: newTransactions.length, skippedCount: skipped);
   }
 
   /// Perbarui transaksi.
@@ -531,6 +568,7 @@ class AppController extends AsyncNotifier<AppState> {
       linkedDebtId: oldTx.linkedDebtId,
       linkedReceivableId: oldTx.linkedReceivableId,
       balanceApplied: oldTx.balanceApplied,
+      statementImportKey: oldTx.statementImportKey,
     );
     
     final newTxns = <Transaction>[newTx];

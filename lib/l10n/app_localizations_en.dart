@@ -53,6 +53,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String importSkipped(int count) {
+    return '$count previously imported transactions were skipped.';
+  }
+
+  @override
   String get syncStatusLoading => 'Loading data';
 
   @override

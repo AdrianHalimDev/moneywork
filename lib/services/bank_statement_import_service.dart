@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/transaction.dart';
@@ -15,6 +16,7 @@ class StatementTransactionDraft {
     this.category = '',
     this.page,
     this.reference,
+    this.importKey,
   });
 
   final DateTime date;
@@ -24,6 +26,7 @@ class StatementTransactionDraft {
   final String category;
   final int? page;
   final String? reference;
+  final String? importKey;
 
   StatementTransactionDraft copyWith({
     DateTime? date,
@@ -31,6 +34,7 @@ class StatementTransactionDraft {
     double? amount,
     String? note,
     String? category,
+    String? importKey,
   }) =>
       StatementTransactionDraft(
         date: date ?? this.date,
@@ -40,6 +44,7 @@ class StatementTransactionDraft {
         category: category ?? this.category,
         page: page,
         reference: reference,
+        importKey: importKey ?? this.importKey,
       );
 }
 
@@ -56,6 +61,18 @@ class StatementImportApproval {
 
   /// `false` untuk mutasi historis yang sudah tercermin pada saldo saat ini.
   final bool applyToBalance;
+}
+
+class StatementImportResult {
+  const StatementImportResult({
+    this.importedCount = 0,
+    this.skippedCount = 0,
+    this.error,
+  });
+
+  final int importedCount;
+  final int skippedCount;
+  final String? error;
 }
 
 class StatementImportIssue {
@@ -81,10 +98,8 @@ class BankStatementDocument {
   final double? closingBalance;
 
   double? get balanceDifference {
-    if (openingBalance == null || closingBalance == null) return null;
-    final net = rows.fold<double>(0, (sum, row) =>
-        sum + (row.type == TxType.income ? row.amount : -row.amount));
-    return openingBalance! + net - closingBalance!;
+    return BankStatementImportService.reconcileBalance(
+      rows: rows, openingBalance: openingBalance, closingBalance: closingBalance);
   }
 }
 
@@ -94,11 +109,13 @@ class ReviewedStatementRow {
     required this.draft,
     required this.possibleDuplicate,
     this.duplicateInFile = false,
+    this.alreadyImported = false,
   });
 
   final StatementTransactionDraft draft;
   final bool possibleDuplicate;
   final bool duplicateInFile;
+  final bool alreadyImported;
 }
 
 class BankStatementImportException implements Exception {
@@ -141,10 +158,57 @@ class BankStatementImportService {
     }
     if (response.statusCode != 200) {
       // Hanya kode error yang disiapkan sendiri oleh Worker boleh ditampilkan.
-      final code = data['code'] as String?;
+      final code = data['code'] is String ? data['code'] as String : null;
       throw BankStatementImportException(_messageForCode(code));
     }
-    return parseResponse(data);
+    return identifyRows(parseResponse(data), bytes);
+  }
+
+  /// Nama file dan teks uraian hasil AI tidak digunakan sebagai identitas.
+  /// Baris dengan nominal/tanggal sama tetap dibedakan berdasarkan kemunculan
+  /// dalam urutan PDF. Koreksi di layar review mempertahankan identitas asal.
+  static Future<BankStatementDocument> identifyRows(
+      BankStatementDocument document, Uint8List pdf) async {
+    final sha = Sha256();
+    String hex(List<int> bytes) =>
+        bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    final documentHash = hex((await sha.hash(pdf)).bytes);
+    final occurrences = <String, int>{};
+    final rows = <StatementTransactionDraft>[];
+    for (final row in document.rows) {
+      final signature = jsonEncode([
+        documentHash,
+        '${row.date.year}-${row.date.month}-${row.date.day}',
+        row.type.name,
+        (row.amount * 100).round(),
+        (row.reference ?? '').trim().toUpperCase()
+            .replaceAll(RegExp(r'\s+'), ''),
+      ]);
+      final occurrence = occurrences.update(signature, (n) => n + 1,
+          ifAbsent: () => 0);
+      final key = hex((await sha.hash(utf8.encode(
+          jsonEncode(['statement-v1', signature, occurrence])))).bytes);
+      rows.add(row.copyWith(importKey: key));
+    }
+    return BankStatementDocument(
+      rows: rows,
+      pageCount: document.pageCount,
+      issues: document.issues,
+      openingBalance: document.openingBalance,
+      closingBalance: document.closingBalance,
+    );
+  }
+
+  static double? reconcileBalance({
+    required List<StatementTransactionDraft> rows,
+    required double? openingBalance,
+    required double? closingBalance,
+  }) {
+    if (openingBalance == null || closingBalance == null) return null;
+    final net = rows.fold<int>(0, (sum, row) => sum +
+        (row.type == TxType.income ? 1 : -1) * (row.amount * 100).round());
+    return ((openingBalance * 100).round() + net -
+        (closingBalance * 100).round()) / 100;
   }
 
   static void validatePdf(Uint8List bytes) {
@@ -164,6 +228,12 @@ class BankStatementImportService {
   }
 
   static BankStatementDocument parseResponse(Map<String, dynamic> data) {
+    final currency = data['currency'];
+    if (currency != null &&
+        (currency is! String || currency.trim().toUpperCase() != 'IDR')) {
+      throw const BankStatementImportException(
+          'Impor mutasi saat ini hanya mendukung rekening Rupiah (IDR).');
+    }
     final pages = data['pageCount'];
     if (pages is! int || pages < 1 || pages > maxPages) {
       throw const BankStatementImportException(
@@ -182,7 +252,7 @@ class BankStatementImportService {
       try {
         final item = Map<String, dynamic>.from(rawRows[i] as Map);
         final date = parseIsoDate(item['date']);
-        final rawType = (item['direction'] as String?)?.toLowerCase();
+        final rawType = (item['direction'] as String?)?.trim().toLowerCase();
         final type = switch (rawType) {
           'debit' => TxType.expense,
           'credit' => TxType.income,
@@ -192,7 +262,8 @@ class BankStatementImportService {
         final description = (item['description'] as String?)?.trim() ?? '';
         final page = item['page'];
         if (date == null || type == null || amount == null || amount <= 0 ||
-            description.isEmpty || (page != null && (page is! num || page < 1 || page > pages))) {
+            description.isEmpty || (page != null &&
+                (page is! int || page < 1 || page > pages))) {
           throw const FormatException('Kolom tanggal, jenis, nominal, atau uraian tidak valid');
         }
         rows.add(StatementTransactionDraft(
@@ -231,15 +302,30 @@ class BankStatementImportService {
     required List<StatementTransactionDraft> imported,
     required List<Transaction> existing,
   }) {
-    final existingKeys = <String>{
+    final existingKeys = <String>{};
+    for (final tx in existing) {
+      if (tx.type == TxType.transfer) {
+        if (tx.accountId == accountId) {
+          existingKeys.add(_duplicateKey(
+              tx.date, TxType.expense, tx.amount, tx.note));
+        }
+        if (tx.toAccountId == accountId) {
+          existingKeys.add(_duplicateKey(
+              tx.date, TxType.income, tx.amount, tx.note));
+        }
+      } else if (tx.accountId == accountId) {
+        existingKeys.add(_duplicateKey(tx.date, tx.type, tx.amount, tx.note));
+      }
+    }
+    final importedKeys = <String>{
       for (final tx in existing)
-        if (tx.accountId == accountId && tx.type != TxType.transfer)
-          _duplicateKey(tx.date, tx.type, tx.amount, tx.note),
+        if (tx.accountId == accountId && tx.statementImportKey != null)
+          tx.statementImportKey!,
     };
     final seenInFile = <String>{};
     return [
       for (final row in imported)
-        _reviewRow(row, existingKeys, seenInFile),
+        _reviewRow(row, existingKeys, seenInFile, importedKeys),
     ];
   }
 
@@ -247,13 +333,17 @@ class BankStatementImportService {
     StatementTransactionDraft row,
     Set<String> existingKeys,
     Set<String> seenInFile,
+    Set<String> importedKeys,
   ) {
     final key = _duplicateKey(row.date, row.type, row.amount, row.note);
     final inFile = !seenInFile.add(key);
+    final alreadyImported = row.importKey != null &&
+        importedKeys.contains(row.importKey);
     return ReviewedStatementRow(
       draft: row,
-      possibleDuplicate: inFile || existingKeys.contains(key),
+      possibleDuplicate: alreadyImported || inFile || existingKeys.contains(key),
       duplicateInFile: inFile,
+      alreadyImported: alreadyImported,
     );
   }
 
@@ -284,23 +374,43 @@ class BankStatementImportService {
   /// `1.234.567,89`. Nilai negatif hanya dipakai untuk saldo awal/akhir.
   static double? parseMoney(Object? value) {
     if (value == null) return null;
-    if (value is num) return value.isFinite ? value.toDouble() : null;
+    if (value is num) return _checkedMoney(value.toDouble());
     if (value is! String) return null;
-    var raw = value.trim().replaceAll(RegExp(r'[^0-9.,()-]'), '');
+    var raw = value.trim().replaceFirst(
+        RegExp(r'^(?:Rp\.?|IDR)\s*', caseSensitive: false), '').trim();
     if (raw.isEmpty) return null;
-    final negative = raw.contains('-') || (raw.startsWith('(') && raw.endsWith(')'));
-    raw = raw.replaceAll(RegExp(r'[()-]'), '');
-    if (RegExp(r'^\d{1,3}([.,]\d{3})+$').hasMatch(raw)) {
+    final negative = raw.startsWith('-') ||
+        (raw.startsWith('(') && raw.endsWith(')'));
+    if (raw.startsWith('-')) {
+      raw = raw.substring(1).trim();
+    } else if (raw.startsWith('(') && raw.endsWith(')')) {
+      raw = raw.substring(1, raw.length - 1).trim();
+    }
+    raw = raw.replaceFirst(
+        RegExp(r'^(?:Rp\.?|IDR)\s*', caseSensitive: false), '').trim();
+    if (RegExp(r'^\d{1,3}(?:\.\d{3})+$').hasMatch(raw) ||
+        RegExp(r'^\d{1,3}(?:,\d{3})+$').hasMatch(raw)) {
       raw = raw.replaceAll(RegExp(r'[.,]'), '');
-    } else if (raw.contains(',') && raw.contains('.')) {
-      final commaDecimal = raw.lastIndexOf(',') > raw.lastIndexOf('.');
-      raw = raw.replaceAll(commaDecimal ? '.' : ',', '')
-          .replaceAll(commaDecimal ? ',' : '.', '.');
-    } else if (raw.contains(',')) {
+    } else if (RegExp(r'^\d{1,3}(?:\.\d{3})+,\d{1,2}$').hasMatch(raw)) {
+      raw = raw.replaceAll('.', '').replaceAll(',', '.');
+    } else if (RegExp(r'^\d{1,3}(?:,\d{3})+\.\d{1,2}$').hasMatch(raw)) {
+      raw = raw.replaceAll(',', '');
+    } else if (RegExp(r'^\d+(?:[.,]\d{1,2})?$').hasMatch(raw)) {
       raw = raw.replaceAll(',', '.');
+    } else {
+      return null;
     }
     final parsed = double.tryParse(raw);
-    return parsed == null || !parsed.isFinite ? null : (negative ? -parsed : parsed);
+    return parsed == null ? null : _checkedMoney(negative ? -parsed : parsed);
+  }
+
+  static double? _checkedMoney(double value) {
+    final cents = value * 100;
+    if (!cents.isFinite || cents.abs() > 9007199254740991 ||
+        (cents - cents.round()).abs() > 0.00001) {
+      return null;
+    }
+    return cents.round() / 100;
   }
 
   static String _messageForCode(String? code) => switch (code) {
@@ -311,6 +421,8 @@ class BankStatementImportService {
         'PAGE_LIMIT' => 'PDF melebihi 40 halaman. Pisahkan per bulan.',
         'OUTPUT_TRUNCATED' =>
           'Daftar transaksi terlalu panjang untuk sekali scan. Pisahkan PDF menjadi bagian lebih kecil.',
+        'UNSUPPORTED_CURRENCY' =>
+          'Impor mutasi saat ini hanya mendukung rekening Rupiah (IDR).',
         _ => 'Gagal membaca PDF mutasi. Coba lagi beberapa saat.',
       };
 }

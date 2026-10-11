@@ -15,6 +15,8 @@
   "tooltipImportStatementPdf": "导入银行流水 PDF",
   "importSuccess": "已添加 {count} 笔交易。请检查保存状态。",
   "@importSuccess": {"placeholders": {"count": {"type": "int"}}},
+  "importSkipped": "已跳过 {count} 笔已导入的交易。",
+  "@importSkipped": {"placeholders": {"count": {"type": "int"}}},
   "syncStatusLoading": "正在加载数据",
   "syncStatusSynced": "数据已保存",
   "syncStatusPending": "正在保存更改",

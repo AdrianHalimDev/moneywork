@@ -53,6 +53,11 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String importSkipped(int count) {
+    return '$count transaksi yang sudah diimpor dilewati.';
+  }
+
+  @override
   String get syncStatusLoading => 'Memuat data';
 
   @override

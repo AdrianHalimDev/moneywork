@@ -67,8 +67,13 @@ class AccountsScreen extends ConsumerWidget {
                         .importStatementTransactions(approval);
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(result ?? AppLocalizations.of(context)!
-                          .importSuccess(approval.rows.length)),
+                      content: Text(result.error ?? [
+                        AppLocalizations.of(context)!
+                            .importSuccess(result.importedCount),
+                        if (result.skippedCount > 0)
+                          AppLocalizations.of(context)!
+                              .importSkipped(result.skippedCount),
+                      ].join(' ')),
                     ));
                   },
           ),

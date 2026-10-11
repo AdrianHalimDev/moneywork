@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../core/formatters.dart';
 import '../models/account.dart';
@@ -29,6 +30,8 @@ class BankStatementImportScreen extends StatefulWidget {
 }
 
 class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
+  static final _money = NumberFormat.currency(
+      locale: 'id_ID', symbol: 'Rp ', decimalDigits: 2);
   Uint8List? _pdfBytes;
   String? _fileName;
   String? _accountId;
@@ -66,15 +69,11 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
 
   double? get _reviewBalanceDifference {
     final document = _document;
-    if (document?.openingBalance == null ||
-        document?.closingBalance == null) {
-      return null;
-    }
-    final net = _reviewedRows.fold<double>(0, (sum, reviewed) {
-      final row = reviewed.draft;
-      return sum + (row.type == TxType.income ? row.amount : -row.amount);
-    });
-    return document!.openingBalance! + net - document.closingBalance!;
+    return BankStatementImportService.reconcileBalance(
+      rows: [for (final reviewed in _reviewedRows) reviewed.draft],
+      openingBalance: document?.openingBalance,
+      closingBalance: document?.closingBalance,
+    );
   }
 
   void _selectRecommended() {
@@ -264,7 +263,9 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
     final document = _document;
     if (accountId == null || document == null || _selected.isEmpty) return;
     final reviewed = _reviewedRows;
-    final picked = _selected.toList()..sort();
+    final picked = _selected.where((i) => !reviewed[i].alreadyImported)
+        .toList()..sort();
+    if (picked.isEmpty) return;
     final selectedRows = [for (final i in picked) reviewed[i].draft];
     final duplicateCount = picked.where((i) => reviewed[i].possibleDuplicate).length;
     final income = selectedRows.where((r) => r.type == TxType.income)
@@ -282,7 +283,7 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(_text.confirmSummary(selectedRows.length,
-                  Fmt.rupiah(income), Fmt.rupiah(expense))),
+                  _money.format(income), _money.format(expense))),
               const SizedBox(height: 8),
               Text(_applyToBalance
                   ? _text.balanceWillChange
@@ -295,9 +296,9 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                 const SizedBox(height: 8),
                 Text(_text.rowsUnreadable(document.issues.length)),
               ],
-              if (balanceDifference != null && balanceDifference.abs() > 1) ...[
+              if (balanceDifference != null && balanceDifference != 0) ...[
                 const SizedBox(height: 8),
-                Text(_text.balanceMismatch(Fmt.rupiah(balanceDifference.abs()))),
+                Text(_text.balanceMismatch(_money.format(balanceDifference.abs()))),
               ],
               const SizedBox(height: 8),
               Text(_text.reviewReminder),
@@ -419,10 +420,14 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                       style: Theme.of(context).textTheme.bodySmall),
               ],
               if (_reviewBalanceDifference case final difference?)
-                if (difference.abs() > 1) ...[
+                if (difference != 0) ...[
                   const SizedBox(height: 8),
-                  _WarningCard(text.balanceMismatch(Fmt.rupiah(difference.abs()))),
+                  _WarningCard(text.balanceMismatch(_money.format(difference.abs()))),
                 ],
+              if (_reviewBalanceDifference == null) ...[
+                const SizedBox(height: 8),
+                _WarningCard(text.balanceUnavailable),
+              ],
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => setState(_selectRecommended),
@@ -462,22 +467,22 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
         children: [
           CheckboxListTile(
             value: selected,
-            onChanged: (value) => setState(() {
+            onChanged: reviewed.alreadyImported ? null : (value) => setState(() {
               if (value == true) {
                 _selected.add(index);
               } else {
                 _selected.remove(index);
               }
             }),
-            title: Text(Fmt.rupiahSigned(
-                row.type == TxType.income ? row.amount : -row.amount),
+            title: Text('${row.type == TxType.income ? '+' : '-'}'
+                '${_money.format(row.amount)}',
                 style: TextStyle(color: color, fontWeight: FontWeight.w600)),
             subtitle: Text('${Fmt.date(row.date)} • ${row.note}'
                 '${row.page == null ? '' : ' • ${text.page} ${row.page}'}'),
             secondary: IconButton(
               tooltip: text.editTransaction,
               icon: const Icon(Icons.edit_outlined),
-              onPressed: () => _editRow(index),
+              onPressed: reviewed.alreadyImported ? null : () => _editRow(index),
             ),
           ),
           if (reviewed.possibleDuplicate)
@@ -485,8 +490,9 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(reviewed.duplicateInFile
-                    ? text.duplicateInFile : text.possibleDuplicate,
+                child: Text(reviewed.alreadyImported ? text.alreadyImported
+                    : reviewed.duplicateInFile
+                        ? text.duplicateInFile : text.possibleDuplicate,
                     style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
             ),
@@ -547,6 +553,10 @@ class _BankImportText {
   String get selectRecommended => _pick('Pilih semua kecuali duplikat',
       'Select all except duplicates', '选择除重复项外的所有交易');
   String get page => _pick('hlm.', 'page', '页');
+  String get alreadyImported => _pick(
+      'Sudah diimpor dari PDF ini — dilewati agar tidak tercatat dua kali',
+      'Already imported from this PDF — skipped to avoid importing twice',
+      '已从此 PDF 导入 — 跳过以避免重复导入');
   String get possibleDuplicate => _pick(
       'Mungkin sudah tercatat — tidak dipilih otomatis',
       'Possibly already recorded — not selected automatically',
@@ -603,5 +613,9 @@ class _BankImportText {
       'Selisih saldo awal + mutasi - saldo akhir: $amount. Periksa baris yang hilang atau keliru.',
       'Opening balance + transactions differs from closing balance by $amount. Check for missing or incorrect rows.',
       '期初余额加交易与期末余额相差 $amount。请检查缺失或错误的记录。');
+  String get balanceUnavailable => _pick(
+      'Saldo awal atau akhir tidak terbaca. Kelengkapan mutasi belum bisa diperiksa dari saldo; cocokkan setiap baris dengan PDF asli.',
+      'Opening or closing balance is unavailable. Completeness cannot be checked from balances; compare every row with the original PDF.',
+      '期初或期末余额无法读取，无法通过余额核对交易完整性；请逐行核对原始 PDF。');
   String get importButton => _pick('Setujui & impor', 'Approve & import', '批准并导入');
 }
