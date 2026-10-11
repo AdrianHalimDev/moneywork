@@ -1,0 +1,7 @@
+{
+  "latestVersionCode": 16,
+  "latestVersionName": "2.8.0",
+  "apkUrl": "https://github.com/AdrianHalimDev/moneywork/releases/download/v2.8.0/MoneyWork-v2.8.0-build16.apk",
+  "releaseNotes": "Baru di MoneyWork 2.8.0:\n\n• Impor mutasi bank/e-wallet dari PDF, dengan review transaksi dan pemeriksaan duplikat.\n• Proyeksi arus kas 30 hari dari saldo, transaksi rutin, dan utang jatuh tempo.\n• Buka data tersimpan dan catat perubahan saat offline, lalu sinkronkan kembali saat online.\n• OCR mendukung diskon dan biaya tambahan, terhubung dengan Split Bill.\n• PPN dan service dapat diisi dalam persen atau nominal Rupiah.\n• Status sinkronisasi lebih jelas, disertai pilihan mencoba ulang saat gagal.\n• Penyempurnaan berbagi rincian Split Bill, ekspor laporan, dan stabilitas aplikasi.\n\nBuka aplikasi saat online setelah update untuk menyiapkan mode offline. OCR dan impor PDF tetap membutuhkan internet.",
+  "mandatory": false
+}
