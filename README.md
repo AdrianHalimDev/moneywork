@@ -4,7 +4,9 @@ Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter**
 
 ---
 
-## 📸 Fitur Unggulan Terbaru (v2.7.2)
+## 📸 Fitur Unggulan (v2.8.0)
+
+Catatan pembaruan sejak APK v2.7.2 tersedia di [Release Notes v2.8.0](docs/RELEASE_NOTES_v2.8.0.md).
 
 - **🤖 Pemindai Bon & Struk Berbasis AI (OCR)**: Foto struk belanja dari kamera atau galeri. AI secara otomatis mengidentifikasi nama merchant, daftar item, harga satuan, PPN, dan service charge. Diproses via Cloudflare Worker Proxy untuk keamanan API key.
 - **👥 Split Bill Interaktif (Item Assignment per Qty)**: Tentukan porsi makanan per individu menggunakan selector kuantitas `[ - ] qty [ + ]`. Bebas pelipatgandaan item; sisa makanan yang belum dipilih otomatis dialokasikan sebagai *Item Bersama* (Shared Items) yang dibagi rata. Total hitungan 100% cocok dengan bon fisik.

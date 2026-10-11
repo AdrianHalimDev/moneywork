@@ -35,26 +35,38 @@ Buat koleksi `meta` → dokumen `app_version` dengan field:
 | `releaseNotes` | string | Ringkasan perubahan (opsional) |
 | `mandatory` | boolean | `true` = update wajib, dialog tak bisa ditutup |
 
-Nilai baseline saat ini (OTA aktif tapi belum memicu update):
+Contoh metadata untuk rilis `2.8.0+16` setelah APK diunggah ke GitHub Releases
+(contoh ini tidak otomatis mengubah Firestore):
 
 ```
-latestVersionCode: 5
-latestVersionName: "1.1.3"
-apkUrl: "https://github.com/AdrianHalimDev/moneywork/releases/download/v1.1.3/app-release.apk"
-releaseNotes: "Versi 1.1.3"
+latestVersionCode: 16
+latestVersionName: "2.8.0"
+apkUrl: "https://github.com/AdrianHalimDev/moneywork/releases/download/v2.8.0/MoneyWork-v2.8.0-build16.apk"
+releaseNotes: "Impor mutasi PDF, proyeksi arus kas 30 hari, mode offline terenkripsi, dan penyempurnaan OCR serta Split Bill."
 mandatory: false
 ```
 
+Teks ringkas untuk field string `releaseNotes` tersedia di
+`docs/UPDATE_TEXT_v2.8.0.txt`; format dialog aplikasi adalah teks biasa.
+`docs/OTA_v2.8.0.example.json` berisi contoh metadata lengkap. Tambahkan field
+tersebut pada dokumen `meta/app_version` yang sudah ada; jangan membuat field
+JSON tunggal. Publikasikan metadata setelah URL APK rilis benar-benar tersedia.
+
 ## Alur tiap rilis
 
-1. Naikkan versi di `pubspec.yaml` — angka `+N` **wajib** selalu naik, mis. `1.1.4+6`.
+1. Naikkan versi di `pubspec.yaml` — angka `+N` **wajib** selalu naik, mis. `2.8.0+16`.
 2. `flutter build apk --release` → hasil di `build/app/outputs/flutter-apk/app-release.apk`.
-3. GitHub → **Releases → Draft a new release** → buat tag (mis. `v1.1.4`) → unggah
-   `app-release.apk` → **Publish release**.
+3. GitHub → **Releases → Draft a new release** → buat tag (mis. `v2.8.0`) pada
+   commit rilis yang sudah mencakup perubahan versi → unggah APK dengan nama
+   `MoneyWork-v2.8.0-build16.apk` → isi deskripsi dari
+   `docs/RELEASE_NOTES_v2.8.0.md` → **Publish release**.
 4. Klik kanan aset APK → **Copy link address**. Bentuknya:
-   `https://github.com/AdrianHalimDev/moneywork/releases/download/v1.1.4/app-release.apk`
-5. Perbarui dokumen `meta/app_version`: `latestVersionCode` → `6`, `latestVersionName`
-   → `1.1.4`, `apkUrl` → tautan tadi, `releaseNotes` → ringkasan.
+   `https://github.com/AdrianHalimDev/moneywork/releases/download/v2.8.0/MoneyWork-v2.8.0-build16.apk`
+5. Perbarui dokumen `meta/app_version`: `latestVersionCode` → `16`, `latestVersionName`
+   → `2.8.0`, `apkUrl` → tautan tadi, `releaseNotes` → ringkasan.
+
+Folder `build/` tidak masuk Git. Unggah APK sebagai aset **GitHub Releases**;
+commit perubahan versi dan dokumen catatan rilis ke repository.
 
 Saat pengguna membuka aplikasi berikutnya, dialog pembaruan muncul → unduh → installer berjalan.
 
