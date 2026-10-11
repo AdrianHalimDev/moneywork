@@ -128,6 +128,35 @@ flutter build web --release
 npx wrangler pages deploy build/web --project-name=moneywork
 ```
 
+### Deploy otomatis setiap push ke Cloudflare Pages
+
+Hubungkan repo GitHub di Pages dan aktifkan automatic deployments pada branch
+produksi (misalnya `main`). Gunakan pengaturan berikut:
+
+| Pengaturan | Nilai |
+| --- | --- |
+| Framework preset | `None` |
+| Build command | `bash scripts/cloudflare-build.sh` |
+| Build output directory | `build/web` |
+| Root directory | Kosong (root repo) |
+
+`lib/firebase_options.dart` tidak masuk Git. Tambahkan build variable
+`FIREBASE_OPTIONS_DART_BASE64` ke **Production** dan **Preview** jika digunakan.
+Untuk menyalin nilainya ke clipboard, jalankan dari root proyek di PowerShell:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD/lib/firebase_options.dart")) | Set-Clipboard
+```
+
+Paste nilai clipboard ke variable tersebut tanpa tanda kutip. Script memeriksa
+Base64 dan kelas `DefaultFirebaseOptions` sebelum memasang Flutter 3.44.9 dan
+build web. Jika variable kosong/salah, build dihentikan dengan pesan yang jelas.
+Pages otomatis deploy hasil `build/web`; `npx wrangler deploy` tidak digunakan
+sebagai build command Pages.
+
+Setelah mengubah variable atau konfigurasi build, retry deployment commit
+terbaru yang sudah memuat script ini. Build yang gagal tidak mengganti web aktif.
+
 ---
 
 ## 🛡️ Kebijakan Keamanan Repositori
