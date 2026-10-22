@@ -15,6 +15,30 @@ abstract class StorageBackend {
   Future<void> clear();
 }
 
+/// Satu preferensi memakai record/revisi sendiri agar pengurutan tidak
+/// mengubah saldo atau berkonflik dengan pembaruan harga dan tema.
+enum DisplayOrderKind {
+  investments('settings/investment-order'),
+  accounts('settings/account-order');
+
+  const DisplayOrderKind(this.recordKey);
+  final String recordKey;
+}
+
+class DisplayOrderUpdate {
+  const DisplayOrderUpdate(this.ids, this.revision,
+      {this.kind = DisplayOrderKind.investments});
+  final List<String> ids;
+  final int revision;
+  final DisplayOrderKind kind;
+}
+
+abstract interface class DisplayOrderSync {
+  Stream<DisplayOrderUpdate> watchDisplayOrders();
+  bool acceptDisplayOrder(DisplayOrderUpdate update);
+  Future<void> cacheSyncedState(AppState state);
+}
+
 /// Implementasi lokal: menyimpan seluruh state sebagai satu blob JSON
 /// di SharedPreferences. Cukup untuk data pribadi berukuran wajar dan
 /// jalan di web maupun mobile tanpa setup tambahan.

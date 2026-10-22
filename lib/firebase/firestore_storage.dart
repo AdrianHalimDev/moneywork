@@ -33,7 +33,7 @@ class OfflineDataUnavailableException implements Exception {
 /// pada akun atau kewajiban yang sama memakai transaksi Firestore dengan
 /// pemeriksaan revisi; saat konflik, simpan gagal secara terlihat.
 /// `users/{uid}/data/schema` menandai migrasi dari dokumen `data/state` v1.
-class FirestoreStorage implements StorageBackend {
+class FirestoreStorage implements StorageBackend, DisplayOrderSync {
   FirestoreStorage(this.uid, {FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance,
         _offline = OfflineSnapshotStore(uid,
@@ -43,16 +43,10 @@ class FirestoreStorage implements StorageBackend {
   final FirebaseFirestore _firestore;
   final OfflineSnapshotStore _offline;
 
-  DocumentReference<Map<String, dynamic>> get _legacy => _firestore
-      .collection('users')
-      .doc(uid)
-      .collection('data')
-      .doc('state');
-  DocumentReference<Map<String, dynamic>> get _schema => _firestore
-      .collection('users')
-      .doc(uid)
-      .collection('data')
-      .doc('schema');
+  DocumentReference<Map<String, dynamic>> get _legacy =>
+      _firestore.collection('users').doc(uid).collection('data').doc('state');
+  DocumentReference<Map<String, dynamic>> get _schema =>
+      _firestore.collection('users').doc(uid).collection('data').doc('schema');
   CollectionReference<Map<String, dynamic>> get _records =>
       _firestore.collection('users').doc(uid).collection('records');
 
@@ -67,6 +61,55 @@ class FirestoreStorage implements StorageBackend {
   bool hasPendingLocalChanges = false;
   AppState? _latestLocalState;
   Future<void> _cacheWriteTail = Future.value();
+
+  @override
+  Stream<DisplayOrderUpdate> watchDisplayOrders() async* {
+    await for (final snapshot in _records.where('key', whereIn: [
+      for (final kind in DisplayOrderKind.values) kind.recordKey
+    ]).snapshots(includeMetadataChanges: true)) {
+      // Cache yang belum dikonfirmasi bukan perubahan dari perangkat lain.
+      if (_needsMigration ||
+          snapshot.metadata.isFromCache ||
+          snapshot.metadata.hasPendingWrites) {
+        continue;
+      }
+      for (final document in snapshot.docs) {
+        final data = document.data();
+        final kind = DisplayOrderKind.values
+            .firstWhere((kind) => kind.recordKey == data['key']);
+        if (data['encrypted'] is! Map || data['revision'] is! num) {
+          throw const FormatException('Record urutan tampilan tidak valid.');
+        }
+        final payload = await CryptoService.instance.decrypt(
+          EncryptedPayload.fromJson(
+              Map<String, dynamic>.from(data['encrypted'])),
+          await KeyManager.instance.requireDek(),
+        );
+        final ids = payload['ids'];
+        if (ids is! List || ids.any((id) => id is! String)) {
+          throw const FormatException('Urutan tampilan tidak valid.');
+        }
+        yield DisplayOrderUpdate(List<String>.unmodifiable(ids.cast<String>()),
+            (data['revision'] as num).toInt(),
+            kind: kind);
+      }
+    }
+  }
+
+  @override
+  bool acceptDisplayOrder(DisplayOrderUpdate update) {
+    final key = update.kind.recordKey;
+    if (_baseline == null || update.revision <= (_revisions[key] ?? 0)) {
+      return false;
+    }
+    _baseline![key] = {'ids': update.ids};
+    _revisions[key] = update.revision;
+    return true;
+  }
+
+  @override
+  Future<void> cacheSyncedState(AppState state) =>
+      _storeOffline(state, pending: false);
 
   @override
   Future<AppState> load() async {
@@ -244,8 +287,8 @@ class FirestoreStorage implements StorageBackend {
     // Migrasi yang sempat terputus bisa menyisakan record dari versi legacy
     // sebelumnya. Hapus ID yang tidak ada lagi di snapshot legacy terbaru,
     // agar transaksi yang telah dihapus tidak muncul kembali.
-    final existing = await _records.get(
-        const GetOptions(source: Source.server));
+    final existing =
+        await _records.get(const GetOptions(source: Source.server));
     final stale = existing.docs.where((doc) {
       final key = doc.data()['key'];
       return key is! String || !baseline.containsKey(key);
@@ -309,10 +352,11 @@ class FirestoreStorage implements StorageBackend {
     }
     // Perubahan satu kewajiban atau penghapusan akun harus atomik dengan
     // transaksi terkait. Jangan pecah pembayaran menjadi beberapa commit.
-    if (changes.length > 90 && changes.any((key) =>
-        key.startsWith('debts/') ||
-        key.startsWith('receivables/') ||
-        key.startsWith('accounts/'))) {
+    if (changes.length > 90 &&
+        changes.any((key) =>
+            key.startsWith('debts/') ||
+            key.startsWith('receivables/') ||
+            key.startsWith('accounts/'))) {
       throw StateError(
           'Perubahan terlalu banyak untuk disimpan sekaligus dengan aman. '
           'Selesaikan sinkronisasi sebelum melanjutkan.');
@@ -384,8 +428,8 @@ class FirestoreStorage implements StorageBackend {
 
   Future<void> _finishOfflineSave(AppState saved) async {
     final latest = _latestLocalState;
-    final isLatest = latest == null || const DeepCollectionEquality()
-        .equals(latest.toJson(), saved.toJson());
+    final isLatest = latest == null ||
+        const DeepCollectionEquality().equals(latest.toJson(), saved.toJson());
     await _storeOffline(isLatest ? saved : latest, pending: !isLatest);
     if (isLatest && identical(_latestLocalState, latest)) {
       _latestLocalState = null;

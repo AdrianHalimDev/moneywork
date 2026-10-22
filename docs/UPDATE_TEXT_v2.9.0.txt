@@ -1,0 +1,15 @@
+Baru di MoneyWork 2.9.0:
+
+• Tenang Fokus untuk HP dan website: saldo rekening, arus kas bulanan, dan pencatatan yang lebih mudah.
+• Form transaksi menyesuaikan keyboard HP; ringkasan transfer menampilkan total beserta biaya admin.
+• Ketuk rekening atau aset untuk melihat detail dan riwayatnya.
+• Tema Terang, Gelap, dan Ikuti sistem tetap tersedia di Alat → Tampilan.
+• Atur urutan aset dan rekening dengan geser atau tombol naik/turun.
+• Urutan rekening juga berlaku pada dropdown transaksi dan transfer.
+• Urutan aset dan rekening tersinkron antar perangkat dengan akun yang sama.
+• Tampilan tabel untuk layar desktop dan dukungan teks besar.
+• Privasi nominal berlaku bersama di berbagai halaman, termasuk grafik ringkasan.
+• Review struk menampilkan foto asli; review PDF memiliki filter dan tombol impor yang mudah dijangkau.
+• Status penyimpanan perangkat dan sinkronisasi cloud lebih jelas.
+
+Perbarui aplikasi dan website pada semua perangkat agar urutan aset dan rekening tetap konsisten. Saat offline, perubahan dikirim setelah sinkronisasi kembali berhasil.

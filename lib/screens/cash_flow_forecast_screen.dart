@@ -8,8 +8,11 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../data/app_state.dart';
+import '../data/display_preferences.dart';
 import '../models/transaction.dart';
 import '../services/cash_flow_forecast_service.dart';
+import '../widgets/display_controls.dart';
+import '../widgets/sync_indicator.dart';
 
 /// Read-only 30-day projection from current account balances and dated plans.
 class CashFlowForecastScreen extends ConsumerWidget {
@@ -20,10 +23,12 @@ class CashFlowForecastScreen extends ConsumerWidget {
     final tr = _ForecastText(Localizations.localeOf(context).languageCode);
     final async = ref.watch(appStateProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(tr.get('title'))),
+      appBar: AppBar(
+          title: Text(tr.get('title')),
+          actions: const [AmountVisibilityButton()]),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('$error')),
+        error: (_, __) => const FriendlyLoadError(),
         data: (state) => _ForecastBody(
           state: state,
           forecast: CashFlowForecastService.build(state),
@@ -34,7 +39,7 @@ class CashFlowForecastScreen extends ConsumerWidget {
   }
 }
 
-class _ForecastBody extends StatelessWidget {
+class _ForecastBody extends ConsumerWidget {
   const _ForecastBody({
     required this.state,
     required this.forecast,
@@ -46,10 +51,11 @@ class _ForecastBody extends StatelessWidget {
   final _ForecastText tr;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final hidden = ref.watch(amountsHiddenProvider);
     final lowest = forecast.lowestDay;
-    final accountNames = {for (final a in state.accounts) a.id: a.name};
+    final accountNames = {for (final a in state.orderedAccounts) a.id: a.name};
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
@@ -64,12 +70,12 @@ class _ForecastBody extends StatelessWidget {
               children: [
                 _MetricCard(
                   label: tr.get('currentCash'),
-                  value: Fmt.rupiah(forecast.openingCash),
+                  value: formatVisibleMoney(ref, forecast.openingCash),
                   color: theme.colorScheme.primary,
                 ),
                 _MetricCard(
                   label: tr.get('after30Days'),
-                  value: Fmt.rupiah(forecast.closingAvailableCash),
+                  value: formatVisibleMoney(ref, forecast.closingAvailableCash),
                   color: forecast.closingAvailableCash < 0
                       ? AppTheme.expense
                       : theme.colorScheme.primary,
@@ -77,7 +83,7 @@ class _ForecastBody extends StatelessWidget {
                 if (lowest != null)
                   _MetricCard(
                     label: '${tr.get('lowest')} · ${Fmt.date(lowest.date)}',
-                    value: Fmt.rupiah(lowest.availableAfterDebt),
+                    value: formatVisibleMoney(ref, lowest.availableAfterDebt),
                     color: lowest.availableAfterDebt < 0
                         ? AppTheme.expense
                         : AppTheme.debt,
@@ -96,7 +102,9 @@ class _ForecastBody extends StatelessWidget {
                     const SizedBox(height: 16),
                     SizedBox(
                       height: 140,
-                      child: _ForecastChart(days: forecast.days),
+                      child: hidden
+                          ? const Center(child: Text('Rp ••••••'))
+                          : _ForecastChart(days: forecast.days),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -120,17 +128,17 @@ class _ForecastBody extends StatelessWidget {
                     child: Text(tr.get('accountBalances'),
                         style: theme.textTheme.titleMedium),
                   ),
-                  if (state.accounts.isEmpty)
+                  if (state.orderedAccounts.isEmpty)
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(tr.get('noAccounts')),
                     ),
-                  for (final account in state.accounts)
+                  for (final account in state.orderedAccounts)
                     ListTile(
                       title: Text(account.name),
                       subtitle: Text(
-                        '${Fmt.rupiah(account.balance)} → '
-                        '${Fmt.rupiah(forecast.days.last.accountBalances[account.id] ?? account.balance)}',
+                        '${formatVisibleMoney(ref, account.balance)} → '
+                        '${formatVisibleMoney(ref, forecast.days.last.accountBalances[account.id] ?? account.balance)}',
                       ),
                     ),
                 ],
@@ -194,7 +202,7 @@ class _ForecastBody extends StatelessWidget {
                 title: Text(tx.note.isEmpty ? tx.category : tx.note),
                 subtitle:
                     Text('${Fmt.date(tx.date)} · ${tr.get('alreadyCounted')}'),
-                trailing: Text(_postedAmount(tx)),
+                trailing: Text(hidden ? 'Rp ••••••' : _postedAmount(tx)),
               ),
             const SizedBox(height: 16),
             Text(tr.get('assumptions'), style: theme.textTheme.titleSmall),
@@ -287,7 +295,7 @@ class _ForecastChart extends StatelessWidget {
   }
 }
 
-class _ForecastEventTile extends StatelessWidget {
+class _ForecastEventTile extends ConsumerWidget {
   const _ForecastEventTile({
     required this.event,
     required this.accountNames,
@@ -299,7 +307,7 @@ class _ForecastEventTile extends StatelessWidget {
   final _ForecastText tr;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final (icon, color, type) = switch (event.kind) {
       ForecastEventKind.income => (
           Icons.south_west,
@@ -337,7 +345,10 @@ class _ForecastEventTile extends StatelessWidget {
       leading: Icon(icon, color: color),
       title: Text(event.label),
       subtitle: Text('${Fmt.date(event.date)} · $type · $account'),
-      trailing: Text('$prefix${Fmt.rupiah(event.amount)}',
+      trailing: Text(
+          ref.watch(amountsHiddenProvider)
+              ? 'Rp ••••••'
+              : '$prefix${Fmt.rupiah(event.amount)}',
           style: TextStyle(color: color, fontWeight: FontWeight.w600)),
     );
   }

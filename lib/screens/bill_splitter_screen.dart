@@ -345,7 +345,7 @@ class _BillSplitterScreenState extends ConsumerState<BillSplitterScreen> {
     final friendsTotal = valid.fold<double>(0, (sum, s) => sum + s.total);
 
     final accounts =
-        ref.read(appStateProvider).valueOrNull?.accounts ?? const [];
+        ref.read(appStateProvider).valueOrNull?.orderedAccounts ?? const [];
     // Default: potong dari rekening pertama bila ada.
     String? fundingId = accounts.isNotEmpty ? accounts.first.id : null;
 

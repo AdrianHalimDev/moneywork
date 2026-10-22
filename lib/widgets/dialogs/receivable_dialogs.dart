@@ -33,7 +33,8 @@ class _CollectFromPersonSheet extends ConsumerStatefulWidget {
       _CollectFromPersonSheetState();
 }
 
-class _CollectFromPersonSheetState extends ConsumerState<_CollectFromPersonSheet> {
+class _CollectFromPersonSheetState
+    extends ConsumerState<_CollectFromPersonSheet> {
   late final TextEditingController _amountCtrl;
   String? _accountId;
   final _formKey = GlobalKey<FormState>();
@@ -55,14 +56,14 @@ class _CollectFromPersonSheetState extends ConsumerState<_CollectFromPersonSheet
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider).valueOrNull;
     final l10n = AppLocalizations.of(context)!;
-    if (state == null || state.accounts.isEmpty) {
+    if (state == null || state.orderedAccounts.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(24),
         child: Text(l10n.addAccountFirst),
       );
     }
-    
-    _accountId ??= state.accounts.first.id;
+
+    _accountId ??= state.orderedAccounts.first.id;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -83,13 +84,16 @@ class _CollectFromPersonSheetState extends ConsumerState<_CollectFromPersonSheet
             Text(
                 '${l10n.totalOutstanding(Fmt.rupiah(widget.group.outstanding))}'
                 '${widget.group.openCount > 1 ? ' · ${l10n.loanCount(widget.group.openCount)}' : ''}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.outline)),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Theme.of(context).colorScheme.outline)),
             const SizedBox(height: 6),
-            Text(
-                l10n.fifoPaymentNote,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline)),
+            Text(l10n.fifoPaymentNote,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.outline)),
             const SizedBox(height: 16),
             TextFormField(
               controller: _amountCtrl,
@@ -102,7 +106,8 @@ class _CollectFromPersonSheetState extends ConsumerState<_CollectFromPersonSheet
                 final n = Fmt.tryParseInput(v ?? '');
                 if (n == null || n <= 0) return l10n.invalidNumber;
                 if (n > widget.group.outstanding) {
-                  return l10n.exceedsTotalOutstanding(Fmt.rupiah(widget.group.outstanding));
+                  return l10n.exceedsTotalOutstanding(
+                      Fmt.rupiah(widget.group.outstanding));
                 }
                 return null;
               },
@@ -112,7 +117,7 @@ class _CollectFromPersonSheetState extends ConsumerState<_CollectFromPersonSheet
               initialValue: _accountId,
               decoration: InputDecoration(labelText: l10n.receiveIntoLabel),
               items: [
-                for (final a in state.accounts)
+                for (final a in state.orderedAccounts)
                   DropdownMenuItem(
                       value: a.id,
                       child: Text('${a.name} · ${Fmt.rupiah(a.balance)}')),
@@ -150,8 +155,9 @@ class _CollectFromPersonSheetState extends ConsumerState<_CollectFromPersonSheet
     }
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.receivedAmount(Fmt.rupiah(amount)))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .receivedAmount(Fmt.rupiah(amount)))));
     }
   }
 }
@@ -182,7 +188,8 @@ class _ReceivableDialogSheet extends ConsumerStatefulWidget {
       _ReceivableDialogSheetState();
 }
 
-class _ReceivableDialogSheetState extends ConsumerState<_ReceivableDialogSheet> {
+class _ReceivableDialogSheetState
+    extends ConsumerState<_ReceivableDialogSheet> {
   late final TextEditingController _nameCtrl;
   final _nameFocus = FocusNode();
   late final TextEditingController _amountCtrl;
@@ -219,13 +226,13 @@ class _ReceivableDialogSheetState extends ConsumerState<_ReceivableDialogSheet> 
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(appStateProvider).valueOrNull;
-    final accounts = state?.accounts ?? const [];
+    final accounts = state?.orderedAccounts ?? const [];
     final knownNames = <String>{
       for (final r in (state?.receivables ?? const []))
         if (r.personName.trim().isNotEmpty) r.personName.trim(),
     }.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-      
+
     if (accounts.isNotEmpty) {
       _fundingAccountId ??= accounts.first.id;
     }
@@ -263,9 +270,11 @@ class _ReceivableDialogSheetState extends ConsumerState<_ReceivableDialogSheet> 
                   focusNode: focusNode,
                   autofocus: !isEdit,
                   decoration: InputDecoration(
-                      labelText: l10n.personNameLabel, hintText: l10n.personNameHint),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? l10n.requiredField : null,
+                      labelText: l10n.personNameLabel,
+                      hintText: l10n.personNameHint),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? l10n.requiredField
+                      : null,
                 );
               },
               optionsViewBuilder: (context, onSelected, options) {
@@ -365,7 +374,8 @@ class _ReceivableDialogSheetState extends ConsumerState<_ReceivableDialogSheet> 
                           .read(appStateProvider.notifier)
                           .deleteReceivable(widget.existing!.id);
                     },
-                    icon: const Icon(Icons.delete_outline, color: AppTheme.expense),
+                    icon: const Icon(Icons.delete_outline,
+                        color: AppTheme.expense),
                     label: Text(l10n.deleteLabel,
                         style: const TextStyle(color: AppTheme.expense)),
                   ),
@@ -396,7 +406,7 @@ class _ReceivableDialogSheetState extends ConsumerState<_ReceivableDialogSheet> 
     if (!_formKey.currentState!.validate()) return;
     final amount = Fmt.tryParseInput(_amountCtrl.text)!;
     final ctrl = ref.read(appStateProvider.notifier);
-    
+
     if (isEdit) {
       ctrl.updateReceivable(widget.existing!.copyWith(
         personName: _nameCtrl.text.trim(),

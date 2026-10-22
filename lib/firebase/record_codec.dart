@@ -10,6 +10,8 @@ import '../data/app_state.dart';
 /// membaca. Sisa utang/piutang disimpan langsung agar dua pembayaran serentak
 /// pada kewajiban yang sama dapat dideteksi sebagai konflik revisi.
 class RecordCodec {
+  static const investmentOrderKey = 'settings/investment-order';
+  static const accountOrderKey = 'settings/account-order';
   static const collections = <String>[
     'accounts',
     'transactions',
@@ -49,13 +51,19 @@ class RecordCodec {
       'reminderHour': json['reminderHour'],
       'reminderMinute': json['reminderMinute'],
     };
+    records[investmentOrderKey] = {'ids': state.investmentOrder};
+    records[accountOrderKey] = {'ids': state.accountOrder};
     return records;
   }
 
   static AppState decode(Map<String, Map<String, dynamic>> records) {
     final json = <String, dynamic>{
-      for (final collection in collections) collection: <Map<String, dynamic>>[],
+      for (final collection in collections)
+        collection: <Map<String, dynamic>>[],
       ...?records['settings/main'],
+      'investmentOrder':
+          records[investmentOrderKey]?['ids'] ?? const <String>[],
+      'accountOrder': records[accountOrderKey]?['ids'] ?? const <String>[],
     };
     for (final entry in records.entries) {
       final parts = entry.key.split('/');
@@ -108,7 +116,8 @@ class RecordCodec {
   static Set<String> changedKeys(
     Map<String, Map<String, dynamic>> before,
     Map<String, Map<String, dynamic>> after,
-  ) => {
+  ) =>
+      {
         for (final key in {...before.keys, ...after.keys})
           if (jsonEncode(before[key]) != jsonEncode(after[key])) key,
       };

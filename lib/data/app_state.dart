@@ -15,8 +15,10 @@ import '../models/wishlist_item.dart';
 class AppState {
   const AppState({
     this.accounts = const [],
+    this.accountOrder = const [],
     this.transactions = const [],
     this.investments = const [],
+    this.investmentOrder = const [],
     this.debts = const [],
     this.receivables = const [],
     this.wishlist = const [],
@@ -28,8 +30,34 @@ class AppState {
   });
 
   final List<Account> accounts;
+  final List<String> accountOrder;
+
+  /// Preferensi tampilan berdasarkan ID; rekening baru ditambahkan di akhir.
+  List<Account> get orderedAccounts {
+    final remaining = {for (final account in accounts) account.id: account};
+    return List.unmodifiable([
+      for (final id in accountOrder)
+        if (remaining.containsKey(id)) remaining.remove(id)!,
+      ...remaining.values,
+    ]);
+  }
+
   final List<Transaction> transactions;
   final List<Investment> investments;
+
+  /// ID aset sesuai urutan pilihan pengguna; tersinkron dan ikut cadangan.
+  final List<String> investmentOrder;
+
+  /// Abaikan ID yang dihapus/duplikat, lalu tampilkan aset baru di akhir.
+  List<Investment> get orderedInvestments {
+    final remaining = {for (final item in investments) item.id: item};
+    return List.unmodifiable([
+      for (final id in investmentOrder)
+        if (remaining.containsKey(id)) remaining.remove(id)!,
+      ...remaining.values,
+    ]);
+  }
+
   final List<Debt> debts;
   final List<Receivable> receivables;
   final List<WishlistItem> wishlist;
@@ -48,8 +76,7 @@ class AppState {
   // --- Ringkasan kekayaan bersih ---
 
   /// Total saldo seluruh akun (kas + bank + e-wallet).
-  double get totalCash =>
-      accounts.fold(0, (sum, a) => sum + a.balance);
+  double get totalCash => accounts.fold(0, (sum, a) => sum + a.balance);
 
   /// Total nilai pasar seluruh investasi.
   double get totalInvestment =>
@@ -71,8 +98,10 @@ class AppState {
 
   AppState copyWith({
     List<Account>? accounts,
+    List<String>? accountOrder,
     List<Transaction>? transactions,
     List<Investment>? investments,
+    List<String>? investmentOrder,
     List<Debt>? debts,
     List<Receivable>? receivables,
     List<WishlistItem>? wishlist,
@@ -84,8 +113,10 @@ class AppState {
   }) {
     return AppState(
       accounts: accounts ?? this.accounts,
+      accountOrder: accountOrder ?? this.accountOrder,
       transactions: transactions ?? this.transactions,
       investments: investments ?? this.investments,
+      investmentOrder: investmentOrder ?? this.investmentOrder,
       debts: debts ?? this.debts,
       receivables: receivables ?? this.receivables,
       wishlist: wishlist ?? this.wishlist,
@@ -99,8 +130,10 @@ class AppState {
 
   Map<String, dynamic> toJson() => {
         'accounts': accounts.map((e) => e.toJson()).toList(),
+        'accountOrder': accountOrder,
         'transactions': transactions.map((e) => e.toJson()).toList(),
         'investments': investments.map((e) => e.toJson()).toList(),
+        'investmentOrder': investmentOrder,
         'debts': debts.map((e) => e.toJson()).toList(),
         'receivables': receivables.map((e) => e.toJson()).toList(),
         'wishlist': wishlist.map((e) => e.toJson()).toList(),
@@ -114,13 +147,20 @@ class AppState {
   factory AppState.fromJson(Map<String, dynamic> json) {
     return AppState(
       accounts: _parseList(json['accounts'], Account.fromJson),
+      accountOrder: (json['accountOrder'] as List<dynamic>?)
+              ?.whereType<String>()
+              .toList(growable: false) ??
+          const [],
       transactions: _parseList(json['transactions'], Transaction.fromJson),
       investments: _parseList(json['investments'], Investment.fromJson),
+      investmentOrder: (json['investmentOrder'] as List<dynamic>?)
+              ?.whereType<String>()
+              .toList(growable: false) ??
+          const [],
       debts: _parseList(json['debts'], Debt.fromJson),
       receivables: _parseList(json['receivables'], Receivable.fromJson),
       wishlist: _parseList(json['wishlist'], WishlistItem.fromJson),
-      recurring:
-          _parseList(json['recurring'], RecurringTransaction.fromJson),
+      recurring: _parseList(json['recurring'], RecurringTransaction.fromJson),
       themeMode: json['themeMode'] as String? ?? 'system',
       locale: json['locale'] as String? ?? 'system',
       reminderHour: (json['reminderHour'] as num?)?.toInt() ?? 20,

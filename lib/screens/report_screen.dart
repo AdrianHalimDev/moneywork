@@ -7,9 +7,11 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../data/app_state.dart';
+import '../data/display_preferences.dart';
 import '../services/export_service.dart';
 import '../services/report.dart';
 import '../widgets/responsive_layout.dart';
+import '../widgets/display_controls.dart';
 
 /// Layar Laporan: ringkasan bulanan + grafik komposisi aset, arus kas, kategori.
 class ReportScreen extends ConsumerStatefulWidget {
@@ -120,7 +122,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                         if (selectedFormat == 'pdf') {
                           await ExportService.exportTransactionsToPDF(
                             transactions: filteredTx,
-                            accounts: state.accounts,
+                            accounts: state.orderedAccounts,
                             periodName: monthStr,
                             summary: summary,
                             categories: categories,
@@ -129,7 +131,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                         } else {
                           await ExportService.exportTransactionsToExcel(
                             transactions: filteredTx,
-                            accounts: state.accounts,
+                            accounts: state.orderedAccounts,
                             periodName: monthStr,
                             l10n: AppLocalizations.of(context)!,
                           );
@@ -149,6 +151,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider).valueOrNull ?? const AppState();
+    final hidden = ref.watch(amountsHiddenProvider);
     final summary = Report.forMonth(state.transactions, _month);
     final categories = Report.expenseByCategory(state.transactions, _month,
         categoryFallback: AppLocalizations.of(context)!.categoryOther);
@@ -158,6 +161,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.tabReport),
         actions: [
+          const AmountVisibilityButton(),
           IconButton(
             icon: const Icon(Icons.download),
             tooltip: AppLocalizations.of(context)!.tooltipExport,
@@ -180,17 +184,27 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             Text(AppLocalizations.of(context)!.cashFlow6Months,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            _CashFlowChart(series: series),
+            if (hidden)
+              const _ChartEmpty(text: 'Rp ••••••')
+            else
+              _CashFlowChart(series: series),
             const SizedBox(height: 24),
             Text(AppLocalizations.of(context)!.assetComposition,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            _AssetPie(state: state),
+            if (hidden)
+              const _ChartEmpty(text: 'Rp ••••••')
+            else
+              _AssetPie(state: state),
             const SizedBox(height: 24),
             Text(AppLocalizations.of(context)!.expenseByCategory,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            _CategoryBreakdown(categories: categories, total: summary.expense),
+            if (hidden)
+              const _ChartEmpty(text: 'Rp ••••••')
+            else
+              _CategoryBreakdown(
+                  categories: categories, total: summary.expense),
           ],
         ),
       ),
@@ -231,12 +245,12 @@ class _MonthPicker extends StatelessWidget {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
+class _SummaryCard extends ConsumerWidget {
   const _SummaryCard({required this.summary});
   final MonthlySummary summary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -247,6 +261,7 @@ class _SummaryCard extends StatelessWidget {
                 Expanded(
                   child: _stat(
                       context,
+                      ref,
                       AppLocalizations.of(context)!.summaryIncome,
                       summary.income,
                       AppTheme.income,
@@ -255,6 +270,7 @@ class _SummaryCard extends StatelessWidget {
                 Expanded(
                   child: _stat(
                       context,
+                      ref,
                       AppLocalizations.of(context)!.summaryExpense,
                       summary.expense,
                       AppTheme.expense,
@@ -269,7 +285,7 @@ class _SummaryCard extends StatelessWidget {
                 Text(AppLocalizations.of(context)!.summaryNet,
                     style: Theme.of(context).textTheme.titleSmall),
                 Text(
-                  Fmt.rupiahSigned(summary.net),
+                  formatVisibleMoney(ref, summary.net, signed: true),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color:
                           summary.net >= 0 ? AppTheme.income : AppTheme.expense,
@@ -283,8 +299,8 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _stat(BuildContext context, String label, double value, Color color,
-      IconData icon) {
+  Widget _stat(BuildContext context, WidgetRef ref, String label, double value,
+      Color color, IconData icon) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -294,7 +310,7 @@ class _SummaryCard extends StatelessWidget {
           Text(label, style: Theme.of(context).textTheme.bodySmall),
         ]),
         const SizedBox(height: 4),
-        Text(Fmt.rupiah(value),
+        Text(formatVisibleMoney(ref, value),
             style: Theme.of(context)
                 .textTheme
                 .titleMedium

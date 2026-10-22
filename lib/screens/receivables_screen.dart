@@ -6,10 +6,12 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../data/app_state.dart';
+import '../data/display_preferences.dart';
 import '../models/receivable.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs/receivable_dialogs.dart';
 import '../widgets/responsive_layout.dart';
+import '../widgets/display_controls.dart';
 import 'bill_splitter_screen.dart';
 
 /// Layar Piutang: uang yang dipinjam orang lain ke kita.
@@ -21,26 +23,34 @@ class ReceivablesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(appStateProvider);
     return Scaffold(
-      appBar: hideAppBar ? null : AppBar(
-        title: Text(AppLocalizations.of(context)!.tabReceivables),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.calculate_outlined),
-            tooltip: AppLocalizations.of(context)!.tooltipSplitBill,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const BillSplitterScreen()),
+      appBar: hideAppBar
+          ? null
+          : AppBar(
+              title: Text(AppLocalizations.of(context)!.tabReceivables),
+              actions: [
+                const AmountVisibilityButton(),
+                IconButton(
+                  icon: const Icon(Icons.calculate_outlined),
+                  tooltip: AppLocalizations.of(context)!.tooltipSplitBill,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const BillSplitterScreen()),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: hideAppBar ? null : FloatingActionButton.extended(
-        onPressed: () => showReceivableDialog(context, ref),
-        icon: const Icon(Icons.add),
-        label: Text(AppLocalizations.of(context)!.fabReceivable),
-      ),
+      floatingActionButton: hideAppBar
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => showReceivableDialog(context, ref),
+              icon: const Icon(Icons.add),
+              label: Text(AppLocalizations.of(context)!.fabReceivable),
+            ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('${AppLocalizations.of(context)!.errorLoadFailed}: $e')),
+        error: (e, _) => Center(
+            child:
+                Text('${AppLocalizations.of(context)!.errorLoadFailed}: $e')),
         data: (state) => _Body(state: state),
       ),
     );
@@ -80,10 +90,12 @@ class _Body extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(AppLocalizations.of(context)!.totalReceivableLabel,
+                          Text(
+                              AppLocalizations.of(context)!
+                                  .totalReceivableLabel,
                               style: Theme.of(context).textTheme.labelLarge),
                           const SizedBox(height: 4),
-                          Text(Fmt.rupiah(state.totalReceivable),
+                          Text(formatVisibleMoney(ref, state.totalReceivable),
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
@@ -93,7 +105,8 @@ class _Body extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    Text('$openGroups ${AppLocalizations.of(context)!.peopleCountSuffix}',
+                    Text(
+                        '$openGroups ${AppLocalizations.of(context)!.peopleCountSuffix}',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Theme.of(context).colorScheme.outline)),
                   ],
@@ -134,8 +147,10 @@ class _GroupTile extends ConsumerWidget {
     final lunas = group.isSettled;
     final due = group.nearestDue;
     final subtitleParts = <String>[
-      if (group.openCount > 1) '${group.openCount} ${AppLocalizations.of(context)!.loansCountSuffix}',
-      if (due != null) '${AppLocalizations.of(context)!.duePrefix} ${Fmt.date(due)}',
+      if (group.openCount > 1)
+        '${group.openCount} ${AppLocalizations.of(context)!.loansCountSuffix}',
+      if (due != null)
+        '${AppLocalizations.of(context)!.duePrefix} ${Fmt.date(due)}',
     ];
 
     return Card(
@@ -152,13 +167,19 @@ class _GroupTile extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(lunas ? AppLocalizations.of(context)!.paidOff : Fmt.rupiah(group.outstanding),
+            Text(
+                lunas
+                    ? AppLocalizations.of(context)!.paidOff
+                    : formatVisibleMoney(ref, group.outstanding),
                 style: TextStyle(
                     color: lunas
                         ? Theme.of(context).colorScheme.outline
                         : AppTheme.income,
                     fontWeight: FontWeight.w600)),
-            Text(lunas ? AppLocalizations.of(context)!.settled : AppLocalizations.of(context)!.remaining,
+            Text(
+                lunas
+                    ? AppLocalizations.of(context)!.settled
+                    : AppLocalizations.of(context)!.remaining,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
@@ -176,7 +197,8 @@ class _GroupTile extends ConsumerWidget {
                 onPressed: () =>
                     showCollectFromPersonDialog(context, ref, group),
                 icon: const Icon(Icons.payments_outlined, size: 18),
-                label: Text('${AppLocalizations.of(context)!.receiveFrom} ${group.displayName}'),
+                label: Text(
+                    '${AppLocalizations.of(context)!.receiveFrom} ${group.displayName}'),
               ),
             ),
         ],
@@ -197,7 +219,8 @@ class _LoanRow extends ConsumerWidget {
     final parts = <String>[
       Fmt.date(receivable.createdAt),
       if (receivable.note.isNotEmpty) receivable.note,
-      if (due != null) '${AppLocalizations.of(context)!.duePrefix} ${Fmt.date(due)}',
+      if (due != null)
+        '${AppLocalizations.of(context)!.duePrefix} ${Fmt.date(due)}',
     ];
     return InkWell(
       onTap: () => showReceivableDialog(context, ref, existing: receivable),
@@ -215,7 +238,10 @@ class _LoanRow extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Text(lunas ? AppLocalizations.of(context)!.paidOff : Fmt.rupiah(receivable.remaining),
+            Text(
+                lunas
+                    ? AppLocalizations.of(context)!.paidOff
+                    : formatVisibleMoney(ref, receivable.remaining),
                 style: TextStyle(
                     color: lunas
                         ? Theme.of(context).colorScheme.outline

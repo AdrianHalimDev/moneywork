@@ -10,17 +10,26 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('encrypted offline snapshot survives restart without plaintext', () async {
+  test('encrypted offline snapshot survives restart without plaintext',
+      () async {
     final key = await CryptoService.instance.generateDek();
     final account = Account(
-      id: 'account-1', name: 'Rahasia Bank', type: AccountType.bank,
-      balance: 42000, createdAt: DateTime(2026, 1, 1),
+      id: 'account-1',
+      name: 'Rahasia Bank',
+      type: AccountType.bank,
+      balance: 42000,
+      createdAt: DateTime(2026, 1, 1),
     );
-    final state = AppState(accounts: [account]);
+    final state = AppState(
+        accounts: [account],
+        investmentOrder: const ['gold', 'stock'],
+        accountOrder: const ['account-1']);
     final store = OfflineSnapshotStore('user-1', keyProvider: () async => key);
     await store.save(OfflineSnapshot(
       state: state,
-      baseline: {'accounts/account-1': {'name': 'Rahasia Bank'}},
+      baseline: {
+        'accounts/account-1': {'name': 'Rahasia Bank'}
+      },
       revisions: {'accounts/account-1': 7},
       pending: true,
       needsMigration: false,
@@ -30,9 +39,12 @@ void main() {
     final raw = prefs.getString('mw_offline_v1_user-1')!;
     expect(raw, isNot(contains('Rahasia Bank')));
     expect(raw, isNot(contains('42000')));
-    final reopened = OfflineSnapshotStore('user-1', keyProvider: () async => key);
+    final reopened =
+        OfflineSnapshotStore('user-1', keyProvider: () async => key);
     final restored = await reopened.load();
     expect(restored!.state.accounts.single.name, 'Rahasia Bank');
+    expect(restored.state.investmentOrder, ['gold', 'stock']);
+    expect(restored.state.accountOrder, ['account-1']);
     expect(restored.pending, isTrue);
     expect(restored.revisions['accounts/account-1'], 7);
     expect(restored.baseline['accounts/account-1']!['name'], 'Rahasia Bank');
@@ -43,14 +55,17 @@ void main() {
     final otherKey = await CryptoService.instance.generateDek();
     final store = OfflineSnapshotStore('user-1', keyProvider: () async => key);
     await store.save(const OfflineSnapshot(
-      state: AppState(), baseline: {}, revisions: {}, pending: false,
+      state: AppState(),
+      baseline: {},
+      revisions: {},
+      pending: false,
       needsMigration: true,
     ));
-    final wrongKey = OfflineSnapshotStore(
-        'user-1', keyProvider: () async => otherKey);
+    final wrongKey =
+        OfflineSnapshotStore('user-1', keyProvider: () async => otherKey);
     expect(wrongKey.load(), throwsFormatException);
-    final otherUser = OfflineSnapshotStore(
-        'user-2', keyProvider: () async => key);
+    final otherUser =
+        OfflineSnapshotStore('user-2', keyProvider: () async => key);
     expect(await otherUser.load(), isNull);
   });
 }

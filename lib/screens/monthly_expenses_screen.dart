@@ -6,9 +6,11 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../data/app_state.dart';
+import '../data/display_preferences.dart';
 import '../models/recurring_transaction.dart';
 import '../models/transaction.dart';
 import '../widgets/common.dart';
+import '../widgets/display_controls.dart';
 
 /// Layar Monthly Expenses: kelola template transaksi rutin bulanan dan
 /// jalankan semuanya sekali klik (mis. saat gajian).
@@ -22,8 +24,9 @@ class MonthlyExpensesScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.tabMonthlyTx),
         actions: [
+          const AmountVisibilityButton(),
           async.maybeWhen(
-            data: (state) => state.accounts.isEmpty
+            data: (state) => state.orderedAccounts.isEmpty
                 ? const SizedBox.shrink()
                 : IconButton(
                     icon: const Icon(Icons.add),
@@ -36,7 +39,8 @@ class MonthlyExpensesScreen extends ConsumerWidget {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('${AppLocalizations.of(context)!.snackFailed} $e')),
+        error: (e, _) => Center(
+            child: Text('${AppLocalizations.of(context)!.snackFailed} $e')),
         data: (state) => _Body(state: state),
       ),
     );
@@ -48,13 +52,13 @@ class _Body extends ConsumerWidget {
   final AppState state;
 
   String _accountName(String id) {
-    final m = state.accounts.where((a) => a.id == id);
+    final m = state.orderedAccounts.where((a) => a.id == id);
     return m.isEmpty ? '-' : m.first.name;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (state.accounts.isEmpty) {
+    if (state.orderedAccounts.isEmpty) {
       return EmptyState(
         icon: Icons.event_repeat_outlined,
         title: AppLocalizations.of(context)!.emptyAccountTitle,
@@ -87,8 +91,9 @@ class _Body extends ConsumerWidget {
                 _RecurringTile(
                   recurring: r,
                   accountName: _accountName(r.accountId),
-                  toAccountName:
-                      r.toAccountId == null ? null : _accountName(r.toAccountId!),
+                  toAccountName: r.toAccountId == null
+                      ? null
+                      : _accountName(r.toAccountId!),
                 ),
             ],
           ),
@@ -138,7 +143,7 @@ class _RecurringTile extends ConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(Fmt.rupiah(recurring.amount),
+          Text(formatVisibleMoney(ref, recurring.amount),
               style: TextStyle(
                   color: color,
                   fontWeight: FontWeight.w600,
@@ -195,9 +200,13 @@ class _RunBar extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               if (totalIncome > 0)
-                Text(AppLocalizations.of(context)!.runBarIncome(Fmt.rupiahCompact(totalIncome)),
+                Text(
+                    AppLocalizations.of(context)!.runBarIncome(
+                        formatVisibleMoney(ref, totalIncome, compact: true)),
                     style: const TextStyle(color: AppTheme.income)),
-              Text(AppLocalizations.of(context)!.runBarExpense(Fmt.rupiahCompact(totalExpense)),
+              Text(
+                  AppLocalizations.of(context)!.runBarExpense(
+                      formatVisibleMoney(ref, totalExpense, compact: true)),
                   style: const TextStyle(color: AppTheme.expense)),
             ],
           ),
@@ -209,7 +218,8 @@ class _RunBar extends ConsumerWidget {
                   ? null
                   : () => _confirmRun(context, ref, enabledCount),
               icon: const Icon(Icons.playlist_add_check),
-              label: Text(AppLocalizations.of(context)!.runAllBtn(enabledCount.toString())),
+              label: Text(AppLocalizations.of(context)!
+                  .runAllBtn(enabledCount.toString())),
             ),
           ),
         ],
@@ -240,7 +250,8 @@ class _RunBar extends ConsumerWidget {
 
     final result = await ref.read(appStateProvider.notifier).runAllRecurring();
     final msg = result.skipped > 0
-        ? l10n.runSuccessWithSkip(result.created.toString(), result.skipped.toString())
+        ? l10n.runSuccessWithSkip(
+            result.created.toString(), result.skipped.toString())
         : l10n.runSuccessAll(result.created.toString());
     messenger.showSnackBar(SnackBar(content: Text(msg)));
   }
@@ -260,12 +271,12 @@ Future<void> showRecurringDialog(
   final amountCtrl = TextEditingController(
       text: existing != null ? Fmt.groupInput(existing.amount) : '');
   final categoryCtrl = TextEditingController(text: existing?.category ?? '');
-  final dueDayCtrl = TextEditingController(
-      text: existing?.dueDay?.toString() ?? '');
+  final dueDayCtrl =
+      TextEditingController(text: existing?.dueDay?.toString() ?? '');
   var type = existing?.type ?? TxType.expense;
-  var accountId = existing?.accountId ?? state.accounts.first.id;
+  var accountId = existing?.accountId ?? state.orderedAccounts.first.id;
   String? toAccountId = existing?.toAccountId ??
-      (state.accounts.length > 1 ? state.accounts[1].id : null);
+      (state.orderedAccounts.length > 1 ? state.orderedAccounts[1].id : null);
   final isEdit = existing != null;
   final formKey = GlobalKey<FormState>();
 
@@ -276,166 +287,178 @@ Future<void> showRecurringDialog(
     builder: (context) {
       final l10n = AppLocalizations.of(context)!;
       return StatefulBuilder(
-      builder: (context, setState) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 8,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-        ),
-        child: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(isEdit ? l10n.editTemplate : l10n.addTemplate,
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: labelCtrl,
-                autofocus: !isEdit,
-                decoration: InputDecoration(
-                    labelText: l10n.itemNameLabel,
-                    hintText: l10n.templateNameHint),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
-              ),
-              const SizedBox(height: 12),
-              SegmentedButton<TxType>(
-                segments: [
-                  ButtonSegment(value: TxType.expense, label: Text(l10n.segmentExpense)),
-                  ButtonSegment(value: TxType.income, label: Text(l10n.segmentIncome)),
-                  ButtonSegment(value: TxType.transfer, label: Text(l10n.segmentTransfer)),
-                ],
-                selected: {type},
-                onSelectionChanged: (s) => setState(() => type = s.first),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsInputFormatter()],
-                decoration:
-                    InputDecoration(labelText: l10n.amountLabel, prefixText: 'Rp '),
-                validator: (v) {
-                  final n = Fmt.tryParseInput(v ?? '');
-                  if (n == null || n <= 0) return l10n.invalidNumber;
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: dueDayCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: _dueDayText(context, 'label'),
-                  helperText: _dueDayText(context, 'helper'),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) return null;
-                  final day = int.tryParse(value.trim());
-                  return day != null && day >= 1 && day <= 31
-                      ? null
-                      : _dueDayText(context, 'invalid');
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: accountId,
-                decoration: InputDecoration(
-                    labelText: type == TxType.transfer ? l10n.fromAccountLabel : l10n.accountLabel),
-                items: [
-                  for (final a in state.accounts)
-                    DropdownMenuItem(value: a.id, child: Text(a.name)),
-                ],
-                onChanged: (v) => setState(() => accountId = v ?? accountId),
-              ),
-              if (type == TxType.transfer) ...[
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: toAccountId,
-                  decoration: InputDecoration(labelText: l10n.toAccountLabel),
-                  items: [
-                    for (final a in state.accounts)
-                      DropdownMenuItem(value: a.id, child: Text(a.name)),
-                  ],
-                  onChanged: (v) => setState(() => toAccountId = v),
-                  validator: (v) {
-                    if (type != TxType.transfer) return null;
-                    if (v == null) return l10n.errorSelectAccount;
-                    if (v == accountId) return l10n.errorSameAccount;
-                    return null;
-                  },
-                ),
-              ] else ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: categoryCtrl,
-                  decoration: InputDecoration(
-                      labelText: l10n.categoryLabel,
-                      hintText: l10n.templateCategoryHint),
-                ),
-              ],
-              const SizedBox(height: 20),
-              Row(
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 8,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (isEdit)
-                    TextButton.icon(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await ref
-                            .read(appStateProvider.notifier)
-                            .deleteRecurring(existing.id);
-                      },
-                      icon: const Icon(Icons.delete_outline,
-                          color: AppTheme.expense),
-                      label: Text(l10n.deleteLabel,
-                          style: const TextStyle(color: AppTheme.expense)),
-                    ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () {
-                      if (!formKey.currentState!.validate()) return;
-                      final amount = Fmt.tryParseInput(amountCtrl.text)!;
-                      final dueDay = int.tryParse(dueDayCtrl.text.trim());
-                      final ctrl = ref.read(appStateProvider.notifier);
-                      final isTransfer = type == TxType.transfer;
-                      if (isEdit) {
-                        ctrl.updateRecurring(existing.copyWith(
-                          label: labelCtrl.text.trim(),
-                          type: type,
-                          amount: amount,
-                          accountId: accountId,
-                          toAccountId: isTransfer ? toAccountId : null,
-                          clearToAccountId: !isTransfer,
-                          category: isTransfer ? '' : categoryCtrl.text.trim(),
-                          dueDay: dueDay,
-                          clearDueDay: dueDay == null,
-                        ));
-                      } else {
-                        ctrl.addRecurring(
-                          label: labelCtrl.text.trim(),
-                          type: type,
-                          amount: amount,
-                          accountId: accountId,
-                          toAccountId: isTransfer ? toAccountId : null,
-                          category: isTransfer ? '' : categoryCtrl.text.trim(),
-                          dueDay: dueDay,
-                        );
-                      }
-                      Navigator.pop(context);
+                  Text(isEdit ? l10n.editTemplate : l10n.addTemplate,
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: labelCtrl,
+                    autofocus: !isEdit,
+                    decoration: InputDecoration(
+                        labelText: l10n.itemNameLabel,
+                        hintText: l10n.templateNameHint),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<TxType>(
+                    segments: [
+                      ButtonSegment(
+                          value: TxType.expense,
+                          label: Text(l10n.segmentExpense)),
+                      ButtonSegment(
+                          value: TxType.income,
+                          label: Text(l10n.segmentIncome)),
+                      ButtonSegment(
+                          value: TxType.transfer,
+                          label: Text(l10n.segmentTransfer)),
+                    ],
+                    selected: {type},
+                    onSelectionChanged: (s) => setState(() => type = s.first),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: amountCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [ThousandsInputFormatter()],
+                    decoration: InputDecoration(
+                        labelText: l10n.amountLabel, prefixText: 'Rp '),
+                    validator: (v) {
+                      final n = Fmt.tryParseInput(v ?? '');
+                      if (n == null || n <= 0) return l10n.invalidNumber;
+                      return null;
                     },
-                    child: Text(isEdit ? l10n.saveButton : l10n.addButton),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: dueDayCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: _dueDayText(context, 'label'),
+                      helperText: _dueDayText(context, 'helper'),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) return null;
+                      final day = int.tryParse(value.trim());
+                      return day != null && day >= 1 && day <= 31
+                          ? null
+                          : _dueDayText(context, 'invalid');
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: accountId,
+                    decoration: InputDecoration(
+                        labelText: type == TxType.transfer
+                            ? l10n.fromAccountLabel
+                            : l10n.accountLabel),
+                    items: [
+                      for (final a in state.orderedAccounts)
+                        DropdownMenuItem(value: a.id, child: Text(a.name)),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => accountId = v ?? accountId),
+                  ),
+                  if (type == TxType.transfer) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: toAccountId,
+                      decoration:
+                          InputDecoration(labelText: l10n.toAccountLabel),
+                      items: [
+                        for (final a in state.orderedAccounts)
+                          DropdownMenuItem(value: a.id, child: Text(a.name)),
+                      ],
+                      onChanged: (v) => setState(() => toAccountId = v),
+                      validator: (v) {
+                        if (type != TxType.transfer) return null;
+                        if (v == null) return l10n.errorSelectAccount;
+                        if (v == accountId) return l10n.errorSameAccount;
+                        return null;
+                      },
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: categoryCtrl,
+                      decoration: InputDecoration(
+                          labelText: l10n.categoryLabel,
+                          hintText: l10n.templateCategoryHint),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      if (isEdit)
+                        TextButton.icon(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            await ref
+                                .read(appStateProvider.notifier)
+                                .deleteRecurring(existing.id);
+                          },
+                          icon: const Icon(Icons.delete_outline,
+                              color: AppTheme.expense),
+                          label: Text(l10n.deleteLabel,
+                              style: const TextStyle(color: AppTheme.expense)),
+                        ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: () {
+                          if (!formKey.currentState!.validate()) return;
+                          final amount = Fmt.tryParseInput(amountCtrl.text)!;
+                          final dueDay = int.tryParse(dueDayCtrl.text.trim());
+                          final ctrl = ref.read(appStateProvider.notifier);
+                          final isTransfer = type == TxType.transfer;
+                          if (isEdit) {
+                            ctrl.updateRecurring(existing.copyWith(
+                              label: labelCtrl.text.trim(),
+                              type: type,
+                              amount: amount,
+                              accountId: accountId,
+                              toAccountId: isTransfer ? toAccountId : null,
+                              clearToAccountId: !isTransfer,
+                              category:
+                                  isTransfer ? '' : categoryCtrl.text.trim(),
+                              dueDay: dueDay,
+                              clearDueDay: dueDay == null,
+                            ));
+                          } else {
+                            ctrl.addRecurring(
+                              label: labelCtrl.text.trim(),
+                              type: type,
+                              amount: amount,
+                              accountId: accountId,
+                              toAccountId: isTransfer ? toAccountId : null,
+                              category:
+                                  isTransfer ? '' : categoryCtrl.text.trim(),
+                              dueDay: dueDay,
+                            );
+                          }
+                          Navigator.pop(context);
+                        },
+                        child: Text(isEdit ? l10n.saveButton : l10n.addButton),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
             ),
           ),
         ),
-      ),
       );
     },
   );

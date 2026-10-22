@@ -10,6 +10,8 @@ import '../models/transaction.dart';
 import '../services/bank_statement_import_service.dart';
 import '../widgets/responsive_layout.dart';
 
+enum _StatementReviewFilter { all, needsReview, duplicates }
+
 /// Memilih PDF mutasi, menampilkan hasil ekstraksi dan mengembalikan pilihan
 /// transaksi. Tidak menyimpan transaksi; pemanggil melakukan satu bulk commit.
 class BankStatementImportScreen extends StatefulWidget {
@@ -30,8 +32,8 @@ class BankStatementImportScreen extends StatefulWidget {
 }
 
 class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
-  static final _money = NumberFormat.currency(
-      locale: 'id_ID', symbol: 'Rp ', decimalDigits: 2);
+  static final _money =
+      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 2);
   Uint8List? _pdfBytes;
   String? _fileName;
   String? _accountId;
@@ -41,6 +43,7 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
   bool _consent = false;
   bool _busy = false;
   bool _applyToBalance = false;
+  _StatementReviewFilter _filter = _StatementReviewFilter.all;
   String? _error;
 
   @override
@@ -48,8 +51,11 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
     super.initState();
     if (widget.accounts.isNotEmpty) {
       _accountId = widget.accounts
-          .where((a) => a.type == AccountType.bank || a.type == AccountType.ewallet)
-          .firstOrNull?.id ?? widget.accounts.first.id;
+              .where((a) =>
+                  a.type == AccountType.bank || a.type == AccountType.ewallet)
+              .firstOrNull
+              ?.id ??
+          widget.accounts.first.id;
     }
   }
 
@@ -105,6 +111,7 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
         _document = null;
         _edited.clear();
         _selected.clear();
+        _filter = _StatementReviewFilter.all;
         _consent = false;
         _error = null;
       });
@@ -125,8 +132,8 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
       _busy = true;
       _error = null;
     });
-    final service = BankStatementImportService(
-        endpoint: widget.statementScanEndpoint);
+    final service =
+        BankStatementImportService(endpoint: widget.statementScanEndpoint);
     try {
       final document = await service.scanPdf(bytes);
       if (!mounted) return;
@@ -134,14 +141,15 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
         _document = document;
         _pdfBytes = null;
         _edited.clear();
+        _filter = _StatementReviewFilter.all;
         _selectRecommended();
       });
     } on BankStatementImportException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
       if (mounted) {
-        setState(() => _error =
-            'Gagal membaca PDF mutasi. Coba lagi beberapa saat.');
+        setState(() =>
+            _error = 'Gagal membaca PDF mutasi. Coba lagi beberapa saat.');
       }
     } finally {
       service.dispose();
@@ -187,19 +195,21 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                     initialValue: type,
                     decoration: InputDecoration(labelText: _text.direction),
                     items: [
-                      DropdownMenuItem(value: TxType.expense,
-                          child: Text(_text.debit)),
-                      DropdownMenuItem(value: TxType.income,
-                          child: Text(_text.credit)),
+                      DropdownMenuItem(
+                          value: TxType.expense, child: Text(_text.debit)),
+                      DropdownMenuItem(
+                          value: TxType.income, child: Text(_text.credit)),
                     ],
-                    onChanged: (value) => setDialogState(() => type = value ?? type),
+                    onChanged: (value) =>
+                        setDialogState(() => type = value ?? type),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: amountController,
-                    decoration: InputDecoration(labelText: _text.amount,
-                        prefixText: 'Rp '),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                        labelText: _text.amount, prefixText: 'Rp '),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -213,8 +223,9 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                     maxLength: 80,
                   ),
                   if (validationError != null)
-                    Text(validationError!, style: TextStyle(
-                        color: Theme.of(dialogContext).colorScheme.error)),
+                    Text(validationError!,
+                        style: TextStyle(
+                            color: Theme.of(dialogContext).colorScheme.error)),
                 ],
               ),
             ),
@@ -230,18 +241,22 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                     dateController.text);
                 final amount = BankStatementImportService.parseMoney(
                     amountController.text);
-                if (date == null || amount == null || amount <= 0 ||
+                if (date == null ||
+                    amount == null ||
+                    amount <= 0 ||
                     noteController.text.trim().isEmpty) {
                   setDialogState(() => validationError = _text.invalidEdit);
                   return;
                 }
-                Navigator.pop(dialogContext, original.copyWith(
-                  date: date,
-                  type: type,
-                  amount: amount,
-                  note: noteController.text.trim(),
-                  category: categoryController.text.trim(),
-                ));
+                Navigator.pop(
+                    dialogContext,
+                    original.copyWith(
+                      date: date,
+                      type: type,
+                      amount: amount,
+                      note: noteController.text.trim(),
+                      category: categoryController.text.trim(),
+                    ));
               },
               child: Text(_text.save),
             ),
@@ -263,14 +278,17 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
     final document = _document;
     if (accountId == null || document == null || _selected.isEmpty) return;
     final reviewed = _reviewedRows;
-    final picked = _selected.where((i) => !reviewed[i].alreadyImported)
-        .toList()..sort();
+    final picked = _selected.where((i) => !reviewed[i].alreadyImported).toList()
+      ..sort();
     if (picked.isEmpty) return;
     final selectedRows = [for (final i in picked) reviewed[i].draft];
-    final duplicateCount = picked.where((i) => reviewed[i].possibleDuplicate).length;
-    final income = selectedRows.where((r) => r.type == TxType.income)
+    final duplicateCount =
+        picked.where((i) => reviewed[i].possibleDuplicate).length;
+    final income = selectedRows
+        .where((r) => r.type == TxType.income)
         .fold<double>(0, (sum, r) => sum + r.amount);
-    final expense = selectedRows.where((r) => r.type == TxType.expense)
+    final expense = selectedRows
+        .where((r) => r.type == TxType.expense)
         .fold<double>(0, (sum, r) => sum + r.amount);
     final balanceDifference = _reviewBalanceDifference;
     final confirmed = await showDialog<bool>(
@@ -298,7 +316,8 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
               ],
               if (balanceDifference != null && balanceDifference != 0) ...[
                 const SizedBox(height: 8),
-                Text(_text.balanceMismatch(_money.format(balanceDifference.abs()))),
+                Text(_text
+                    .balanceMismatch(_money.format(balanceDifference.abs()))),
               ],
               const SizedBox(height: 8),
               Text(_text.reviewReminder),
@@ -318,11 +337,13 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      Navigator.pop(context, StatementImportApproval(
-        accountId: accountId,
-        rows: selectedRows,
-        applyToBalance: _applyToBalance,
-      ));
+      Navigator.pop(
+          context,
+          StatementImportApproval(
+            accountId: accountId,
+            rows: selectedRows,
+            applyToBalance: _applyToBalance,
+          ));
     }
   }
 
@@ -334,8 +355,88 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
     final text = _text;
     final document = _document;
     final reviewed = _reviewedRows;
+    final selectedCount = _selected
+        .where((index) =>
+            index < reviewed.length && !reviewed[index].alreadyImported)
+        .length;
+    bool needsReview(ReviewedStatementRow row) =>
+        row.possibleDuplicate && !row.alreadyImported;
+    final reviewCount = reviewed.where(needsReview).length;
+    final duplicateCount =
+        reviewed.where((row) => row.possibleDuplicate).length;
+    final visibleIndices = [
+      for (var index = 0; index < reviewed.length; index++)
+        if (switch (_filter) {
+          _StatementReviewFilter.all => true,
+          _StatementReviewFilter.needsReview => needsReview(reviewed[index]),
+          _StatementReviewFilter.duplicates =>
+            reviewed[index].possibleDuplicate,
+        })
+          index,
+    ];
     return Scaffold(
       appBar: AppBar(title: Text(text.title)),
+      bottomNavigationBar: document == null
+          ? null
+          : SafeArea(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border(
+                      top: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant)),
+                ),
+                child: Center(
+                  heightFactor: 1,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1180),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: LayoutBuilder(builder: (context, constraints) {
+                        final count = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(text.selectedCount(selectedCount),
+                                  key: const ValueKey(
+                                      'statement-selected-count'),
+                                  style:
+                                      Theme.of(context).textTheme.titleSmall),
+                              const SizedBox(height: 4),
+                              Text(
+                                  _applyToBalance
+                                      ? text.balanceWillChange
+                                      : text.historyOnly,
+                                  style: Theme.of(context).textTheme.bodySmall),
+                            ]);
+                        final approve = FilledButton.icon(
+                          key: const ValueKey('statement-review-import'),
+                          onPressed: selectedCount == 0 ? null : _approve,
+                          icon: const Icon(Icons.fact_check_outlined),
+                          label: Text(text.importCount(selectedCount)),
+                        );
+                        if (constraints.maxWidth < 600 ||
+                            MediaQuery.textScalerOf(context).scale(14) > 18) {
+                          return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                count,
+                                const SizedBox(height: 12),
+                                approve
+                              ]);
+                        }
+                        return Row(children: [
+                          Expanded(child: count),
+                          const SizedBox(width: 20),
+                          approve,
+                        ]);
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+            ),
       body: ResponsiveCenter(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -350,12 +451,15 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                 decoration: InputDecoration(labelText: text.destinationAccount),
                 items: [
                   for (final account in widget.accounts)
-                    DropdownMenuItem(value: account.id, child: Text(account.name)),
+                    DropdownMenuItem(
+                        value: account.id, child: Text(account.name)),
                 ],
-                onChanged: _busy ? null : (value) => setState(() {
-                  _accountId = value;
-                  _selectRecommended();
-                }),
+                onChanged: _busy
+                    ? null
+                    : (value) => setState(() {
+                          _accountId = value;
+                          _selectRecommended();
+                        }),
               ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
@@ -382,7 +486,8 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                         value: _consent,
                         onChanged: _busy
                             ? null
-                            : (value) => setState(() => _consent = value ?? false),
+                            : (value) =>
+                                setState(() => _consent = value ?? false),
                         title: Text(text.consent),
                       ),
                       SizedBox(
@@ -390,8 +495,11 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                         child: FilledButton.icon(
                           onPressed: _busy || !_consent ? null : _scanPdf,
                           icon: _busy
-                              ? const SizedBox(width: 18, height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
                               : const Icon(Icons.document_scanner_outlined),
                           label: Text(_busy ? text.scanning : text.scanButton),
                         ),
@@ -403,8 +511,8 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
             ],
             if (_error != null) ...[
               const SizedBox(height: 12),
-              Text(_error!, style: TextStyle(
-                  color: Theme.of(context).colorScheme.error)),
+              Text(_error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             if (document != null) ...[
               const SizedBox(height: 20),
@@ -422,7 +530,8 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
               if (_reviewBalanceDifference case final difference?)
                 if (difference != 0) ...[
                   const SizedBox(height: 8),
-                  _WarningCard(text.balanceMismatch(_money.format(difference.abs()))),
+                  _WarningCard(
+                      text.balanceMismatch(_money.format(difference.abs()))),
                 ],
               if (_reviewBalanceDifference == null) ...[
                 const SizedBox(height: 8),
@@ -433,9 +542,6 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                 onPressed: () => setState(_selectRecommended),
                 child: Text(text.selectRecommended),
               ),
-              for (var i = 0; i < reviewed.length; i++)
-                _transactionCard(i, reviewed[i], text),
-              const SizedBox(height: 16),
               SwitchListTile(
                 value: _applyToBalance,
                 onChanged: (value) => setState(() => _applyToBalance = value),
@@ -444,11 +550,37 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
                 contentPadding: EdgeInsets.zero,
               ),
               const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _selected.isEmpty ? null : _approve,
-                icon: const Icon(Icons.save_outlined),
-                label: Text(text.importCount(_selected.length)),
-              ),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                ChoiceChip(
+                    key: const ValueKey('statement-filter-all'),
+                    selected: _filter == _StatementReviewFilter.all,
+                    label: Text('${text.filterAll} (${reviewed.length})'),
+                    onSelected: (_) =>
+                        setState(() => _filter = _StatementReviewFilter.all)),
+                ChoiceChip(
+                    key: const ValueKey('statement-filter-review'),
+                    selected: _filter == _StatementReviewFilter.needsReview,
+                    label: Text('${text.filterNeedsReview} ($reviewCount)'),
+                    onSelected: (_) => setState(
+                        () => _filter = _StatementReviewFilter.needsReview)),
+                ChoiceChip(
+                    key: const ValueKey('statement-filter-duplicates'),
+                    selected: _filter == _StatementReviewFilter.duplicates,
+                    label: Text('${text.filterDuplicates} ($duplicateCount)'),
+                    onSelected: (_) => setState(
+                        () => _filter = _StatementReviewFilter.duplicates)),
+              ]),
+              const SizedBox(height: 12),
+              if (_filter == _StatementReviewFilter.needsReview)
+                Text(text.needsReviewHint,
+                    style: Theme.of(context).textTheme.bodySmall),
+              if (visibleIndices.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Text(text.noMatchingRows, textAlign: TextAlign.center),
+                ),
+              for (final i in visibleIndices)
+                _transactionCard(i, reviewed[i], text),
             ],
           ],
         ),
@@ -456,33 +588,40 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
     );
   }
 
-  Widget _transactionCard(int index, ReviewedStatementRow reviewed,
-      _BankImportText text) {
+  Widget _transactionCard(
+      int index, ReviewedStatementRow reviewed, _BankImportText text) {
     final row = reviewed.draft;
     final selected = _selected.contains(index);
     final color = row.type == TxType.income
-        ? Colors.green.shade700 : Theme.of(context).colorScheme.error;
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.error;
     return Card(
+      key: ValueKey('statement-row-$index'),
       child: Column(
         children: [
           CheckboxListTile(
             value: selected,
-            onChanged: reviewed.alreadyImported ? null : (value) => setState(() {
-              if (value == true) {
-                _selected.add(index);
-              } else {
-                _selected.remove(index);
-              }
-            }),
-            title: Text('${row.type == TxType.income ? '+' : '-'}'
+            onChanged: reviewed.alreadyImported
+                ? null
+                : (value) => setState(() {
+                      if (value == true) {
+                        _selected.add(index);
+                      } else {
+                        _selected.remove(index);
+                      }
+                    }),
+            title: Text(
+                '${row.type == TxType.income ? '+' : '-'}'
                 '${_money.format(row.amount)}',
                 style: TextStyle(color: color, fontWeight: FontWeight.w600)),
             subtitle: Text('${Fmt.date(row.date)} • ${row.note}'
                 '${row.page == null ? '' : ' • ${text.page} ${row.page}'}'),
             secondary: IconButton(
+              key: ValueKey('statement-edit-$index'),
               tooltip: text.editTransaction,
               icon: const Icon(Icons.edit_outlined),
-              onPressed: reviewed.alreadyImported ? null : () => _editRow(index),
+              onPressed:
+                  reviewed.alreadyImported ? null : () => _editRow(index),
             ),
           ),
           if (reviewed.possibleDuplicate)
@@ -490,10 +629,14 @@ class _BankStatementImportScreenState extends State<BankStatementImportScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(reviewed.alreadyImported ? text.alreadyImported
-                    : reviewed.duplicateInFile
-                        ? text.duplicateInFile : text.possibleDuplicate,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                child: Text(
+                    reviewed.alreadyImported
+                        ? text.alreadyImported
+                        : reviewed.duplicateInFile
+                            ? text.duplicateInFile
+                            : text.possibleDuplicate,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
             ),
         ],
@@ -511,7 +654,9 @@ class _WarningCard extends StatelessWidget {
         color: Theme.of(context).colorScheme.errorContainer,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Text(message),
+          child: Text(message,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer)),
         ),
       );
 }
@@ -523,17 +668,20 @@ class _BankImportText {
   final String language;
 
   String _pick(String id, String en, String zh) =>
-      switch (language) {'en' => en, 'zh' => zh, _ => id};
+      switch (language) { 'en' => en, 'zh' => zh, _ => id };
 
-  String get title => _pick('Impor Mutasi PDF', 'Import PDF Statement', '导入 PDF 对账单');
+  String get title =>
+      _pick('Impor Mutasi PDF', 'Import PDF Statement', '导入 PDF 对账单');
   String get intro => _pick(
       'Impor transaksi dari PDF mutasi bulanan bank atau e-wallet. Periksa setiap baris sebelum menyimpan.',
       'Import transactions from a monthly bank or e-wallet PDF statement. Review every row before saving.',
       '从银行或电子钱包月度 PDF 对账单导入交易。保存前请检查每一行。');
-  String get noAccounts => _pick('Buat akun terlebih dahulu.',
-      'Create an account first.', '请先创建账户。');
-  String get destinationAccount => _pick('Akun tujuan', 'Destination account', '目标账户');
-  String get choosePdf => _pick('Pilih PDF mutasi', 'Choose statement PDF', '选择对账单 PDF');
+  String get noAccounts => _pick(
+      'Buat akun terlebih dahulu.', 'Create an account first.', '请先创建账户。');
+  String get destinationAccount =>
+      _pick('Akun tujuan', 'Destination account', '目标账户');
+  String get choosePdf =>
+      _pick('Pilih PDF mutasi', 'Choose statement PDF', '选择对账单 PDF');
   String get privacyDisclosure => _pick(
       'PDF mutasi lengkap, termasuk informasi rekening yang tercetak, akan dikirim ke Cloudflare Worker MoneyWork dan Gemini untuk ekstraksi. Data transaksi hanya disimpan setelah Anda meninjaunya.',
       'The full statement PDF, including any printed account details, will be sent to the MoneyWork Cloudflare Worker and Gemini for extraction. Transactions are saved only after your review.',
@@ -541,7 +689,8 @@ class _BankImportText {
   String get consent => _pick('Saya setuju mengirim PDF ini untuk dianalisis.',
       'I agree to send this PDF for analysis.', '我同意发送此 PDF 进行分析。');
   String get scanButton => _pick('Baca PDF', 'Read PDF', '读取 PDF');
-  String get scanning => _pick('Membaca PDF...', 'Reading PDF...', '正在读取 PDF...');
+  String get scanning =>
+      _pick('Membaca PDF...', 'Reading PDF...', '正在读取 PDF...');
   String reviewTitle(int rows, int pages) => _pick(
       'Tinjau $rows transaksi dari $pages halaman',
       'Review $rows transactions from $pages pages',
@@ -553,6 +702,18 @@ class _BankImportText {
   String get selectRecommended => _pick('Pilih semua kecuali duplikat',
       'Select all except duplicates', '选择除重复项外的所有交易');
   String get page => _pick('hlm.', 'page', '页');
+  String get filterAll => _pick('Semua', 'All', '全部');
+  String get filterNeedsReview =>
+      _pick('Perlu ditinjau', 'Need review', '需要检查');
+  String get filterDuplicates => _pick('Duplikat', 'Duplicates', '重复项');
+  String get needsReviewHint => _pick(
+      'Baris yang mungkin duplikat dan masih bisa dikoreksi. Baris yang sudah diimpor tetap dilewati.',
+      'Possible duplicates that can still be corrected. Previously imported rows remain excluded.',
+      '可能重复且仍可修正的记录。已导入的记录仍会跳过。');
+  String get noMatchingRows => _pick('Tidak ada transaksi pada filter ini.',
+      'No transactions match this filter.', '此筛选条件下没有交易。');
+  String selectedCount(int count) => _pick('$count transaksi dipilih',
+      '$count transactions selected', '已选择 $count 笔交易');
   String get alreadyImported => _pick(
       'Sudah diimpor dari PDF ini — dilewati agar tidak tercatat dua kali',
       'Already imported from this PDF — skipped to avoid importing twice',
@@ -565,8 +726,8 @@ class _BankImportText {
       'Baris serupa ada di PDF ini — tidak dipilih otomatis',
       'Similar row in this PDF — not selected automatically',
       '此 PDF 中有相似记录 — 默认不选择');
-  String get editTransaction => _pick('Koreksi transaksi',
-      'Correct transaction', '修正交易');
+  String get editTransaction =>
+      _pick('Koreksi transaksi', 'Correct transaction', '修正交易');
   String get date => _pick('Tanggal', 'Date', '日期');
   String get direction => _pick('Arah mutasi', 'Direction', '交易方向');
   String get debit => _pick('Debit / keluar', 'Debit / out', '借记 / 支出');
@@ -580,15 +741,16 @@ class _BankImportText {
   String get category => _pick('Kategori', 'Category', '类别');
   String get cancel => _pick('Batal', 'Cancel', '取消');
   String get save => _pick('Simpan', 'Save', '保存');
-  String get applyBalanceTitle => _pick('Terapkan ke saldo saat ini',
-      'Apply to current balance', '计入当前余额');
+  String get applyBalanceTitle =>
+      _pick('Terapkan ke saldo saat ini', 'Apply to current balance', '计入当前余额');
   String get applyBalanceSubtitle => _pick(
       'Default mati: catat sebagai riwayat tanpa mengubah saldo. Hidupkan hanya bila saldo akun sekarang belum mencakup mutasi ini.',
       'Off by default: record history without changing the balance. Turn on only if the current account balance does not yet include these transactions.',
       '默认关闭：仅记录历史，不改变余额。仅当当前账户余额尚未包含这些交易时才打开。');
   String importCount(int count) => _pick('Tinjau impor $count transaksi',
       'Review import of $count transactions', '检查导入 $count 笔交易');
-  String get confirmTitle => _pick('Konfirmasi impor', 'Confirm import', '确认导入');
+  String get confirmTitle =>
+      _pick('Konfirmasi impor', 'Confirm import', '确认导入');
   String confirmSummary(int count, String income, String expense) => _pick(
       '$count transaksi dipilih. Pemasukan $income, pengeluaran $expense.',
       '$count transactions selected. Income $income, expenses $expense.',
@@ -607,8 +769,8 @@ class _BankImportText {
       '$count baris tidak valid tidak akan diimpor. Periksa PDF dan catat manual bila perlu.',
       '$count invalid rows will not be imported. Check the PDF and record them manually if needed.',
       '$count 行无效且不会导入。请检查 PDF，必要时手动记录。');
-  String rowIssue(int row, String reason) => _pick('Baris $row: $reason',
-      'Row $row: $reason', '第 $row 行：$reason');
+  String rowIssue(int row, String reason) =>
+      _pick('Baris $row: $reason', 'Row $row: $reason', '第 $row 行：$reason');
   String balanceMismatch(String amount) => _pick(
       'Selisih saldo awal + mutasi - saldo akhir: $amount. Periksa baris yang hilang atau keliru.',
       'Opening balance + transactions differs from closing balance by $amount. Check for missing or incorrect rows.',
@@ -617,5 +779,6 @@ class _BankImportText {
       'Saldo awal atau akhir tidak terbaca. Kelengkapan mutasi belum bisa diperiksa dari saldo; cocokkan setiap baris dengan PDF asli.',
       'Opening or closing balance is unavailable. Completeness cannot be checked from balances; compare every row with the original PDF.',
       '期初或期末余额无法读取，无法通过余额核对交易完整性；请逐行核对原始 PDF。');
-  String get importButton => _pick('Setujui & impor', 'Approve & import', '批准并导入');
+  String get importButton =>
+      _pick('Setujui & impor', 'Approve & import', '批准并导入');
 }

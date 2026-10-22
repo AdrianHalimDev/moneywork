@@ -14,9 +14,21 @@
   "tooltipForecast": "30-day cash flow forecast",
   "tooltipImportStatementPdf": "Import PDF bank statement",
   "importSuccess": "{count} transactions added. Check the save status.",
-  "@importSuccess": {"placeholders": {"count": {"type": "int"}}},
+  "@importSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "importSkipped": "{count} previously imported transactions were skipped.",
-  "@importSkipped": {"placeholders": {"count": {"type": "int"}}},
+  "@importSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "syncStatusLoading": "Loading data",
   "syncStatusSynced": "Data saved",
   "syncStatusPending": "Saving changes",
@@ -44,8 +56,8 @@
   "fabAddAccount": "Add Account",
   "fabRecordTransaction": "Record Transaction",
   "errorLoadFailed": "Failed to load",
-  "emptyAccountTitle": "No accounts yet",
-  "emptyAccountSubtitle": "Add a bank account, cash wallet, or e-wallet\nto start tracking your finances.",
+  "emptyAccountTitle": "Add an account first",
+  "emptyAccountSubtitle": "Monthly transactions need an account as a source/destination.",
   "transactionHistory": "Transaction History",
   "noTransactionsFilter": "No transactions match the filter.",
   "searchHint": "Search notes / categories",
@@ -232,8 +244,6 @@
   "emptyCategory": "No expenses this month.",
   "tabMonthlyTx": "Monthly Transactions",
   "tooltipAddTemplate": "Add template",
-  "emptyAccountTitle": "Add an account first",
-  "emptyAccountSubtitle": "Monthly transactions need an account as a source/destination.",
   "emptyMonthlyTitle": "No monthly transactions yet",
   "emptyMonthlySubtitle": "Set up routine costs (subscriptions, bills, savings), then\nrun them all at once every month.",
   "runBarIncome": "In {amount}",
@@ -254,7 +264,6 @@
   "nominalLabel": "Amount",
   "fromAccountLabel": "From account",
   "toAccountLabel": "To account",
-  "accountLabel": "Account",
   "errorSelectAccount": "Select destination account",
   "errorSameAccount": "Select a different account",
   "categoryLabel": "Category",
@@ -316,7 +325,6 @@
   "passwordLabel": "Password",
   "passwordRequired": "Password is required",
   "passwordMinLen": "Minimum 6 characters",
-  "nameLabel": "Name",
   "nameRequired": "Name is required",
   "passwordConfirmLabel": "Confirm password",
   "requiredField": "Required field",
@@ -360,7 +368,6 @@
   "editDebtTitle": "Edit Debt",
   "addDebtTitle": "Add Debt",
   "debtNameHint": "e.g. Mortgage, Credit Card",
-  "typeLabel": "Type",
   "debtRemainingInputLabel": "Remaining debt",
   "monthlyPaymentOptional": "Monthly payment (optional)",
   "dueDateOptional": "Due date (optional)",
@@ -383,7 +390,6 @@
   "noteReceivableHint": "e.g. Dinner at X",
   "fundNowTitle": "I am funding this now",
   "fundNowSubtitle": "Money will be deducted from my account",
-  "fromAccountLabel": "From account",
   "reminderActiveDesc": "Reminders active. Set the time below.",
   "reminderNoPermission": "Notification permission denied. Enable in Phone Settings.",
   "reminderDisabled": "Reminders are turned off.",
@@ -445,7 +451,7 @@
   "reportAmount": "Amount",
   "notifSaveTime": "Time to save 💰",
   "notifSaveAmount": "Set aside {amount} for {name}.",
-  "notifSaveGeneral": "It's time to save for {name}.",
+  "notifSaveGeneral": "Time to save for {name}.",
   "accountTypeCash": "Cash",
   "accountTypeBank": "Bank",
   "accountTypeEwallet": "E-Wallet",
@@ -463,9 +469,14 @@
   "salaryAllocateDesc": "Salary is here, let's allocate it to various accounts and expenses.",
   "highExpenseTitle": "Daily expenses are quite high",
   "highExpenseDesc": "Average {avg} per day this month. Try to slow down.",
-  "@highExpenseDesc": { "placeholders": { "avg": { "type": "String" } } },
+  "@highExpenseDesc": {
+    "placeholders": {
+      "avg": {
+        "type": "String"
+      }
+    }
+  },
   "editAccountTitle": "Edit Account",
-
   "deleteTransactionWarning": "The account balance will be adjusted accordingly. This action cannot be undone.",
   "deleteAccountWarning": "All transactions related to this account will also be deleted.",
   "labelAccountName": "Account name",
@@ -478,14 +489,28 @@
   "labelBalance": "Balance",
   "labelInitialBalance": "Initial balance",
   "validationInvalidNumber": "Invalid number",
-  "addButton": "Add",
   "recordTransactionTitle": "Record Transaction",
   "labelAmount": "Amount",
   "helperBalance": "Balance of {name}: {balance}",
-  "@helperBalance": { "placeholders": { "name": { "type": "String" }, "balance": { "type": "String" } } },
+  "@helperBalance": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "validationInvalidAmount": "Enter a valid amount",
   "validationExceedBalance": "Exceeds balance ({balance})",
-  "@validationExceedBalance": { "placeholders": { "balance": { "type": "String" } } },
+  "@validationExceedBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "labelFromAccount": "From account",
   "labelToAccount": "To account",
   "validationSelectDest": "Select destination account",
@@ -498,14 +523,18 @@
   "hintCategory": "e.g. Food, Salary, Transport",
   "labelNote": "Note (optional)",
   "labelDate": "Date",
-
   "updateAvailable": "Update available",
   "updateVersion": "Update {version}",
-  "@updateVersion": { "placeholders": { "version": { "type": "String" } } },
+  "@updateVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "updateDefaultNotes": "A new version of the app is available.",
   "updateBtn": "Update",
   "retryBtn": "Retry",
-
   "excelHeaderDate": "Date",
   "excelHeaderType": "Type",
   "excelHeaderCategory": "Category",
@@ -513,12 +542,24 @@
   "excelHeaderAccount": "Account",
   "excelHeaderNote": "Note",
   "reportPrintedAt": "Printed on: {date}",
-  "@reportPrintedAt": { "placeholders": { "date": { "type": "String" } } },
+  "@reportPrintedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "legendIncome": "Income",
   "legendExpense": "Expense",
   "noTransactionPeriod": "No transactions in this period.",
   "shareReportText": "MoneyWork Transaction Report {period}",
-  "@shareReportText": { "placeholders": { "period": { "type": "String" } } },
+  "@shareReportText": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
   "excelHeaderBalance": "Balance",
   "excelHeaderBankNo": "Account No.",
   "excelHeaderCreatedAt": "Created At",
@@ -551,42 +592,92 @@
   "statusActive": "Active",
   "statusInactive": "Inactive",
   "shareBackupText": "MoneyWork Full Data Backup ({date})",
-  "@shareBackupText": { "placeholders": { "date": { "type": "String" } } },
+  "@shareBackupText": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "excelSheetAccounts": "Accounts",
   "excelSheetTransactions": "Transactions",
   "excelSheetDebts": "Debts",
   "excelSheetReceivables": "Receivables",
   "excelSheetInvestments": "Investments",
   "excelSheetRecurring": "Recurring",
-
   "priceErrNoTicker": "Please fill in the ticker/symbol first.",
   "priceErrUnsupported": "Auto-pricing is not available for this type.",
   "priceErrFetch": "Failed to fetch price. Check your internet connection.",
   "priceErrServer": "CoinGecko server error ({code}).",
-  "@priceErrServer": { "placeholders": { "code": { "type": "int" } } },
+  "@priceErrServer": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
   "priceErrNotFound": "Ticker \"{id}\" not found on CoinGecko.",
-  "@priceErrNotFound": { "placeholders": { "id": { "type": "String" } } },
+  "@priceErrNotFound": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
   "priceErrStockNotReady": "Stock auto-pricing not active (backend not deployed).",
   "priceErrStockServer": "Stock price server error ({code}).",
-  "@priceErrStockServer": { "placeholders": { "code": { "type": "int" } } },
+  "@priceErrStockServer": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
   "priceErrStockNotFound": "Stock code \"{code}\" not found.",
-  "@priceErrStockNotFound": { "placeholders": { "code": { "type": "String" } } },
-
+  "@priceErrStockNotFound": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "categoryOther": "Other",
-
   "errorLoadSession": "Failed to load session: {error}",
-  "@errorLoadSession": { "placeholders": { "error": { "type": "String" } } },
+  "@errorLoadSession": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "errorLoadSecurity": "Failed to load security status: {error}",
-  "@errorLoadSecurity": { "placeholders": { "error": { "type": "String" } } },
-
+  "@errorLoadSecurity": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "notifDailyTitle": "Record today's transactions",
   "notifDailyBody": "Don't forget to record your income & expenses in MoneyWork.",
-  "notifSaveAmount": "Set aside {amount} for {name}.",
-  "@notifSaveAmount": { "placeholders": { "amount": { "type": "String" }, "name": { "type": "String" } } },
-  "notifSaveGeneral": "Time to save for {name}.",
-  "@notifSaveGeneral": { "placeholders": { "name": { "type": "String" } } },
+  "@notifSaveAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@notifSaveGeneral": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "notifSaveTitle": "Time to save 💰",
-
   "receiptReview": "Receipt Review",
   "receiptVerified": "✅ Total matches — data is ready",
   "receiptMismatch": "⚠️ Total mismatch — please check the numbers below",
@@ -605,16 +696,96 @@
   "scanFromCamera": "Camera",
   "scanFromGallery": "Gallery",
   "scanChooseSource": "Choose Photo Source",
-
   "assignItemsTitle": "Assign Items",
   "howManyPeople": "How many people are splitting?",
   "nextStep": "Next",
   "enterNames": "Enter names for each person",
   "personNumber": "Person {number}",
-  "@personNumber": { "placeholders": { "number": { "type": "int" } } },
+  "@personNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "selectItemsFor": "Select items for {name}",
-  "@selectItemsFor": { "placeholders": { "name": { "type": "String" } } },
+  "@selectItemsFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "calculateSplit": "Calculate Split",
-  "editTransactionTitle": "Edit Transaction"
+  "editTransactionTitle": "Edit Transaction",
+  "assetsTitle": "Assets",
+  "myAssetsTitle": "My assets",
+  "financeTools": "Finance tools",
+  "welcomeBack": "Welcome back",
+  "greeting": "Hello, {name}.",
+  "personalFinance": "Your financial space",
+  "reorderAssets": "Reorder assets",
+  "assetOrderHint": "Drag the handle or use the up / down arrows.",
+  "saveAssetOrder": "Save order",
+  "moveAssetUp": "Move asset up",
+  "moveAssetDown": "Move asset down",
+  "manualAssetOrder": "My preferred order",
+  "assetOrderSaved": "Asset order updated. Check the sync status.",
+  "assetOrderChanged": "The order changed on another device. Close and reopen the reorder editor.",
+  "viewAll": "View all",
+  "scanReceiptAction": "Scan receipt",
+  "importStatementAction": "Import PDF",
+  "portfolioCost": "Invested capital",
+  "marketValue": "Market value",
+  "profitLoss": "Profit / loss",
+  "assetName": "Asset",
+  "orderLabel": "Order",
+  "accountsBalance": "Account balance",
+  "forecastTitle": "Cash flow forecast",
+  "forecastIntro": "Estimate your next 30 days from recurring transactions and debts due.",
+  "hideBalances": "Hide amounts",
+  "showBalances": "Show amounts",
+  "assetDistribution": "Investment allocation",
+  "assetOrderSyncHint": "The order syncs across devices once saved to the cloud.",
+  "reorderAccounts": "Reorder accounts",
+  "accountOrderHint": "Drag the handle or use the up / down arrows.",
+  "saveAccountOrder": "Save order",
+  "moveAccountUp": "Move account up",
+  "moveAccountDown": "Move account down",
+  "accountOrderSaved": "Account order updated. Check the sync status.",
+  "accountOrderChanged": "The account order changed on another device. Close and reopen the reorder editor.",
+  "accountOrderSyncHint": "This order is used in account lists and transaction account pickers, and syncs once saved to the cloud.",
+  "transactionMoreDetails": "Note & date",
+  "transactionSummary": "Transaction summary",
+  "transactionEditHint": "Amount, accounts and date are locked to preserve balances. You can change the category and note.",
+  "transactionNoAccounts": "Add an account before recording a transaction.",
+  "transactionNeedDestination": "Add another account to record a transfer.",
+  "transactionSaveFailed": "The transaction has not been saved. Try again.",
+  "focusAssetDetailsTitle": "Asset details",
+  "focusAssetMissing": "This asset was deleted or is unavailable.",
+  "focusAssetValueHint": "Market value is quantity × current price.",
+  "focusAccountBalance": "Account balance",
+  "focusAccountBalanceHint": "Total bank, cash and digital wallet balances",
+  "focusThisMonth": "Cash flow this month",
+  "focusMonthNet": "Net cash flow this month",
+  "focusNetWorthHint": "Balances + investments + receivables − debts",
+  "focusToolsShort": "Tools",
+  "focusAccountDetails": "Account details",
+  "focusAccountMissing": "This account was deleted or is unavailable.",
+  "focusRecordHere": "Record in this account",
+  "focusAppearance": "Appearance",
+  "focusDeviceSaved": "Saved on this device",
+  "focusDevicePending": "Saved on this device · awaiting sync",
+  "focusCloudSaved": "Synced",
+  "focusSyncFailed": "Sync has not completed",
+  "focusSyncHint": "Your changes remain on this device. Retry syncing when connected.",
+  "focusLoadFailed": "Data could not be loaded. Try again when connected.",
+  "focusConflict": "Another device changed this data. Review before loading the cloud version.",
+  "focusLocalMode": "Local mode · saved on this device",
+  "focusReviewSource": "View original document",
+  "focusReviewBeforeSave": "Review before saving",
+  "focusScanRetryHint": "The receipt could not be read. Your photo is available to retry.",
+  "focusReviewDifference": "Difference from document",
+  "focusAccountSaveFailed": "Account changes have not been saved. Try again.",
+  "focusAccountBalanceChanged": "The account balance changed while this form was open. Reopen the form before changing its balance."
 }
-

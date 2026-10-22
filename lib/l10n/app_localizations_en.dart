@@ -1906,4 +1906,235 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editTransactionTitle => 'Edit Transaction';
+
+  @override
+  String get assetsTitle => 'Assets';
+
+  @override
+  String get myAssetsTitle => 'My assets';
+
+  @override
+  String get financeTools => 'Finance tools';
+
+  @override
+  String get welcomeBack => 'Welcome back';
+
+  @override
+  String greeting(String name) {
+    return 'Hello, $name.';
+  }
+
+  @override
+  String get personalFinance => 'Your financial space';
+
+  @override
+  String get reorderAssets => 'Reorder assets';
+
+  @override
+  String get assetOrderHint => 'Drag the handle or use the up / down arrows.';
+
+  @override
+  String get saveAssetOrder => 'Save order';
+
+  @override
+  String get moveAssetUp => 'Move asset up';
+
+  @override
+  String get moveAssetDown => 'Move asset down';
+
+  @override
+  String get manualAssetOrder => 'My preferred order';
+
+  @override
+  String get assetOrderSaved => 'Asset order updated. Check the sync status.';
+
+  @override
+  String get assetOrderChanged =>
+      'The order changed on another device. Close and reopen the reorder editor.';
+
+  @override
+  String get viewAll => 'View all';
+
+  @override
+  String get scanReceiptAction => 'Scan receipt';
+
+  @override
+  String get importStatementAction => 'Import PDF';
+
+  @override
+  String get portfolioCost => 'Invested capital';
+
+  @override
+  String get marketValue => 'Market value';
+
+  @override
+  String get profitLoss => 'Profit / loss';
+
+  @override
+  String get assetName => 'Asset';
+
+  @override
+  String get orderLabel => 'Order';
+
+  @override
+  String get accountsBalance => 'Account balance';
+
+  @override
+  String get forecastTitle => 'Cash flow forecast';
+
+  @override
+  String get forecastIntro =>
+      'Estimate your next 30 days from recurring transactions and debts due.';
+
+  @override
+  String get hideBalances => 'Hide amounts';
+
+  @override
+  String get showBalances => 'Show amounts';
+
+  @override
+  String get assetDistribution => 'Investment allocation';
+
+  @override
+  String get assetOrderSyncHint =>
+      'The order syncs across devices once saved to the cloud.';
+
+  @override
+  String get reorderAccounts => 'Reorder accounts';
+
+  @override
+  String get accountOrderHint => 'Drag the handle or use the up / down arrows.';
+
+  @override
+  String get saveAccountOrder => 'Save order';
+
+  @override
+  String get moveAccountUp => 'Move account up';
+
+  @override
+  String get moveAccountDown => 'Move account down';
+
+  @override
+  String get accountOrderSaved =>
+      'Account order updated. Check the sync status.';
+
+  @override
+  String get accountOrderChanged =>
+      'The account order changed on another device. Close and reopen the reorder editor.';
+
+  @override
+  String get accountOrderSyncHint =>
+      'This order is used in account lists and transaction account pickers, and syncs once saved to the cloud.';
+
+  @override
+  String get transactionMoreDetails => 'Note & date';
+
+  @override
+  String get transactionSummary => 'Transaction summary';
+
+  @override
+  String get transactionEditHint =>
+      'Amount, accounts and date are locked to preserve balances. You can change the category and note.';
+
+  @override
+  String get transactionNoAccounts =>
+      'Add an account before recording a transaction.';
+
+  @override
+  String get transactionNeedDestination =>
+      'Add another account to record a transfer.';
+
+  @override
+  String get transactionSaveFailed =>
+      'The transaction has not been saved. Try again.';
+
+  @override
+  String get focusAssetDetailsTitle => 'Asset details';
+
+  @override
+  String get focusAssetMissing => 'This asset was deleted or is unavailable.';
+
+  @override
+  String get focusAssetValueHint => 'Market value is quantity × current price.';
+
+  @override
+  String get focusAccountBalance => 'Account balance';
+
+  @override
+  String get focusAccountBalanceHint =>
+      'Total bank, cash and digital wallet balances';
+
+  @override
+  String get focusThisMonth => 'Cash flow this month';
+
+  @override
+  String get focusMonthNet => 'Net cash flow this month';
+
+  @override
+  String get focusNetWorthHint =>
+      'Balances + investments + receivables − debts';
+
+  @override
+  String get focusToolsShort => 'Tools';
+
+  @override
+  String get focusAccountDetails => 'Account details';
+
+  @override
+  String get focusAccountMissing =>
+      'This account was deleted or is unavailable.';
+
+  @override
+  String get focusRecordHere => 'Record in this account';
+
+  @override
+  String get focusAppearance => 'Appearance';
+
+  @override
+  String get focusDeviceSaved => 'Saved on this device';
+
+  @override
+  String get focusDevicePending => 'Saved on this device · awaiting sync';
+
+  @override
+  String get focusCloudSaved => 'Synced';
+
+  @override
+  String get focusSyncFailed => 'Sync has not completed';
+
+  @override
+  String get focusSyncHint =>
+      'Your changes remain on this device. Retry syncing when connected.';
+
+  @override
+  String get focusLoadFailed =>
+      'Data could not be loaded. Try again when connected.';
+
+  @override
+  String get focusConflict =>
+      'Another device changed this data. Review before loading the cloud version.';
+
+  @override
+  String get focusLocalMode => 'Local mode · saved on this device';
+
+  @override
+  String get focusReviewSource => 'View original document';
+
+  @override
+  String get focusReviewBeforeSave => 'Review before saving';
+
+  @override
+  String get focusScanRetryHint =>
+      'The receipt could not be read. Your photo is available to retry.';
+
+  @override
+  String get focusReviewDifference => 'Difference from document';
+
+  @override
+  String get focusAccountSaveFailed =>
+      'Account changes have not been saved. Try again.';
+
+  @override
+  String get focusAccountBalanceChanged =>
+      'The account balance changed while this form was open. Reopen the form before changing its balance.';
 }

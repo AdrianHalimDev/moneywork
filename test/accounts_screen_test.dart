@@ -18,12 +18,18 @@ void main() {
     await initializeDateFormatting('id_ID', null);
   });
 
-  testWidgets('AccountsScreen renders and opens add transaction dialog', (WidgetTester tester) async {
+  testWidgets('AccountsScreen renders and opens add transaction dialog',
+      (WidgetTester tester) async {
     final now = DateTime.now();
     // Setup state with a transaction to populate the category list for autocomplete
     final appState = AppState(
       accounts: [
-        model.Account(id: 'a1', name: 'BCA', type: model.AccountType.bank, balance: 100000, createdAt: now)
+        model.Account(
+            id: 'a1',
+            name: 'BCA',
+            type: model.AccountType.bank,
+            balance: 100000,
+            createdAt: now)
       ],
       transactions: [
         model.Transaction(
@@ -67,7 +73,7 @@ void main() {
 
     // The dialog should appear (Catat Transaksi text is used for FAB and Dialog Title)
     expect(find.text('Catat Transaksi'), findsNWidgets(2));
-    
+
     // Find Kategori input
     final categoryField = find.widgetWithText(TextField, 'Kategori');
     expect(categoryField, findsOneWidget);
@@ -79,9 +85,13 @@ void main() {
     // Ensure autocomplete suggestion "Makanan Enak" appears
     expect(find.text('Makanan Enak'), findsWidgets);
 
-    Navigator.of(tester.element(find.byType(AccountsScreen, skipOffstage: false))).pop();
+    Navigator.of(
+            tester.element(find.byType(AccountsScreen, skipOffstage: false)))
+        .pop();
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Impor mutasi rekening PDF'));
+    await tester.tap(find.text('Alat'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Impor PDF'));
     await tester.pumpAndSettle();
     expect(find.byType(BankStatementImportScreen), findsOneWidget);
     expect(find.text('Pilih PDF mutasi'), findsOneWidget);

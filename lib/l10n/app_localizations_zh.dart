@@ -1874,4 +1874,216 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editTransactionTitle => '编辑交易';
+
+  @override
+  String get assetsTitle => '资产';
+
+  @override
+  String get myAssetsTitle => '我的资产';
+
+  @override
+  String get financeTools => '财务工具';
+
+  @override
+  String get welcomeBack => '欢迎回来';
+
+  @override
+  String greeting(String name) {
+    return '你好，$name。';
+  }
+
+  @override
+  String get personalFinance => '个人财务空间';
+
+  @override
+  String get reorderAssets => '调整顺序';
+
+  @override
+  String get assetOrderHint => '拖动手柄或使用上下箭头。';
+
+  @override
+  String get saveAssetOrder => '保存顺序';
+
+  @override
+  String get moveAssetUp => '上移资产';
+
+  @override
+  String get moveAssetDown => '下移资产';
+
+  @override
+  String get manualAssetOrder => '自定义顺序';
+
+  @override
+  String get assetOrderSaved => '资产顺序已更新。请查看同步状态。';
+
+  @override
+  String get assetOrderChanged => '其他设备已更改顺序。请关闭并重新打开排序界面。';
+
+  @override
+  String get viewAll => '查看全部';
+
+  @override
+  String get scanReceiptAction => '扫描收据';
+
+  @override
+  String get importStatementAction => '导入 PDF';
+
+  @override
+  String get portfolioCost => '投资成本';
+
+  @override
+  String get marketValue => '市值';
+
+  @override
+  String get profitLoss => '盈亏';
+
+  @override
+  String get assetName => '资产';
+
+  @override
+  String get orderLabel => '顺序';
+
+  @override
+  String get accountsBalance => '账户余额';
+
+  @override
+  String get forecastTitle => '现金流预测';
+
+  @override
+  String get forecastIntro => '根据定期交易和到期债务预测未来 30 天余额。';
+
+  @override
+  String get hideBalances => '隐藏金额';
+
+  @override
+  String get showBalances => '显示金额';
+
+  @override
+  String get assetDistribution => '投资构成';
+
+  @override
+  String get assetOrderSyncHint => '顺序保存到云端后会同步到其他设备。';
+
+  @override
+  String get reorderAccounts => '调整账户顺序';
+
+  @override
+  String get accountOrderHint => '拖动手柄或使用上下箭头。';
+
+  @override
+  String get saveAccountOrder => '保存顺序';
+
+  @override
+  String get moveAccountUp => '上移账户';
+
+  @override
+  String get moveAccountDown => '下移账户';
+
+  @override
+  String get accountOrderSaved => '账户顺序已更新。请查看同步状态。';
+
+  @override
+  String get accountOrderChanged => '其他设备已更改账户顺序。请关闭并重新打开排序界面。';
+
+  @override
+  String get accountOrderSyncHint => '此顺序用于账户列表和交易账户选项，保存到云端后同步。';
+
+  @override
+  String get transactionMoreDetails => '备注与日期';
+
+  @override
+  String get transactionSummary => '交易摘要';
+
+  @override
+  String get transactionEditHint => '为保持余额准确，金额、账户及日期已锁定。您可修改分类和备注。';
+
+  @override
+  String get transactionNoAccounts => '请先添加账户再记录交易。';
+
+  @override
+  String get transactionNeedDestination => '请添加另一个账户以记录转账。';
+
+  @override
+  String get transactionSaveFailed => '交易尚未保存，请重试。';
+
+  @override
+  String get focusAssetDetailsTitle => '资产详情';
+
+  @override
+  String get focusAssetMissing => '此资产已删除或不可用。';
+
+  @override
+  String get focusAssetValueHint => '市值按数量 × 当前价格计算。';
+
+  @override
+  String get focusAccountBalance => '账户余额';
+
+  @override
+  String get focusAccountBalanceHint => '银行、现金及电子钱包余额合计';
+
+  @override
+  String get focusThisMonth => '本月现金流';
+
+  @override
+  String get focusMonthNet => '本月净现金流';
+
+  @override
+  String get focusNetWorthHint => '余额 + 投资 + 应收款 − 债务';
+
+  @override
+  String get focusToolsShort => '工具';
+
+  @override
+  String get focusAccountDetails => '账户详情';
+
+  @override
+  String get focusAccountMissing => '此账户已删除或不可用。';
+
+  @override
+  String get focusRecordHere => '在此账户记录';
+
+  @override
+  String get focusAppearance => '外观';
+
+  @override
+  String get focusDeviceSaved => '已保存到此设备';
+
+  @override
+  String get focusDevicePending => '已保存到此设备 · 等待同步';
+
+  @override
+  String get focusCloudSaved => '已同步';
+
+  @override
+  String get focusSyncFailed => '同步尚未完成';
+
+  @override
+  String get focusSyncHint => '更改仍保存在此设备。联网后请重试同步。';
+
+  @override
+  String get focusLoadFailed => '无法加载数据，请联网后重试。';
+
+  @override
+  String get focusConflict => '其他设备更改了此数据。加载云端版本前请先检查。';
+
+  @override
+  String get focusLocalMode => '本地模式 · 已保存到此设备';
+
+  @override
+  String get focusReviewSource => '查看原始文件';
+
+  @override
+  String get focusReviewBeforeSave => '保存前请核对';
+
+  @override
+  String get focusScanRetryHint => '无法识别收据，照片仍可用于重试。';
+
+  @override
+  String get focusReviewDifference => '与原始文件的差额';
+
+  @override
+  String get focusAccountSaveFailed => '账户更改尚未保存，请重试。';
+
+  @override
+  String get focusAccountBalanceChanged => '表单打开期间账户余额已发生变化。修改余额前请重新打开表单。';
 }

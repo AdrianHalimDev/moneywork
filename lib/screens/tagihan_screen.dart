@@ -3,6 +3,7 @@ import 'package:moneywork/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../widgets/dialogs/debt_dialogs.dart';
+import '../widgets/display_controls.dart';
 import '../widgets/dialogs/receivable_dialogs.dart';
 import 'debts_screen.dart';
 import 'receivables_screen.dart';
@@ -39,6 +40,7 @@ class _TagihanScreenState extends ConsumerState<TagihanScreen>
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.titleBills),
         actions: [
+          const AmountVisibilityButton(),
           IconButton(
             icon: const Icon(Icons.calculate_outlined),
             tooltip: AppLocalizations.of(context)!.tooltipSplitBill,
@@ -49,7 +51,9 @@ class _TagihanScreenState extends ConsumerState<TagihanScreen>
           // Tombol tambah yang menyesuaikan tab aktif
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: _tabCtrl.index == 0 ? AppLocalizations.of(context)!.tooltipAddDebt : AppLocalizations.of(context)!.tooltipAddReceivable,
+            tooltip: _tabCtrl.index == 0
+                ? AppLocalizations.of(context)!.tooltipAddDebt
+                : AppLocalizations.of(context)!.tooltipAddReceivable,
             onPressed: () {
               if (_tabCtrl.index == 0) {
                 showDebtDialog(context, ref);

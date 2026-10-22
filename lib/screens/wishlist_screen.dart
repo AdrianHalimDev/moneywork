@@ -7,8 +7,10 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../data/app_state.dart';
+import '../data/display_preferences.dart';
 import '../models/wishlist_item.dart';
 import '../widgets/common.dart';
+import '../widgets/display_controls.dart';
 
 /// Layar Wishlist: barang yang ingin dibeli, lengkap dengan link,
 /// harga, prioritas, dan target tanggal realisasi (opsional).
@@ -19,7 +21,9 @@ class WishlistScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(appStateProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.tabWishlist)),
+      appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.tabWishlist),
+          actions: const [AmountVisibilityButton()]),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showWishDialog(context, ref),
         icon: const Icon(Icons.add),
@@ -27,7 +31,8 @@ class WishlistScreen extends ConsumerWidget {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('${AppLocalizations.of(context)!.snackFailed} $e')),
+        error: (e, _) => Center(
+            child: Text('${AppLocalizations.of(context)!.snackFailed} $e')),
         data: (state) => _Body(state: state),
       ),
     );
@@ -52,8 +57,7 @@ class _Body extends ConsumerWidget {
     final pending = state.wishlist.where((w) => !w.purchased).toList()
       ..sort((a, b) => b.priority.index.compareTo(a.priority.index));
     final done = state.wishlist.where((w) => w.purchased).toList();
-    final totalPending =
-        pending.fold<double>(0, (s, w) => s + w.price);
+    final totalPending = pending.fold<double>(0, (s, w) => s + w.price);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 96),
@@ -65,8 +69,9 @@ class _Body extends ConsumerWidget {
               leading: const IconBadge(
                   icon: Icons.savings_outlined, color: AppTheme.investment),
               title: Text(AppLocalizations.of(context)!.totalTargetBelanja),
-              subtitle: Text(AppLocalizations.of(context)!.barangBelumDibeli(pending.length.toString())),
-              trailing: Text(Fmt.rupiah(totalPending),
+              subtitle: Text(AppLocalizations.of(context)!
+                  .barangBelumDibeli(pending.length.toString())),
+              trailing: Text(formatVisibleMoney(ref, totalPending),
                   style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
@@ -99,13 +104,14 @@ class _WishTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final hidden = ref.watch(amountsHiddenProvider);
     final l10n = AppLocalizations.of(context)!;
     final target = item.targetDate;
     final subtitleParts = <String>[
       item.priority.label(AppLocalizations.of(context)!),
       if (target != null) '${l10n.targetDateLabel} ${Fmt.date(target)}',
       if (item.monthlySaving > 0)
-        '${Fmt.rupiahCompact(item.monthlySaving)}${l10n.savingPerMonthSuffix}',
+        '${formatVisibleMoney(ref, item.monthlySaving, compact: true)}${l10n.savingPerMonthSuffix}',
     ];
     final showSaving = !item.purchased && item.hasSavingPlan;
 
@@ -140,19 +146,20 @@ class _WishTile extends ConsumerWidget {
           ),
           if (showSaving) ...[
             const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: item.savingProgress,
-                minHeight: 5,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                color: AppTheme.income,
+            if (!hidden)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: item.savingProgress,
+                  minHeight: 5,
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  color: AppTheme.income,
+                ),
               ),
-            ),
             const SizedBox(height: 2),
             Text(
-              '${l10n.savingProgressLabel(Fmt.rupiah(item.savedAmount), Fmt.rupiah(item.price))}'
-              '${item.monthsRemaining > 0 ? l10n.savingMonthsRemaining(item.monthsRemaining.toString()) : ''}',
+              '${l10n.savingProgressLabel(formatVisibleMoney(ref, item.savedAmount), formatVisibleMoney(ref, item.price))}'
+              '${!hidden && item.monthsRemaining > 0 ? l10n.savingMonthsRemaining(item.monthsRemaining.toString()) : ''}',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.outline),
             ),
@@ -169,7 +176,7 @@ class _WishTile extends ConsumerWidget {
               onPressed: () => _showContribute(context, ref),
             )
           else
-            Text(Fmt.rupiah(item.price),
+            Text(formatVisibleMoney(ref, item.price),
                 style: const TextStyle(fontWeight: FontWeight.w600)),
           if (item.url.isNotEmpty)
             IconButton(
@@ -185,12 +192,10 @@ class _WishTile extends ConsumerWidget {
 
   Future<void> _showContribute(BuildContext context, WidgetRef ref) async {
     final ctrl = TextEditingController(
-        text: item.monthlySaving > 0
-            ? Fmt.groupInput(item.monthlySaving)
-            : '');
+        text: item.monthlySaving > 0 ? Fmt.groupInput(item.monthlySaving) : '');
     final formKey = GlobalKey<FormState>();
     final accounts =
-        ref.read(appStateProvider).valueOrNull?.accounts ?? const [];
+        ref.read(appStateProvider).valueOrNull?.orderedAccounts ?? const [];
     // Default ke rekening tabungan wishlist bila masih ada, jika tidak rekening
     // pertama. Boleh juga null = catat progres tanpa memotong saldo.
     String? accountId = accounts.any((a) => a.id == item.savingAccountId)
@@ -202,80 +207,82 @@ class _WishTile extends ConsumerWidget {
       builder: (context) {
         final l10n = AppLocalizations.of(context)!;
         return StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(l10n.dialogNabungTitle(item.name)),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l10n.savingProgressLabel(Fmt.rupiah(item.savedAmount), Fmt.rupiah(item.price))),
-                const SizedBox(height: 4),
-                Text(l10n.dialogNabungSisa(Fmt.rupiah(item.remainingToSave)),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline)),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: ctrl,
-                  autofocus: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [ThousandsInputFormatter()],
-                  decoration: InputDecoration(
-                      labelText: l10n.dialogNabungJumlah, prefixText: 'Rp '),
-                  validator: (v) {
-                    final n = Fmt.tryParseInput(v ?? '');
-                    if (n == null || n <= 0) return l10n.invalidNumber;
-                    return null;
-                  },
-                ),
-                if (accounts.isNotEmpty) ...[
+          builder: (context, setState) => AlertDialog(
+            title: Text(l10n.dialogNabungTitle(item.name)),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(l10n.savingProgressLabel(
+                      Fmt.rupiah(item.savedAmount), Fmt.rupiah(item.price))),
+                  const SizedBox(height: 4),
+                  Text(l10n.dialogNabungSisa(Fmt.rupiah(item.remainingToSave)),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline)),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String?>(
-                    initialValue: accountId,
-                    decoration:
-                        InputDecoration(labelText: l10n.dialogNabungAmbilDari),
-                    items: [
-                      DropdownMenuItem(
-                          value: null, child: Text(l10n.dialogNabungTanpaPotong)),
-                      for (final a in accounts)
-                        DropdownMenuItem(
-                            value: a.id,
-                            child: Text(
-                                '${a.name} · ${Fmt.rupiah(a.balance)}')),
-                    ],
-                    onChanged: (v) => setState(() => accountId = v),
+                  TextFormField(
+                    controller: ctrl,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [ThousandsInputFormatter()],
+                    decoration: InputDecoration(
+                        labelText: l10n.dialogNabungJumlah, prefixText: 'Rp '),
+                    validator: (v) {
+                      final n = Fmt.tryParseInput(v ?? '');
+                      if (n == null || n <= 0) return l10n.invalidNumber;
+                      return null;
+                    },
                   ),
+                  if (accounts.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String?>(
+                      initialValue: accountId,
+                      decoration: InputDecoration(
+                          labelText: l10n.dialogNabungAmbilDari),
+                      items: [
+                        DropdownMenuItem(
+                            value: null,
+                            child: Text(l10n.dialogNabungTanpaPotong)),
+                        for (final a in accounts)
+                          DropdownMenuItem(
+                              value: a.id,
+                              child:
+                                  Text('${a.name} · ${Fmt.rupiah(a.balance)}')),
+                      ],
+                      onChanged: (v) => setState(() => accountId = v),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(l10n.cancelButton)),
+              FilledButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+                  final messenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.of(context);
+                  final error = await ref
+                      .read(appStateProvider.notifier)
+                      .contributeToWish(
+                        item.id,
+                        Fmt.tryParseInput(ctrl.text)!,
+                        accountId: accountId,
+                      );
+                  if (error != null) {
+                    messenger.showSnackBar(SnackBar(content: Text(error)));
+                    return;
+                  }
+                  navigator.pop();
+                },
+                child: Text(l10n.recordButton),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(l10n.cancelButton)),
-            FilledButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(context);
-                final error = await ref
-                    .read(appStateProvider.notifier)
-                    .contributeToWish(
-                      item.id,
-                      Fmt.tryParseInput(ctrl.text)!,
-                      accountId: accountId,
-                    );
-                if (error != null) {
-                  messenger.showSnackBar(SnackBar(content: Text(error)));
-                  return;
-                }
-                navigator.pop();
-              },
-              child: Text(l10n.recordButton),
-            ),
-          ],
-        ),
-      );
+        );
       },
     );
   }
@@ -309,7 +316,8 @@ Future<void> showWishDialog(
   final isEdit = existing != null;
   final formKey = GlobalKey<FormState>();
 
-  final accounts = ref.read(appStateProvider).valueOrNull?.accounts ?? const [];
+  final accounts =
+      ref.read(appStateProvider).valueOrNull?.orderedAccounts ?? const [];
 
   // Kalkulator dua-arah: hitung jangka waktu dari tabungan bulanan.
   void recalcDuration() {
@@ -336,238 +344,241 @@ Future<void> showWishDialog(
     builder: (context) {
       final l10n = AppLocalizations.of(context)!;
       return StatefulBuilder(
-      builder: (context, setState) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 8,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-        ),
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(isEdit ? l10n.editWishlist : l10n.addWishlist,
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: nameCtrl,
-                autofocus: !isEdit,
-                decoration: InputDecoration(
-                    labelText: l10n.itemNameLabel,
-                    hintText: l10n.itemNameHint),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: priceCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsInputFormatter()],
-                decoration: InputDecoration(
-                    labelText: l10n.estPriceLabel, prefixText: 'Rp '),
-                validator: (v) {
-                  final n = Fmt.tryParseInput(v ?? '');
-                  if (n == null || n < 0) return l10n.invalidNumber;
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: urlCtrl,
-                keyboardType: TextInputType.url,
-                decoration: InputDecoration(
-                    labelText: l10n.linkOptionalLabel,
-                    hintText: 'https://...'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<WishPriority>(
-                initialValue: priority,
-                decoration: InputDecoration(labelText: l10n.priorityLabel),
-                items: [
-                  for (final p in WishPriority.values)
-                    DropdownMenuItem(
-                        value: p,
-                        child: Row(children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                                color: p.color, shape: BoxShape.circle),
-                          ),
-                          Text(p.label(AppLocalizations.of(context)!)),
-                        ])),
-                ],
-                onChanged: (v) => setState(() => priority = v ?? priority),
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: targetDate ?? DateTime.now(),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) setState(() => targetDate = picked);
-                },
-                child: InputDecorator(
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 8,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+          ),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(isEdit ? l10n.editWishlist : l10n.addWishlist,
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: nameCtrl,
+                  autofocus: !isEdit,
                   decoration: InputDecoration(
-                    labelText: l10n.targetDateOptionalLabel,
-                    suffixIcon: targetDate != null
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () =>
-                                setState(() => targetDate = null),
-                          )
-                        : const Icon(Icons.calendar_today, size: 18),
-                  ),
-                  child: Text(targetDate != null
-                      ? Fmt.dateFull(targetDate!)
-                      : l10n.selectDate),
+                      labelText: l10n.itemNameLabel,
+                      hintText: l10n.itemNameHint),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(l10n.savingPlanOptional,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.primary)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: monthlyCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [ThousandsInputFormatter()],
-                      decoration: InputDecoration(
-                          labelText: l10n.savePerMonthLabel, prefixText: 'Rp '),
-                      // Isi tabungan -> hitung durasi otomatis.
-                      onChanged: (_) => setState(recalcDuration),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: priceCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [ThousandsInputFormatter()],
+                  decoration: InputDecoration(
+                      labelText: l10n.estPriceLabel, prefixText: 'Rp '),
+                  validator: (v) {
+                    final n = Fmt.tryParseInput(v ?? '');
+                    if (n == null || n < 0) return l10n.invalidNumber;
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: urlCtrl,
+                  keyboardType: TextInputType.url,
+                  decoration: InputDecoration(
+                      labelText: l10n.linkOptionalLabel,
+                      hintText: 'https://...'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<WishPriority>(
+                  initialValue: priority,
+                  decoration: InputDecoration(labelText: l10n.priorityLabel),
+                  items: [
+                    for (final p in WishPriority.values)
+                      DropdownMenuItem(
+                          value: p,
+                          child: Row(children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                  color: p.color, shape: BoxShape.circle),
+                            ),
+                            Text(p.label(AppLocalizations.of(context)!)),
+                          ])),
+                  ],
+                  onChanged: (v) => setState(() => priority = v ?? priority),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: targetDate ?? DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) setState(() => targetDate = picked);
+                  },
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: l10n.targetDateOptionalLabel,
+                      suffixIcon: targetDate != null
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () =>
+                                  setState(() => targetDate = null),
+                            )
+                          : const Icon(Icons.calendar_today, size: 18),
                     ),
+                    child: Text(targetDate != null
+                        ? Fmt.dateFull(targetDate!)
+                        : l10n.selectDate),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: durationCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                          labelText: l10n.durationLabel, suffixText: l10n.monthSuffix),
-                      // Isi durasi -> hitung tabungan otomatis.
-                      onChanged: (_) => setState(recalcMonthly),
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.savingPlanOptional,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.primary)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: monthlyCtrl,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [ThousandsInputFormatter()],
+                        decoration: InputDecoration(
+                            labelText: l10n.savePerMonthLabel,
+                            prefixText: 'Rp '),
+                        // Isi tabungan -> hitung durasi otomatis.
+                        onChanged: (_) => setState(recalcDuration),
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: durationCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                            labelText: l10n.durationLabel,
+                            suffixText: l10n.monthSuffix),
+                        // Isi durasi -> hitung tabungan otomatis.
+                        onChanged: (_) => setState(recalcMonthly),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Builder(builder: (context) {
+                  final monthly = Fmt.tryParseInput(monthlyCtrl.text) ?? 0;
+                  final months = int.tryParse(durationCtrl.text.trim()) ?? 0;
+                  if (monthly <= 0 || months <= 0) {
+                    return Text(l10n.calcHelperText,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline));
+                  }
+                  return Text(
+                    l10n.nabungSelamaHelper(
+                        Fmt.rupiah(monthly), months.toString()),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppTheme.income),
+                  );
+                }),
+                if (accounts.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String?>(
+                    initialValue: savingAccountId,
+                    decoration:
+                        InputDecoration(labelText: l10n.saveFromAccountLabel),
+                    items: [
+                      DropdownMenuItem(
+                          value: null, child: Text(l10n.noneOption)),
+                      for (final a in accounts)
+                        DropdownMenuItem(value: a.id, child: Text(a.name)),
+                    ],
+                    onChanged: (v) => setState(() => savingAccountId = v),
                   ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              Builder(builder: (context) {
-                final monthly = Fmt.tryParseInput(monthlyCtrl.text) ?? 0;
-                final months = int.tryParse(durationCtrl.text.trim()) ?? 0;
-                if (monthly <= 0 || months <= 0) {
-                  return Text(
-                      l10n.calcHelperText,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline));
-                }
-                return Text(
-                  l10n.nabungSelamaHelper(Fmt.rupiah(monthly), months.toString()),
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppTheme.income),
-                );
-              }),
-              if (accounts.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String?>(
-                  initialValue: savingAccountId,
-                  decoration:
-                      InputDecoration(labelText: l10n.saveFromAccountLabel),
+                DropdownButtonFormField<int>(
+                  initialValue: reminderDay,
+                  decoration: InputDecoration(labelText: l10n.reminderDayLabel),
                   items: [
-                    DropdownMenuItem(value: null, child: Text(l10n.noneOption)),
-                    for (final a in accounts)
-                      DropdownMenuItem(value: a.id, child: Text(a.name)),
+                    DropdownMenuItem(value: 0, child: Text(l10n.noReminder)),
+                    for (var d = 1; d <= 28; d++)
+                      DropdownMenuItem(
+                          value: d, child: Text(l10n.dateSuffix(d.toString()))),
                   ],
-                  onChanged: (v) => setState(() => savingAccountId = v),
+                  onChanged: (v) => setState(() => reminderDay = v ?? 0),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    if (isEdit)
+                      TextButton.icon(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await ref
+                              .read(appStateProvider.notifier)
+                              .deleteWish(existing.id);
+                        },
+                        icon: const Icon(Icons.delete_outline,
+                            color: AppTheme.expense),
+                        label: Text(l10n.deleteLabel,
+                            style: const TextStyle(color: AppTheme.expense)),
+                      ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () {
+                        if (!formKey.currentState!.validate()) return;
+                        final price = Fmt.tryParseInput(priceCtrl.text)!;
+                        final monthly =
+                            Fmt.tryParseInput(monthlyCtrl.text) ?? 0;
+                        final months =
+                            int.tryParse(durationCtrl.text.trim()) ?? 0;
+                        final ctrl = ref.read(appStateProvider.notifier);
+                        if (isEdit) {
+                          ctrl.updateWish(existing.copyWith(
+                            name: nameCtrl.text.trim(),
+                            price: price,
+                            url: urlCtrl.text.trim(),
+                            priority: priority,
+                            targetDate: targetDate,
+                            clearTargetDate: targetDate == null,
+                            monthlySaving: monthly,
+                            durationMonths: months,
+                            reminderDay: reminderDay,
+                            savingAccountId: savingAccountId,
+                            clearSavingAccount: savingAccountId == null,
+                          ));
+                        } else {
+                          ctrl.addWish(
+                            name: nameCtrl.text.trim(),
+                            price: price,
+                            url: urlCtrl.text.trim(),
+                            priority: priority,
+                            targetDate: targetDate,
+                            monthlySaving: monthly,
+                            durationMonths: months,
+                            reminderDay: reminderDay,
+                            savingAccountId: savingAccountId,
+                          );
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: Text(isEdit ? l10n.saveButton : l10n.addButton),
+                    ),
+                  ],
                 ),
               ],
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: reminderDay,
-                decoration: InputDecoration(
-                    labelText: l10n.reminderDayLabel),
-                items: [
-                  DropdownMenuItem(value: 0, child: Text(l10n.noReminder)),
-                  for (var d = 1; d <= 28; d++)
-                    DropdownMenuItem(value: d, child: Text(l10n.dateSuffix(d.toString()))),
-                ],
-                onChanged: (v) => setState(() => reminderDay = v ?? 0),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  if (isEdit)
-                    TextButton.icon(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await ref
-                            .read(appStateProvider.notifier)
-                            .deleteWish(existing.id);
-                      },
-                      icon: const Icon(Icons.delete_outline,
-                          color: AppTheme.expense),
-                      label: Text(l10n.deleteLabel,
-                          style: const TextStyle(color: AppTheme.expense)),
-                    ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () {
-                      if (!formKey.currentState!.validate()) return;
-                      final price = Fmt.tryParseInput(priceCtrl.text)!;
-                      final monthly =
-                          Fmt.tryParseInput(monthlyCtrl.text) ?? 0;
-                      final months =
-                          int.tryParse(durationCtrl.text.trim()) ?? 0;
-                      final ctrl = ref.read(appStateProvider.notifier);
-                      if (isEdit) {
-                        ctrl.updateWish(existing.copyWith(
-                          name: nameCtrl.text.trim(),
-                          price: price,
-                          url: urlCtrl.text.trim(),
-                          priority: priority,
-                          targetDate: targetDate,
-                          clearTargetDate: targetDate == null,
-                          monthlySaving: monthly,
-                          durationMonths: months,
-                          reminderDay: reminderDay,
-                          savingAccountId: savingAccountId,
-                          clearSavingAccount: savingAccountId == null,
-                        ));
-                      } else {
-                        ctrl.addWish(
-                          name: nameCtrl.text.trim(),
-                          price: price,
-                          url: urlCtrl.text.trim(),
-                          priority: priority,
-                          targetDate: targetDate,
-                          monthlySaving: monthly,
-                          durationMonths: months,
-                          reminderDay: reminderDay,
-                          savingAccountId: savingAccountId,
-                        );
-                      }
-                      Navigator.pop(context);
-                    },
-                    child: Text(isEdit ? l10n.saveButton : l10n.addButton),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
-      ),
       );
     },
   );

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseException;
 import 'package:flutter/material.dart' show ThemeMode, Locale;
 import 'package:moneywork/l10n/app_localizations.dart';
@@ -63,10 +65,13 @@ final appStateProvider =
 enum SyncPhase { loading, synced, pending, error }
 
 class SyncStatus {
-  const SyncStatus(this.phase, {this.message});
+  const SyncStatus(this.phase,
+      {this.message, this.savedOnDevice = false, this.conflict = false});
 
   final SyncPhase phase;
   final String? message;
+  final bool savedOnDevice;
+  final bool conflict;
 }
 
 final syncStatusProvider = StateProvider<SyncStatus>(
@@ -99,6 +104,10 @@ final localeProvider = Provider<Locale?>((ref) {
 class AppController extends AsyncNotifier<AppState> {
   bool _disposed = false;
   Timer? _retryTimer;
+  StreamSubscription<DisplayOrderUpdate>? _orderSubscription;
+  final _remoteOrders = <DisplayOrderKind, DisplayOrderUpdate>{};
+  int _staging = 0;
+  bool _refreshing = false;
 
   void _setSyncStatus(SyncStatus next) {
     if (!_disposed) ref.read(syncStatusProvider.notifier).state = next;
@@ -110,9 +119,12 @@ class AppController extends AsyncNotifier<AppState> {
   @override
   Future<AppState> build() async {
     _disposed = false;
+    _orderSubscription?.cancel();
+    _remoteOrders.clear();
     ref.onDispose(() {
       _disposed = true;
       _retryTimer?.cancel();
+      _orderSubscription?.cancel();
     });
     final storage = ref.watch(storageProvider);
     _setSyncStatus(const SyncStatus(SyncPhase.loading));
@@ -124,15 +136,31 @@ class AppController extends AsyncNotifier<AppState> {
       rethrow;
     }
     _setSyncStatus(storage is FirestoreStorage && storage.lastReadFromCache
-            ? const SyncStatus(SyncPhase.pending,
-                message: 'cache')
-            : const SyncStatus(SyncPhase.synced));
-    
+        ? const SyncStatus(SyncPhase.pending,
+            message: 'cache', savedOnDevice: true)
+        : const SyncStatus(SyncPhase.synced, savedOnDevice: true));
+
     // Sort transactions by date descending immediately upon load
     // so even old data without _commit will be displayed correctly.
     final sortedTx = List<Transaction>.from(loaded.transactions)
       ..sort((a, b) => b.date.compareTo(a.date));
     final sorted = loaded.copyWith(transactions: sortedTx);
+    if (storage is DisplayOrderSync) {
+      _orderSubscription =
+          (storage as DisplayOrderSync).watchDisplayOrders().listen((update) {
+        if (_disposed || !identical(_storage, storage)) return;
+        final queued = _remoteOrders[update.kind];
+        if (queued == null || update.revision > queued.revision) {
+          _remoteOrders[update.kind] = update;
+        }
+        _applyRemoteOrder();
+      }, onError: (Object error) {
+        if (!_disposed && !_saving && _pendingSave == null) {
+          _setSyncStatus(
+              SyncStatus(SyncPhase.error, message: error.toString()));
+        }
+      });
+    }
     if (storage is FirestoreStorage && storage.hasPendingLocalChanges) {
       // Antrean offline terenkripsi dipulihkan dan dicoba lagi tanpa menunggu
       // tindakan pengguna. Firestore akan tetap menolak saat jaringan putus.
@@ -144,26 +172,73 @@ class AppController extends AsyncNotifier<AppState> {
   }
 
   Future<void> _commit(AppState next) async {
-    // Pastikan daftar transaksi selalu terurut dari tanggal paling baru.
-    final sortedTx = List<Transaction>.from(next.transactions)
-      ..sort((a, b) => b.date.compareTo(a.date));
-    final finalState = next.copyWith(transactions: sortedTx);
-
-    // Pengeditan cloud disimpan terenkripsi di perangkat sebelum ditampilkan.
-    // Bila browser/OS menolak penyimpanan, jangan mengaku perubahan berhasil.
-    final storage = _storage;
-    if (storage is FirestoreStorage) {
-      await storage.stageLocalState(finalState);
+    if (_refreshing) {
+      throw StateError('Data sedang dimuat ulang. Coba lagi setelah selesai.');
     }
+    _staging++;
+    try {
+      // Pastikan daftar transaksi selalu terurut dari tanggal paling baru.
+      final sortedTx = List<Transaction>.from(next.transactions)
+        ..sort((a, b) => b.date.compareTo(a.date));
+      final finalState = next.copyWith(transactions: sortedTx);
 
-    // Update state secara optimistic agar UI langsung responsif, lalu
-    // persist di latar tanpa memblok pemanggil. Penting: backend Firestore
-    // menyelesaikan Future tulisannya hanya setelah server mengakui, sehingga
-    // jika kita meng-await save di sini, alur UI (mis. menutup dialog) akan
-    // menggantung saat jaringan lambat. Save diserialkan lewat [_enqueueSave]
-    // supaya state terbaru selalu menang dan tulisan tidak balapan.
-    state = AsyncData(finalState);
-    _enqueueSave(finalState);
+      // Pengeditan cloud disimpan terenkripsi di perangkat sebelum ditampilkan.
+      // Bila browser/OS menolak penyimpanan, jangan mengaku perubahan berhasil.
+      final storage = _storage;
+      if (storage is FirestoreStorage) {
+        await storage.stageLocalState(finalState);
+      }
+
+      // Update state secara optimistic agar UI langsung responsif, lalu
+      // persist di latar tanpa memblok pemanggil. Penting: backend Firestore
+      // menyelesaikan Future tulisannya hanya setelah server mengakui, sehingga
+      // jika kita meng-await save di sini, alur UI (mis. menutup dialog) akan
+      // menggantung saat jaringan lambat. Save diserialkan lewat [_enqueueSave]
+      // supaya state terbaru selalu menang dan tulisan tidak balapan.
+      state = AsyncData(finalState);
+      _enqueueSave(finalState);
+    } finally {
+      _staging--;
+      _applyRemoteOrder();
+    }
+  }
+
+  void _applyRemoteOrder() {
+    if (_disposed ||
+        _saving ||
+        _pendingSave != null ||
+        _staging > 0 ||
+        _refreshing) {
+      return;
+    }
+    final current = state.valueOrNull;
+    final storage = _storage;
+    if (_remoteOrders.isEmpty ||
+        current == null ||
+        storage is! DisplayOrderSync) {
+      return;
+    }
+    final updates = _remoteOrders.values.toList();
+    _remoteOrders.clear();
+    final orderSync = storage as DisplayOrderSync;
+    // Baseline dan UI diganti tanpa await. Perubahan lokal yang sedang
+    // diantrikan selalu diselesaikan dahulu, termasuk konflik pengurutan.
+    var next = current;
+    for (final update in updates) {
+      if (!orderSync.acceptDisplayOrder(update)) continue;
+      next = switch (update.kind) {
+        DisplayOrderKind.investments =>
+          next.copyWith(investmentOrder: update.ids),
+        DisplayOrderKind.accounts => next.copyWith(accountOrder: update.ids),
+      };
+    }
+    if (identical(next, current)) return;
+    state = AsyncData(next);
+    unawaited(orderSync.cacheSyncedState(next).catchError((Object error) {
+      if (!_disposed && !_saving && _pendingSave == null) {
+        _setSyncStatus(SyncStatus(SyncPhase.error, message: error.toString()));
+      }
+    }));
   }
 
   // Antrean simpan: hanya satu tulisan berjalan; commit yang datang saat
@@ -175,7 +250,9 @@ class AppController extends AsyncNotifier<AppState> {
   void _enqueueSave(AppState next) {
     _retryTimer?.cancel();
     _pendingSave = next;
-    _setSyncStatus(const SyncStatus(SyncPhase.pending));
+    final localStaged = _storage is FirestoreStorage &&
+        (_storage as FirestoreStorage).hasPendingLocalChanges;
+    _setSyncStatus(SyncStatus(SyncPhase.pending, savedOnDevice: localStaged));
     if (_saving) return;
     _saving = true;
     final storage = _storage;
@@ -186,14 +263,18 @@ class AppController extends AsyncNotifier<AppState> {
         try {
           await storage.save(toSave);
           if (_pendingSave == null) {
-            _setSyncStatus(const SyncStatus(SyncPhase.synced));
+            _setSyncStatus(
+                const SyncStatus(SyncPhase.synced, savedOnDevice: true));
           }
         } catch (error) {
           // Simpan target terbaru untuk retry. Jangan tampilkan 'tersimpan'
           // ketika server menolak transaksi atau perangkat offline.
           _pendingSave ??= toSave;
-          _setSyncStatus(
-              SyncStatus(SyncPhase.error, message: error.toString()));
+          _setSyncStatus(SyncStatus(SyncPhase.error,
+              message: error.toString(),
+              savedOnDevice:
+                  storage is FirestoreStorage && storage.hasPendingLocalChanges,
+              conflict: error is SyncConflictException));
           if (error is FirebaseException &&
               (error.code == 'unavailable' ||
                   error.code == 'deadline-exceeded')) {
@@ -205,6 +286,7 @@ class AppController extends AsyncNotifier<AppState> {
         }
       }
       _saving = false;
+      _applyRemoteOrder();
     });
   }
 
@@ -223,10 +305,12 @@ class AppController extends AsyncNotifier<AppState> {
   /// Baca ulang setelah konflik. Perubahan lokal yang belum tersimpan harus
   /// diselesaikan lebih dulu agar tidak hilang diam-diam.
   Future<void> reloadFromStorage() async {
-    if (_saving || _pendingSave != null) {
-      throw StateError('Ada perubahan yang belum tersimpan. Coba sinkronkan dulu.');
+    if (_saving || _pendingSave != null || _staging > 0 || _refreshing) {
+      throw StateError(
+          'Ada perubahan yang belum tersimpan. Coba sinkronkan dulu.');
     }
     _setSyncStatus(const SyncStatus(SyncPhase.loading));
+    _refreshing = true;
     try {
       final storage = _storage;
       final loaded = storage is FirestoreStorage
@@ -235,10 +319,13 @@ class AppController extends AsyncNotifier<AppState> {
       final sorted = List<Transaction>.from(loaded.transactions)
         ..sort((a, b) => b.date.compareTo(a.date));
       state = AsyncData(loaded.copyWith(transactions: sorted));
-      _setSyncStatus(const SyncStatus(SyncPhase.synced));
+      _setSyncStatus(const SyncStatus(SyncPhase.synced, savedOnDevice: true));
     } catch (error) {
       _setSyncStatus(SyncStatus(SyncPhase.error, message: error.toString()));
       rethrow;
+    } finally {
+      _refreshing = false;
+      _applyRemoteOrder();
     }
   }
 
@@ -260,6 +347,35 @@ class AppController extends AsyncNotifier<AppState> {
   /// Ubah preferensi tema ('system' | 'light' | 'dark'), tersimpan & sinkron.
   Future<void> setThemeMode(String mode) async {
     await _commit(_current.copyWith(themeMode: mode));
+  }
+
+  Future<void> setInvestmentOrder(List<String> ids) async {
+    final current = _current;
+    final existing = current.investments.map((asset) => asset.id).toSet();
+    if (ids.length != existing.length ||
+        ids.toSet().length != ids.length ||
+        !existing.containsAll(ids)) {
+      throw StateError('Daftar aset berubah. Buka kembali pengaturan urutan.');
+    }
+    if (const ListEquality<String>().equals(current.investmentOrder, ids)) {
+      return;
+    }
+    await _commit(current.copyWith(investmentOrder: List.unmodifiable(ids)));
+  }
+
+  Future<void> setAccountOrder(List<String> ids) async {
+    final current = _current;
+    final existing = current.accounts.map((account) => account.id).toSet();
+    if (ids.length != existing.length ||
+        ids.toSet().length != ids.length ||
+        !existing.containsAll(ids)) {
+      throw StateError(
+          'Daftar rekening berubah. Buka kembali pengaturan urutan.');
+    }
+    if (const ListEquality<String>().equals(current.accountOrder, ids)) {
+      return;
+    }
+    await _commit(current.copyWith(accountOrder: List.unmodifiable(ids)));
   }
 
   /// Ubah preferensi bahasa ('system' | 'id' | 'en' | 'zh'), tersimpan & sinkron.
@@ -284,7 +400,7 @@ class AppController extends AsyncNotifier<AppState> {
     _pendingSave = null;
     await _storage.clear();
     state = const AsyncData(AppState());
-    _setSyncStatus(const SyncStatus(SyncPhase.synced));
+    _setSyncStatus(const SyncStatus(SyncPhase.synced, savedOnDevice: true));
   }
 
   // ---------------------------------------------------------------------------
@@ -311,9 +427,8 @@ class AppController extends AsyncNotifier<AppState> {
   }
 
   Future<void> updateAccount(Account account) async {
-    final accounts = _current.accounts
-        .map((a) => a.id == account.id ? account : a)
-        .toList();
+    final accounts =
+        _current.accounts.map((a) => a.id == account.id ? account : a).toList();
     await _commit(_current.copyWith(accounts: accounts));
   }
 
@@ -378,8 +493,7 @@ class AppController extends AsyncNotifier<AppState> {
 
     // Validasi saldo untuk pengeluaran & transfer (transfer termasuk admin).
     if (type != TxType.income) {
-      final source =
-          _current.accounts.firstWhere((a) => a.id == accountId);
+      final source = _current.accounts.firstWhere((a) => a.id == accountId);
       if (amount + fee > source.balance) {
         return 'Saldo ${source.name} tidak cukup. '
             'Tersedia ${Fmt.rupiah(source.balance)}.';
@@ -451,7 +565,8 @@ class AppController extends AsyncNotifier<AppState> {
     var skipped = 0;
     for (final row in approval.rows) {
       if (row.type == TxType.transfer ||
-          !row.amount.isFinite || row.amount <= 0 ||
+          !row.amount.isFinite ||
+          row.amount <= 0 ||
           row.note.trim().isEmpty ||
           (row.importKey != null &&
               !RegExp(r'^[a-f0-9]{64}$').hasMatch(row.importKey!))) {
@@ -459,12 +574,15 @@ class AppController extends AsyncNotifier<AppState> {
             error: 'Ada mutasi yang tidak valid. Tinjau PDF kembali.');
       }
       final cents = row.amount * 100;
-      if (!cents.isFinite || cents > 9007199254740991 ||
+      if (!cents.isFinite ||
+          cents > 9007199254740991 ||
           (cents - cents.round()).abs() > 0.00001) {
         return const StatementImportResult(
-            error: 'Nominal mutasi tidak valid. Gunakan paling banyak dua angka desimal.');
+            error:
+                'Nominal mutasi tidak valid. Gunakan paling banyak dua angka desimal.');
       }
-      final transactionId = row.importKey == null ? _uuid.v4()
+      final transactionId = row.importKey == null
+          ? _uuid.v4()
           : 'statement_${account.id}_${row.importKey}';
       if (row.importKey != null &&
           (!seenImports.add(row.importKey!) ||
@@ -475,7 +593,8 @@ class AppController extends AsyncNotifier<AppState> {
       netCents += row.type == TxType.income ? cents.round() : -cents.round();
       if (netCents.abs() > 9007199254740991) {
         return const StatementImportResult(
-            error: 'Total nominal mutasi terlalu besar untuk dihitung dengan aman.');
+            error:
+                'Total nominal mutasi terlalu besar untuk dihitung dengan aman.');
       }
       newTransactions.add(Transaction(
         id: transactionId,
@@ -483,7 +602,8 @@ class AppController extends AsyncNotifier<AppState> {
         amount: row.amount,
         accountId: account.id,
         category: row.category.trim().isEmpty
-            ? 'Mutasi Rekening' : row.category.trim(),
+            ? 'Mutasi Rekening'
+            : row.category.trim(),
         note: row.note.trim(),
         balanceApplied: approval.applyToBalance,
         statementImportKey: row.importKey,
@@ -493,15 +613,19 @@ class AppController extends AsyncNotifier<AppState> {
     final difference = netCents / 100;
     if (approval.applyToBalance && account.balance + difference < 0) {
       return const StatementImportResult(
-          error: 'Saldo akan menjadi negatif setelah impor. Periksa mutasi dan saldo awal.');
+          error:
+              'Saldo akan menjadi negatif setelah impor. Periksa mutasi dan saldo awal.');
     }
     if (newTransactions.isEmpty) {
       return StatementImportResult(skippedCount: skipped);
     }
     var accounts = _current.accounts;
     if (approval.applyToBalance) {
-      accounts = accounts.map((a) => a.id == account.id
-          ? a.copyWith(balance: a.balance + difference) : a).toList();
+      accounts = accounts
+          .map((a) => a.id == account.id
+              ? a.copyWith(balance: a.balance + difference)
+              : a)
+          .toList();
     }
     await _commit(_current.copyWith(
       accounts: accounts,
@@ -524,28 +648,37 @@ class AppController extends AsyncNotifier<AppState> {
     DateTime? date,
   }) async {
     final oldTx = _current.transactions.firstWhere((t) => t.id == id);
-    
+
     // --- 1. Revert old transaction ---
     final removeIds = <String>{id};
     for (final t in _current.transactions) {
       if (t.linkedTransferId == id) removeIds.add(t.id);
     }
-    final toRemove = _current.transactions.where((t) => removeIds.contains(t.id)).toList();
-    
+    final toRemove =
+        _current.transactions.where((t) => removeIds.contains(t.id)).toList();
+
     var debts = _current.debts;
     if (oldTx.linkedDebtId != null) {
-      debts = debts.map((d) => d.id == oldTx.linkedDebtId ? d.copyWith(remaining: d.remaining + oldTx.amount) : d).toList();
+      debts = debts
+          .map((d) => d.id == oldTx.linkedDebtId
+              ? d.copyWith(remaining: d.remaining + oldTx.amount)
+              : d)
+          .toList();
     }
     var receivables = _current.receivables;
     if (oldTx.linkedReceivableId != null) {
-      receivables = receivables.map((r) => r.id == oldTx.linkedReceivableId ? r.copyWith(remaining: r.remaining + oldTx.amount) : r).toList();
+      receivables = receivables
+          .map((r) => r.id == oldTx.linkedReceivableId
+              ? r.copyWith(remaining: r.remaining + oldTx.amount)
+              : r)
+          .toList();
     }
-    
+
     var accounts = _current.accounts;
     for (final t in toRemove) {
       accounts = _applyTx(accounts, t, reverse: true);
     }
-    
+
     // --- 2. Apply new transaction ---
     final fee = type == TxType.transfer && adminFee > 0 ? adminFee : 0.0;
     if (type != TxType.income) {
@@ -554,7 +687,7 @@ class AppController extends AsyncNotifier<AppState> {
         return 'Saldo ${source.name} tidak cukup. Tersedia ${Fmt.rupiah(source.balance)}.';
       }
     }
-    
+
     final when = date ?? oldTx.date;
     final newTx = Transaction(
       id: id,
@@ -570,7 +703,7 @@ class AppController extends AsyncNotifier<AppState> {
       balanceApplied: oldTx.balanceApplied,
       statementImportKey: oldTx.statementImportKey,
     );
-    
+
     final newTxns = <Transaction>[newTx];
     if (fee > 0) {
       newTxns.add(Transaction(
@@ -585,21 +718,31 @@ class AppController extends AsyncNotifier<AppState> {
         date: when,
       ));
     }
-    
+
     if (newTx.linkedDebtId != null) {
-      debts = debts.map((d) => d.id == newTx.linkedDebtId ? d.copyWith(remaining: d.remaining - newTx.amount) : d).toList();
+      debts = debts
+          .map((d) => d.id == newTx.linkedDebtId
+              ? d.copyWith(remaining: d.remaining - newTx.amount)
+              : d)
+          .toList();
     }
     if (newTx.linkedReceivableId != null) {
-      receivables = receivables.map((r) => r.id == newTx.linkedReceivableId ? r.copyWith(remaining: r.remaining - newTx.amount) : r).toList();
+      receivables = receivables
+          .map((r) => r.id == newTx.linkedReceivableId
+              ? r.copyWith(remaining: r.remaining - newTx.amount)
+              : r)
+          .toList();
     }
-    
+
     for (final t in newTxns) {
       accounts = _applyTx(accounts, t);
     }
-    
-    final remainingTxns = _current.transactions.where((t) => !removeIds.contains(t.id)).toList();
-    final allTxns = [...newTxns, ...remainingTxns]..sort((a, b) => b.date.compareTo(a.date));
-    
+
+    final remainingTxns =
+        _current.transactions.where((t) => !removeIds.contains(t.id)).toList();
+    final allTxns = [...newTxns, ...remainingTxns]
+      ..sort((a, b) => b.date.compareTo(a.date));
+
     await _commit(_current.copyWith(
       transactions: allTxns,
       accounts: accounts,
@@ -696,7 +839,8 @@ class AppController extends AsyncNotifier<AppState> {
 
   /// Perbarui harga sekarang sebuah investasi dari sumber online.
   /// Mengembalikan `null` jika berhasil, atau pesan error bila gagal.
-  Future<String?> refreshPrice(String investmentId, AppLocalizations l10n) async {
+  Future<String?> refreshPrice(
+      String investmentId, AppLocalizations l10n) async {
     final match = _current.investments.where((i) => i.id == investmentId);
     if (match.isEmpty) return 'Investasi tidak ditemukan.';
     final inv = match.first;
@@ -717,15 +861,18 @@ class AppController extends AsyncNotifier<AppState> {
   /// Mengambil harga secara paralel lalu menyimpan dalam satu commit agar
   /// efisien (hanya satu tulisan storage). Mengembalikan ringkasan jumlah yang
   /// berhasil diperbarui, gagal, dan total yang dicoba.
-  Future<({int updated, int failed, int total})> refreshAllPrices(AppLocalizations l10n) async {
+  Future<({int updated, int failed, int total})> refreshAllPrices(
+      AppLocalizations l10n) async {
     final service = ref.read(priceServiceProvider);
     final targets = _current.investments
-        .where((i) => i.ticker.trim().isNotEmpty && service.supportsAuto(i.type))
+        .where(
+            (i) => i.ticker.trim().isNotEmpty && service.supportsAuto(i.type))
         .toList();
     if (targets.isEmpty) return (updated: 0, failed: 0, total: 0);
 
     final results = await Future.wait(
-      targets.map((i) async => (id: i.id, result: await service.fetch(i, l10n))),
+      targets
+          .map((i) async => (id: i.id, result: await service.fetch(i, l10n))),
     );
 
     final priceById = <String, double>{};
@@ -752,8 +899,7 @@ class AppController extends AsyncNotifier<AppState> {
   }
 
   Future<void> deleteInvestment(String id) async {
-    final investments =
-        _current.investments.where((i) => i.id != id).toList();
+    final investments = _current.investments.where((i) => i.id != id).toList();
     await _commit(_current.copyWith(investments: investments));
   }
 
@@ -886,7 +1032,8 @@ class AppController extends AsyncNotifier<AppState> {
       amount: proceeds,
       accountId: rdnAccountId,
       category: 'Jual Saham',
-      note: '${inv.name} ${Fmt.number(lots)} lot @ ${Fmt.rupiah(pricePerShare)}',
+      note:
+          '${inv.name} ${Fmt.number(lots)} lot @ ${Fmt.rupiah(pricePerShare)}',
       date: DateTime.now(),
     );
 
@@ -1179,6 +1326,7 @@ class AppController extends AsyncNotifier<AppState> {
     ));
     return null;
   }
+
   /// rekening. Bagian tiap teman ([shares]) dicatat sebagai piutang dengan
   /// uang keluar (talangan), dan bagian kita sendiri ([ownerShare]) dicatat
   /// sebagai pengeluaran biasa. Semua dilakukan atomik.

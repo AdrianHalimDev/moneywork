@@ -12,7 +12,7 @@
   "@navBills": {
     "description": "Teks tab Tagihan di navigasi bawah"
   },
-  "navAccounts": "Akun",
+  "navAccounts": "Rekening",
   "@navAccounts": {
     "description": "Teks tab Akun di navigasi bawah"
   },
@@ -38,9 +38,21 @@
   "tooltipForecast": "Proyeksi arus kas 30 hari",
   "tooltipImportStatementPdf": "Impor mutasi rekening PDF",
   "importSuccess": "{count} transaksi ditambahkan. Periksa status penyimpanan.",
-  "@importSuccess": {"placeholders": {"count": {"type": "int"}}},
+  "@importSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "importSkipped": "{count} transaksi yang sudah diimpor dilewati.",
-  "@importSkipped": {"placeholders": {"count": {"type": "int"}}},
+  "@importSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "syncStatusLoading": "Memuat data",
   "syncStatusSynced": "Data tersimpan",
   "syncStatusPending": "Menyimpan perubahan",
@@ -63,21 +75,21 @@
   "debtTitle": "Utang",
   "recentTransactionsTitle": "Transaksi Terbaru",
   "noTransactionsMessage": "Belum ada transaksi.",
-  "titleAccounts": "Akun & Transaksi",
+  "titleAccounts": "Rekening & Transaksi",
   "tooltipMonthlyExpenses": "Transaksi Bulanan",
-  "fabAddAccount": "Tambah Akun",
+  "fabAddAccount": "Tambah rekening",
   "fabRecordTransaction": "Catat Transaksi",
   "errorLoadFailed": "Gagal memuat",
-  "emptyAccountTitle": "Belum ada akun",
-  "emptyAccountSubtitle": "Tambahkan rekening, dompet tunai, atau e-wallet\nuntuk mulai mencatat keuangan.",
+  "emptyAccountTitle": "Tambahkan rekening dulu",
+  "emptyAccountSubtitle": "Transaksi bulanan butuh rekening sebagai sumber/tujuan.",
   "transactionHistory": "Riwayat Transaksi",
   "noTransactionsFilter": "Tidak ada transaksi yang cocok dengan filter.",
   "searchHint": "Cari catatan / kategori",
   "tooltipClearFilter": "Hapus filter",
   "filterAll": "Semua",
   "filterAllAccounts": "Semua akun",
-  "accountLabel": "Akun",
-  "myAccounts": "Akun Saya",
+  "accountLabel": "Rekening",
+  "myAccounts": "Rekeningmu",
   "titleBills": "Tagihan",
   "tooltipSplitBill": "Split Bill",
   "tooltipAddDebt": "Tambah Utang",
@@ -160,7 +172,13 @@
   "qtyLotHint": "mis. 5, 10",
   "qtyUnitHint": "mis. 100, 0.5",
   "qtyLotHelper": "1 lot = {shares} lembar",
-  "@qtyLotHelper": { "placeholders": { "shares": { "type": "String" } } },
+  "@qtyLotHelper": {
+    "placeholders": {
+      "shares": {
+        "type": "String"
+      }
+    }
+  },
   "buyLotLabel": "Harga beli / lembar",
   "buyUnitLabel": "Harga beli / unit",
   "nowLotLabel": "Harga sekarang / lembar",
@@ -185,9 +203,21 @@
   "stockCodeLabel": "Kode (opsional)",
   "rdnAccountLabel": "Rekening RDN",
   "lotQtyHelperSell": "Punya {lots} lot",
-  "@lotQtyHelperSell": { "placeholders": { "lots": { "type": "String" } } },
+  "@lotQtyHelperSell": {
+    "placeholders": {
+      "lots": {
+        "type": "String"
+      }
+    }
+  },
   "maxLotError": "Maks {lots}",
-  "@maxLotError": { "placeholders": { "lots": { "type": "String" } } },
+  "@maxLotError": {
+    "placeholders": {
+      "lots": {
+        "type": "String"
+      }
+    }
+  },
   "pricePerShareLabel": "Harga/lembar",
   "totalPayLabel": "Total bayar",
   "totalReceiveLabel": "Total diterima",
@@ -198,21 +228,54 @@
   "emptyWishlistSubtitle": "Catat barang yang ingin dibeli beserta harga,\nlink, dan target tanggalnya.",
   "totalTargetBelanja": "Total target belanja",
   "barangBelumDibeli": "{count} barang belum dibeli",
-  "@barangBelumDibeli": { "placeholders": { "count": { "type": "String" } } },
+  "@barangBelumDibeli": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "sudahDibeli": "Sudah Dibeli",
   "gagalMembukaLink": "Tidak bisa membuka link.",
   "targetDateLabel": "Target",
   "savingPerMonthSuffix": "/bln",
   "savingProgressLabel": "Terkumpul {saved} / {total}",
-  "@savingProgressLabel": { "placeholders": { "saved": { "type": "String" }, "total": { "type": "String" } } },
+  "@savingProgressLabel": {
+    "placeholders": {
+      "saved": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "savingMonthsRemaining": " · ~{months} bln lagi",
-  "@savingMonthsRemaining": { "placeholders": { "months": { "type": "String" } } },
+  "@savingMonthsRemaining": {
+    "placeholders": {
+      "months": {
+        "type": "String"
+      }
+    }
+  },
   "tooltipCatatNabung": "Catat nabung",
   "tooltipBukaLink": "Buka link",
   "dialogNabungTitle": "Nabung untuk {name}",
-  "@dialogNabungTitle": { "placeholders": { "name": { "type": "String" } } },
+  "@dialogNabungTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "dialogNabungSisa": "Sisa {remaining}",
-  "@dialogNabungSisa": { "placeholders": { "remaining": { "type": "String" } } },
+  "@dialogNabungSisa": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
   "dialogNabungJumlah": "Jumlah ditabung",
   "dialogNabungAmbilDari": "Ambil dari rekening",
   "dialogNabungTanpaPotong": "Tanpa potong saldo",
@@ -233,13 +296,28 @@
   "monthSuffix": "bln",
   "calcHelperText": "Isi salah satu, yang lain dihitung otomatis.",
   "nabungSelamaHelper": "Nabung {monthly}/bln selama {months} bulan.",
-  "@nabungSelamaHelper": { "placeholders": { "monthly": { "type": "String" }, "months": { "type": "String" } } },
+  "@nabungSelamaHelper": {
+    "placeholders": {
+      "monthly": {
+        "type": "String"
+      },
+      "months": {
+        "type": "String"
+      }
+    }
+  },
   "saveFromAccountLabel": "Tabung dari rekening",
   "noneOption": "—",
   "reminderDayLabel": "Pengingat menabung tiap tanggal",
   "noReminder": "Tidak ada",
   "dateSuffix": "Tanggal {date}",
-  "@dateSuffix": { "placeholders": { "date": { "type": "String" } } },
+  "@dateSuffix": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "exportReportTitle": "Ekspor Laporan",
   "exportPeriodLabel": "Periode",
   "exportTypeFormatLabel": "Tipe Ekspor & Format",
@@ -250,7 +328,13 @@
   "exportNowBtn": "Ekspor Sekarang",
   "snackPrepBackup": "Menyiapkan Backup Seluruh Data...",
   "snackPrepMonth": "Menyiapkan {month}...",
-  "@snackPrepMonth": { "placeholders": { "month": { "type": "String" } } },
+  "@snackPrepMonth": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
   "tabReport": "Laporan",
   "tooltipExport": "Export Laporan",
   "cashFlow6Months": "Arus Kas 6 Bulan",
@@ -267,24 +351,61 @@
   "emptyCategory": "Tidak ada pengeluaran di bulan ini.",
   "tabMonthlyTx": "Transaksi Bulanan",
   "tooltipAddTemplate": "Tambah template",
-  "emptyAccountTitle": "Tambahkan rekening dulu",
-  "emptyAccountSubtitle": "Transaksi bulanan butuh rekening sebagai sumber/tujuan.",
   "emptyMonthlyTitle": "Belum ada transaksi bulanan",
   "emptyMonthlySubtitle": "Susun biaya rutin (langganan, tagihan, tabungan), lalu\njalankan semua sekaligus tiap bulan.",
   "runBarIncome": "Masuk {amount}",
-  "@runBarIncome": { "placeholders": { "amount": { "type": "String" } } },
+  "@runBarIncome": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "runBarExpense": "Keluar {amount}",
-  "@runBarExpense": { "placeholders": { "amount": { "type": "String" } } },
+  "@runBarExpense": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "runAllBtn": "Jalankan Semua ({count})",
-  "@runAllBtn": { "placeholders": { "count": { "type": "String" } } },
+  "@runAllBtn": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "confirmRunTitle": "Jalankan transaksi bulanan?",
   "confirmRunContent": "{count} transaksi aktif akan dibuat dengan tanggal hari ini. Saldo rekening akan diperbarui.",
-  "@confirmRunContent": { "placeholders": { "count": { "type": "String" } } },
+  "@confirmRunContent": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "confirmRunOk": "Jalankan",
   "runSuccessWithSkip": "{created} transaksi dibuat, {skipped} dilewati (saldo kurang).",
-  "@runSuccessWithSkip": { "placeholders": { "created": { "type": "String" }, "skipped": { "type": "String" } } },
+  "@runSuccessWithSkip": {
+    "placeholders": {
+      "created": {
+        "type": "String"
+      },
+      "skipped": {
+        "type": "String"
+      }
+    }
+  },
   "runSuccessAll": "{created} transaksi bulanan berhasil dijalankan.",
-  "@runSuccessAll": { "placeholders": { "created": { "type": "String" } } },
+  "@runSuccessAll": {
+    "placeholders": {
+      "created": {
+        "type": "String"
+      }
+    }
+  },
   "addTemplate": "Tambah Template",
   "editTemplate": "Edit Template",
   "templateNameHint": "mis. Netflix, Listrik, Nabung",
@@ -293,9 +414,8 @@
   "segmentIncome": "Masuk",
   "segmentTransfer": "Transfer",
   "amountLabel": "Jumlah",
-  "fromAccountLabel": "Dari akun",
+  "fromAccountLabel": "Dari rekening",
   "toAccountLabel": "Ke akun",
-  "accountLabel": "Akun",
   "errorSelectAccount": "Pilih akun tujuan",
   "errorSameAccount": "Pilih akun berbeda",
   "categoryLabel": "Kategori",
@@ -311,14 +431,35 @@
   "fundFromAccountLabel": "Saya menalangi dari rekening",
   "doNotDeductBalance": "— Jangan potong saldo",
   "personLabel": "Orang {number}",
-  "@personLabel": { "placeholders": { "number": { "type": "String" } } },
+  "@personLabel": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "totalOutFromAccount": "Total keluar dari rekening",
   "totalReceivableRecorded": "Total piutang dicatat",
   "receivableSavedDeducted": "{count} piutang dicatat, saldo dipotong {amount}.",
-  "@receivableSavedDeducted": { "placeholders": { "count": { "type": "String" }, "amount": { "type": "String" } } },
+  "@receivableSavedDeducted": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "splitBillNotePrefix": "Split bill",
   "receivableSavedOnly": "{count} piutang tersimpan.",
-  "@receivableSavedOnly": { "placeholders": { "count": { "type": "String" } } },
+  "@receivableSavedOnly": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "tabSplitBill": "Split Bill",
   "personLabelOnly": "Orang",
   "splitBillEmptyState": "Tambah orang dulu, lalu masukkan pesanan masing-masing.",
@@ -360,14 +501,19 @@
   "passwordLabel": "Kata sandi",
   "passwordRequired": "Kata sandi wajib diisi",
   "passwordMinLen": "Minimal 6 karakter",
-  "nameLabel": "Nama",
   "nameRequired": "Nama wajib diisi",
   "passwordConfirmLabel": "Ulangi kata sandi",
   "requiredField": "Wajib diisi",
   "passwordNotMatch": "Kata sandi tidak sama",
   "completeAccountTitle": "Lengkapi Akun",
   "completeAccountDesc": "Kamu masuk sebagai {email}. Buat kata sandi untuk menyelesaikan pendaftaran. Setelah ini kamu bisa masuk dengan email + kata sandi.",
-  "@completeAccountDesc": { "placeholders": { "email": { "type": "String" } } },
+  "@completeAccountDesc": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
   "saveAndContinueBtn": "Simpan & Lanjutkan",
   "logoutButton": "Keluar",
   "wrongPassword": "Kata sandi salah.",
@@ -394,42 +540,110 @@
   "iHaveSavedItBtn": "Saya sudah menyimpannya",
   "addAccountFirst": "Tambahkan rekening dulu di tab Akun.",
   "payDebtTitle": "Bayar {name}",
-  "@payDebtTitle": { "placeholders": { "name": { "type": "String" } } },
+  "@payDebtTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "debtRemainingLabel": "Sisa utang: {amount}",
-  "@debtRemainingLabel": { "placeholders": { "amount": { "type": "String" } } },
+  "@debtRemainingLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "payAmountLabel": "Jumlah bayar",
   "balanceHelper": "Saldo {name}: {amount}",
-  "@balanceHelper": { "placeholders": { "name": { "type": "String" }, "amount": { "type": "String" } } },
+  "@balanceHelper": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "exceedsDebtRemaining": "Melebihi sisa utang ({amount})",
-  "@exceedsDebtRemaining": { "placeholders": { "amount": { "type": "String" } } },
+  "@exceedsDebtRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "exceedsBalance": "Melebihi saldo ({amount})",
-  "@exceedsBalance": { "placeholders": { "amount": { "type": "String" } } },
+  "@exceedsBalance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "payFromLabel": "Bayar dari",
   "payNowBtn": "Bayar Sekarang",
   "paymentRecorded": "Pembayaran {amount} tercatat.",
-  "@paymentRecorded": { "placeholders": { "amount": { "type": "String" } } },
+  "@paymentRecorded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "editDebtTitle": "Edit Utang",
   "addDebtTitle": "Tambah Utang",
   "debtNameHint": "mis. KPR BTN, Kartu Kredit",
-  "typeLabel": "Jenis",
   "debtRemainingInputLabel": "Sisa utang",
   "monthlyPaymentOptional": "Cicilan per bulan (opsional)",
   "dueDateOptional": "Jatuh tempo (opsional)",
   "selectDateBtn": "Pilih tanggal",
   "collectFromTitle": "Terima dari {name}",
-  "@collectFromTitle": { "placeholders": { "name": { "type": "String" } } },
+  "@collectFromTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "totalOutstanding": "Sisa total: {amount}",
-  "@totalOutstanding": { "placeholders": { "amount": { "type": "String" } } },
+  "@totalOutstanding": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "loanCount": "{count} pinjaman",
-  "@loanCount": { "placeholders": { "count": { "type": "int" } } },
+  "@loanCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "fifoPaymentNote": "Pembayaran melunasi pinjaman paling lama dulu.",
   "amountReceivedLabel": "Jumlah diterima",
   "exceedsTotalOutstanding": "Melebihi sisa total ({amount})",
-  "@exceedsTotalOutstanding": { "placeholders": { "amount": { "type": "String" } } },
+  "@exceedsTotalOutstanding": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "receiveIntoLabel": "Masuk ke",
   "receiveNowBtn": "Terima Sekarang",
   "receivedAmount": "Diterima {amount}.",
-  "@receivedAmount": { "placeholders": { "amount": { "type": "String" } } },
+  "@receivedAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "editReceivableTitle": "Edit Piutang",
   "addReceivableTitle": "Tambah Piutang",
   "personNameLabel": "Nama orang",
@@ -439,15 +653,26 @@
   "noteReceivableHint": "mis. Makan di resto X",
   "fundNowTitle": "Saya menalangi sekarang",
   "fundNowSubtitle": "Uang keluar dari rekening saya",
-  "fromAccountLabel": "Dari rekening",
   "reminderActiveDesc": "Pengingat aktif. Atur jamnya di bawah.",
   "reminderNoPermission": "Izin notifikasi ditolak. Aktifkan di Pengaturan HP.",
   "reminderDisabled": "Pengingat dimatikan.",
   "reminderDailySetTo": "Pengingat harian diatur ke {time}.",
-  "@reminderDailySetTo": { "placeholders": { "time": { "type": "String" } } },
+  "@reminderDailySetTo": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "dailyReminderTime": "Jam pengingat harian",
   "dailyReminderDesc": "Setiap hari pukul {time}",
-  "@dailyReminderDesc": { "placeholders": { "time": { "type": "String" } } },
+  "@dailyReminderDesc": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "alreadyLatestVersion": "Kamu sudah memakai versi terbaru.",
   "autoUpdateAndroidOnly": "Pembaruan otomatis hanya tersedia di Android.",
   "updateCheckFailed": "Gagal memeriksa pembaruan. Periksa koneksi.",
@@ -458,17 +683,28 @@
   "deleteAccountTitle": "Hapus Akun?",
   "deletePermanently": "Hapus Permanen",
   "recoveryKeyCreateFailed": "Gagal membuat kunci pemulihan: {error}",
-  "@recoveryKeyCreateFailed": { "placeholders": { "error": { "type": "String" } } },
+  "@recoveryKeyCreateFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "recoveryKeyNew": "Kunci Pemulihan Baru",
-  "recoveryKeyCopied": "Kunci disalin.",
   "copy": "Salin",
   "done": "Selesai",
   "recoveryKeyNewDesc": "Demi keamanan, sistem tidak menyimpan Kunci Pemulihan lama Anda. Kami akan membuatkan Kunci Pemulihan yang BARU.",
   "updateMandatory": "Pembaruan ini wajib dipasang.",
   "downloading": "Mengunduh... {pct}%",
-  "@downloading": { "placeholders": { "pct": { "type": "String" } } },
+  "@downloading": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
   "skip": "Lewati",
-  "editAccount": "Edit Akun",
+  "editAccount": "Ubah rekening",
   "accountNameHint": "mis. BCA, GoPay, Dompet",
   "accountNumber": "Nomor rekening",
   "initialBalance": "Saldo awal",
@@ -481,7 +717,13 @@
   "invalidAdminFee": "Masukkan biaya admin valid",
   "adminFeeDesc": "Tujuan tetap terima jumlah penuh; admin keluar dari sumber",
   "totalOut": "Total keluar dari sumber: {amount}",
-  "@totalOut": { "placeholders": { "amount": { "type": "String" } } },
+  "@totalOut": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "priorityLow": "Rendah",
   "priorityMedium": "Sedang",
   "priorityHigh": "Tinggi",
@@ -489,23 +731,71 @@
   "noTxTodayDesc": "Catat pemasukan atau pengeluaranmu biar tetap terpantau.",
   "salarySaveTitle": "Sudah gajian? Sisihkan untuk tabungan",
   "salarySaveDesc": "Jangan lupa nabung untuk: {names}.",
-  "@salarySaveDesc": { "placeholders": { "names": { "type": "String" } } },
+  "@salarySaveDesc": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
   "timeToSaveTitle": "Waktunya menabung: {name}",
-  "@timeToSaveTitle": { "placeholders": { "name": { "type": "String" } } },
+  "@timeToSaveTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "timeToSaveDescAmount": "Sisihkan {amount} bulan ini.",
-  "@timeToSaveDescAmount": { "placeholders": { "amount": { "type": "String" } } },
+  "@timeToSaveDescAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "timeToSaveDescGeneral": "Sisihkan dana untuk target ini.",
   "reportTitle": "Laporan Transaksi MoneyWork - {periodName}",
-  "@reportTitle": { "placeholders": { "periodName": { "type": "String" } } },
+  "@reportTitle": {
+    "placeholders": {
+      "periodName": {
+        "type": "String"
+      }
+    }
+  },
   "reportPrintedOn": "Dicetak pada: {date}",
-  "@reportPrintedOn": { "placeholders": { "date": { "type": "String" } } },
+  "@reportPrintedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "reportCashflowSummary": "Ringkasan Arus Kas",
   "reportIncome": "Pemasukan: {amount}",
-  "@reportIncome": { "placeholders": { "amount": { "type": "String" } } },
+  "@reportIncome": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "reportExpense": "Pengeluaran: {amount}",
-  "@reportExpense": { "placeholders": { "amount": { "type": "String" } } },
+  "@reportExpense": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "reportNet": "Sisa Saldo (Net): {amount}",
-  "@reportNet": { "placeholders": { "amount": { "type": "String" } } },
+  "@reportNet": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "reportExpenseByCategory": "Pengeluaran per Kategori",
   "reportTxDetail": "Detail Transaksi",
   "reportLegendOut": "Keluar",
@@ -515,9 +805,24 @@
   "reportAmount": "Jumlah",
   "notifSaveTime": "Waktunya menabung 💰",
   "notifSaveAmount": "Sisihkan {amount} untuk {name}.",
-  "@notifSaveAmount": { "placeholders": { "amount": { "type": "String" }, "name": { "type": "String" } } },
+  "@notifSaveAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "notifSaveGeneral": "Saatnya menabung untuk {name}.",
-  "@notifSaveGeneral": { "placeholders": { "name": { "type": "String" } } },
+  "@notifSaveGeneral": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "accountTypeCash": "Tunai",
   "accountTypeBank": "Bank",
   "accountTypeEwallet": "E-Wallet",
@@ -535,12 +840,17 @@
   "salaryAllocateDesc": "Gajian sudah masuk, yuk alokasikan ke berbagai akun dan pos pengeluaran.",
   "highExpenseTitle": "Pengeluaran harian cukup tinggi",
   "highExpenseDesc": "Rata-rata {avg} per hari bulan ini. Coba direm sedikit ya.",
-  "@highExpenseDesc": { "placeholders": { "avg": { "type": "String" } } },
-  "editAccountTitle": "Edit Akun",
-
+  "@highExpenseDesc": {
+    "placeholders": {
+      "avg": {
+        "type": "String"
+      }
+    }
+  },
+  "editAccountTitle": "Ubah rekening",
   "deleteTransactionWarning": "Saldo akun akan disesuaikan kembali. Tindakan ini tidak bisa dibatalkan.",
   "deleteAccountWarning": "Semua transaksi terkait akun ini juga akan dihapus.",
-  "labelAccountName": "Nama akun",
+  "labelAccountName": "Nama rekening",
   "hintAccountName": "mis. BCA, GoPay, Dompet",
   "validationRequired": "Wajib diisi",
   "labelAccountType": "Jenis",
@@ -550,14 +860,28 @@
   "labelBalance": "Saldo",
   "labelInitialBalance": "Saldo awal",
   "validationInvalidNumber": "Angka tidak valid",
-  "addButton": "Tambah",
   "recordTransactionTitle": "Catat Transaksi",
   "labelAmount": "Jumlah",
   "helperBalance": "Saldo {name}: {balance}",
-  "@helperBalance": { "placeholders": { "name": { "type": "String" }, "balance": { "type": "String" } } },
+  "@helperBalance": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "validationInvalidAmount": "Masukkan jumlah valid",
   "validationExceedBalance": "Melebihi saldo ({balance})",
-  "@validationExceedBalance": { "placeholders": { "balance": { "type": "String" } } },
+  "@validationExceedBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "labelFromAccount": "Dari akun",
   "labelToAccount": "Ke akun",
   "validationSelectDest": "Pilih akun tujuan",
@@ -570,14 +894,18 @@
   "hintCategory": "mis. Makan, Gaji, Transport",
   "labelNote": "Catatan (opsional)",
   "labelDate": "Tanggal",
-
   "updateAvailable": "Pembaruan tersedia",
   "updateVersion": "Pembaruan {version}",
-  "@updateVersion": { "placeholders": { "version": { "type": "String" } } },
+  "@updateVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "updateDefaultNotes": "Versi baru aplikasi sudah tersedia.",
   "updateBtn": "Perbarui",
   "retryBtn": "Coba lagi",
-
   "excelHeaderDate": "Tanggal",
   "excelHeaderType": "Tipe",
   "excelHeaderCategory": "Kategori",
@@ -585,12 +913,24 @@
   "excelHeaderAccount": "Rekening",
   "excelHeaderNote": "Catatan",
   "reportPrintedAt": "Dicetak pada: {date}",
-  "@reportPrintedAt": { "placeholders": { "date": { "type": "String" } } },
+  "@reportPrintedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "legendIncome": "Masuk",
   "legendExpense": "Keluar",
   "noTransactionPeriod": "Tidak ada transaksi di periode ini.",
   "shareReportText": "Laporan Transaksi MoneyWork {period}",
-  "@shareReportText": { "placeholders": { "period": { "type": "String" } } },
+  "@shareReportText": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
   "excelHeaderBalance": "Saldo",
   "excelHeaderBankNo": "Rekening",
   "excelHeaderCreatedAt": "Dibuat Pada",
@@ -623,42 +963,75 @@
   "statusActive": "Aktif",
   "statusInactive": "Nonaktif",
   "shareBackupText": "Backup Seluruh Data MoneyWork ({date})",
-  "@shareBackupText": { "placeholders": { "date": { "type": "String" } } },
+  "@shareBackupText": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "excelSheetAccounts": "Akun",
   "excelSheetTransactions": "Transaksi",
   "excelSheetDebts": "Utang",
   "excelSheetReceivables": "Piutang",
   "excelSheetInvestments": "Investasi",
   "excelSheetRecurring": "Rutin",
-
   "priceErrNoTicker": "Isi dulu ticker/simbol asetnya.",
   "priceErrUnsupported": "Harga otomatis belum tersedia untuk jenis ini.",
   "priceErrFetch": "Gagal mengambil harga. Periksa koneksi internetmu.",
   "priceErrServer": "Server CoinGecko error ({code}).",
-  "@priceErrServer": { "placeholders": { "code": { "type": "int" } } },
+  "@priceErrServer": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
   "priceErrNotFound": "Ticker \"{id}\" tidak ditemukan di CoinGecko.",
-  "@priceErrNotFound": { "placeholders": { "id": { "type": "String" } } },
+  "@priceErrNotFound": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
   "priceErrStockNotReady": "Harga saham otomatis belum aktif (backend belum di-deploy).",
   "priceErrStockServer": "Server harga saham error ({code}).",
-  "@priceErrStockServer": { "placeholders": { "code": { "type": "int" } } },
+  "@priceErrStockServer": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
   "priceErrStockNotFound": "Kode saham \"{code}\" tidak ditemukan.",
-  "@priceErrStockNotFound": { "placeholders": { "code": { "type": "String" } } },
-
+  "@priceErrStockNotFound": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "categoryOther": "Lainnya",
-
   "errorLoadSession": "Gagal memuat sesi: {error}",
-  "@errorLoadSession": { "placeholders": { "error": { "type": "String" } } },
+  "@errorLoadSession": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "errorLoadSecurity": "Gagal memuat status keamanan: {error}",
-  "@errorLoadSecurity": { "placeholders": { "error": { "type": "String" } } },
-
+  "@errorLoadSecurity": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "notifDailyTitle": "Catat transaksi hari ini",
   "notifDailyBody": "Jangan lupa catat pemasukan & pengeluaranmu di MoneyWork.",
-  "notifSaveAmount": "Sisihkan {amount} untuk {name}.",
-  "@notifSaveAmount": { "placeholders": { "amount": { "type": "String" }, "name": { "type": "String" } } },
-  "notifSaveGeneral": "Saatnya menabung untuk {name}.",
-  "@notifSaveGeneral": { "placeholders": { "name": { "type": "String" } } },
   "notifSaveTitle": "Waktunya menabung 💰",
-
   "receiptReview": "Review Bon",
   "receiptVerified": "✅ Total cocok — data siap digunakan",
   "receiptMismatch": "⚠️ Total tidak cocok — periksa kembali angka di bawah",
@@ -677,15 +1050,103 @@
   "scanFromCamera": "Kamera",
   "scanFromGallery": "Galeri",
   "scanChooseSource": "Pilih Sumber Foto",
-
   "assignItemsTitle": "Bagi Pesanan",
   "howManyPeople": "Berapa orang yang ikut bayar?",
   "nextStep": "Lanjut",
   "enterNames": "Masukkan nama tiap orang",
   "personNumber": "Orang ke-{number}",
-  "@personNumber": { "placeholders": { "number": { "type": "int" } } },
+  "@personNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "selectItemsFor": "Pilih pesanan {name}",
-  "@selectItemsFor": { "placeholders": { "name": { "type": "String" } } },
+  "@selectItemsFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "calculateSplit": "Hitung Pembagian",
-  "editTransactionTitle": "Edit Transaksi"
+  "editTransactionTitle": "Edit Transaksi",
+  "assetsTitle": "Aset",
+  "myAssetsTitle": "Aset saya",
+  "financeTools": "Alat keuangan",
+  "welcomeBack": "Selamat datang kembali",
+  "greeting": "Halo, {name}.",
+  "personalFinance": "Ruang keuangan pribadi",
+  "reorderAssets": "Atur urutan",
+  "assetOrderHint": "Geser pegangan atau gunakan panah naik / turun.",
+  "saveAssetOrder": "Simpan urutan",
+  "moveAssetUp": "Naikkan aset",
+  "moveAssetDown": "Turunkan aset",
+  "manualAssetOrder": "Urutan pilihan saya",
+  "assetOrderSaved": "Urutan aset diperbarui. Periksa status sinkronisasi.",
+  "assetOrderChanged": "Urutan berubah di perangkat lain. Tutup dan buka kembali pengaturan urutan.",
+  "viewAll": "Lihat semua",
+  "scanReceiptAction": "Scan struk",
+  "importStatementAction": "Impor PDF",
+  "portfolioCost": "Modal investasi",
+  "marketValue": "Nilai pasar",
+  "profitLoss": "Untung / rugi",
+  "assetName": "Aset",
+  "orderLabel": "Urutan",
+  "accountsBalance": "Saldo rekening",
+  "forecastTitle": "Proyeksi arus kas",
+  "forecastIntro": "Perkirakan saldo 30 hari dari transaksi rutin dan utang jatuh tempo.",
+  "hideBalances": "Sembunyikan nominal",
+  "showBalances": "Tampilkan nominal",
+  "assetDistribution": "Komposisi investasi",
+  "assetOrderSyncHint": "Urutan tersinkron antar perangkat setelah tersimpan di cloud.",
+  "@greeting": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reorderAccounts": "Atur urutan rekening",
+  "accountOrderHint": "Geser pegangan atau gunakan panah naik / turun.",
+  "saveAccountOrder": "Simpan urutan",
+  "moveAccountUp": "Naikkan rekening",
+  "moveAccountDown": "Turunkan rekening",
+  "accountOrderSaved": "Urutan rekening diperbarui. Periksa status sinkronisasi.",
+  "accountOrderChanged": "Urutan rekening berubah di perangkat lain. Tutup dan buka kembali pengaturan urutan.",
+  "accountOrderSyncHint": "Urutan ini digunakan di daftar rekening dan pilihan rekening transaksi, lalu tersinkron setelah tersimpan di cloud.",
+  "transactionMoreDetails": "Catatan & tanggal",
+  "transactionSummary": "Ringkasan transaksi",
+  "transactionEditHint": "Jumlah, rekening, dan tanggal dikunci agar saldo tetap sesuai. Anda bisa mengubah kategori dan catatan.",
+  "transactionNoAccounts": "Tambahkan rekening terlebih dahulu untuk mencatat transaksi.",
+  "transactionNeedDestination": "Tambahkan rekening lain untuk melakukan transfer.",
+  "transactionSaveFailed": "Transaksi belum tersimpan. Coba lagi.",
+  "focusAssetDetailsTitle": "Detail aset",
+  "focusAssetMissing": "Aset sudah dihapus atau tidak tersedia.",
+  "focusAssetValueHint": "Nilai pasar dihitung dari jumlah unit × harga saat ini.",
+  "focusAccountBalance": "Saldo rekening",
+  "focusAccountBalanceHint": "Total saldo rekening, tunai, dan dompet digital",
+  "focusThisMonth": "Arus kas bulan ini",
+  "focusMonthNet": "Selisih bulan ini",
+  "focusNetWorthHint": "Saldo + investasi + piutang − utang",
+  "focusToolsShort": "Alat",
+  "focusAccountDetails": "Detail rekening",
+  "focusAccountMissing": "Rekening sudah dihapus atau tidak tersedia.",
+  "focusRecordHere": "Catat di rekening ini",
+  "focusAppearance": "Tampilan",
+  "focusDeviceSaved": "Tersimpan di perangkat",
+  "focusDevicePending": "Tersimpan di perangkat · menunggu sinkronisasi",
+  "focusCloudSaved": "Tersinkron",
+  "focusSyncFailed": "Sinkronisasi belum berhasil",
+  "focusSyncHint": "Perubahan di perangkat tetap tersedia. Coba sinkronkan lagi saat internet tersedia.",
+  "focusLoadFailed": "Data belum bisa dimuat. Coba lagi setelah koneksi tersedia.",
+  "focusConflict": "Ada perubahan dari perangkat lain. Tinjau sebelum memuat versi cloud.",
+  "focusLocalMode": "Mode lokal · tersimpan di perangkat",
+  "focusReviewSource": "Lihat dokumen asli",
+  "focusReviewBeforeSave": "Periksa hasil sebelum menyimpan",
+  "focusScanRetryHint": "Struk belum bisa dibaca. Foto tetap tersedia untuk dicoba lagi.",
+  "focusReviewDifference": "Selisih dengan dokumen",
+  "focusAccountSaveFailed": "Perubahan rekening belum tersimpan. Coba lagi.",
+  "focusAccountBalanceChanged": "Saldo rekening berubah saat formulir terbuka. Tutup dan buka kembali formulir sebelum mengubah saldo."
 }

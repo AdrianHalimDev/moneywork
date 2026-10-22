@@ -1,0 +1,7 @@
+{
+  "latestVersionCode": 17,
+  "latestVersionName": "2.9.0",
+  "apkUrl": "https://github.com/AdrianHalimDev/moneywork/releases/download/v2.9.0/MoneyWork-v2.9.0-build17.apk",
+  "releaseNotes": "Baru di MoneyWork 2.9.0:\n\n• Tenang Fokus untuk HP dan website: saldo rekening, arus kas bulanan, dan pencatatan yang lebih mudah.\n• Form transaksi menyesuaikan keyboard HP; ringkasan transfer menampilkan total beserta biaya admin.\n• Ketuk rekening atau aset untuk melihat detail dan riwayatnya.\n• Tema Terang, Gelap, dan Ikuti sistem tetap tersedia di Alat → Tampilan.\n• Atur urutan aset dan rekening dengan geser atau tombol naik/turun.\n• Urutan rekening juga berlaku pada dropdown transaksi dan transfer.\n• Urutan aset dan rekening tersinkron antar perangkat dengan akun yang sama.\n• Tampilan tabel untuk layar desktop dan dukungan teks besar.\n• Privasi nominal berlaku bersama di berbagai halaman, termasuk grafik ringkasan.\n• Review struk menampilkan foto asli; review PDF memiliki filter dan tombol impor yang mudah dijangkau.\n• Status penyimpanan perangkat dan sinkronisasi cloud lebih jelas.\n\nPerbarui aplikasi dan website pada semua perangkat agar urutan aset dan rekening tetap konsisten. Saat offline, perubahan dikirim setelah sinkronisasi kembali berhasil.",
+  "mandatory": false
+}

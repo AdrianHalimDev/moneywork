@@ -6,10 +6,12 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../data/app_controller.dart';
 import '../data/app_state.dart';
+import '../data/display_preferences.dart';
 import '../models/debt.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs/debt_dialogs.dart';
 import '../widgets/responsive_layout.dart';
+import '../widgets/display_controls.dart';
 
 /// Layar Utang: pinjaman, kartu kredit, cicilan beserta jatuh tempo.
 class DebtsScreen extends ConsumerWidget {
@@ -20,15 +22,23 @@ class DebtsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(appStateProvider);
     return Scaffold(
-      appBar: hideAppBar ? null : AppBar(title: Text(AppLocalizations.of(context)!.tabDebts)),
-      floatingActionButton: hideAppBar ? null : FloatingActionButton.extended(
-        onPressed: () => showDebtDialog(context, ref),
-        icon: const Icon(Icons.add),
-        label: Text(AppLocalizations.of(context)!.fabDebt),
-      ),
+      appBar: hideAppBar
+          ? null
+          : AppBar(
+              title: Text(AppLocalizations.of(context)!.tabDebts),
+              actions: const [AmountVisibilityButton()]),
+      floatingActionButton: hideAppBar
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => showDebtDialog(context, ref),
+              icon: const Icon(Icons.add),
+              label: Text(AppLocalizations.of(context)!.fabDebt),
+            ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('${AppLocalizations.of(context)!.errorLoadFailed}: $e')),
+        error: (e, _) => Center(
+            child:
+                Text('${AppLocalizations.of(context)!.errorLoadFailed}: $e')),
         data: (state) => _Body(state: state),
       ),
     );
@@ -71,7 +81,7 @@ class _Body extends ConsumerWidget {
                           Text(AppLocalizations.of(context)!.totalDebtLabel,
                               style: Theme.of(context).textTheme.labelLarge),
                           const SizedBox(height: 4),
-                          Text(Fmt.rupiah(state.totalDebt),
+                          Text(formatVisibleMoney(ref, state.totalDebt),
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
@@ -88,7 +98,7 @@ class _Body extends ConsumerWidget {
                           Text(AppLocalizations.of(context)!.monthlyInstallment,
                               style: Theme.of(context).textTheme.labelMedium),
                           const SizedBox(height: 4),
-                          Text(Fmt.rupiah(totalMonthly),
+                          Text(formatVisibleMoney(ref, totalMonthly),
                               style: Theme.of(context).textTheme.titleMedium),
                         ],
                       ),
@@ -128,8 +138,10 @@ class _DebtTile extends ConsumerWidget {
     final due = debt.dueDate;
     final parts = <String>[
       debt.type.label(AppLocalizations.of(context)!),
-      if (debt.monthlyPayment > 0) '${Fmt.rupiah(debt.monthlyPayment)}${AppLocalizations.of(context)!.perMonthSuffix}',
-      if (due != null) '${AppLocalizations.of(context)!.duePrefix} ${Fmt.date(due)}',
+      if (debt.monthlyPayment > 0)
+        '${formatVisibleMoney(ref, debt.monthlyPayment)}${AppLocalizations.of(context)!.perMonthSuffix}',
+      if (due != null)
+        '${AppLocalizations.of(context)!.duePrefix} ${Fmt.date(due)}',
     ];
     final lunas = debt.remaining <= 0;
     return ListTile(
@@ -140,7 +152,10 @@ class _DebtTile extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(lunas ? AppLocalizations.of(context)!.paidOff : Fmt.rupiah(debt.remaining),
+          Text(
+              lunas
+                  ? AppLocalizations.of(context)!.paidOff
+                  : formatVisibleMoney(ref, debt.remaining),
               style: TextStyle(
                   color: lunas ? AppTheme.income : AppTheme.debt,
                   fontWeight: FontWeight.w600)),

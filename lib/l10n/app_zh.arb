@@ -14,9 +14,21 @@
   "tooltipForecast": "未来30天现金流预测",
   "tooltipImportStatementPdf": "导入银行流水 PDF",
   "importSuccess": "已添加 {count} 笔交易。请检查保存状态。",
-  "@importSuccess": {"placeholders": {"count": {"type": "int"}}},
+  "@importSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "importSkipped": "已跳过 {count} 笔已导入的交易。",
-  "@importSkipped": {"placeholders": {"count": {"type": "int"}}},
+  "@importSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "syncStatusLoading": "正在加载数据",
   "syncStatusSynced": "数据已保存",
   "syncStatusPending": "正在保存更改",
@@ -44,8 +56,8 @@
   "fabAddAccount": "添加账户",
   "fabRecordTransaction": "记录交易",
   "errorLoadFailed": "加载失败",
-  "emptyAccountTitle": "还没有账户",
-  "emptyAccountSubtitle": "添加银行账户、现金钱包或电子钱包\n开始追踪您的财务状况。",
+  "emptyAccountTitle": "先添加一个账户",
+  "emptyAccountSubtitle": "月度交易需要一个账户作为来源/目的地。",
   "transactionHistory": "交易记录",
   "noTransactionsFilter": "没有符合过滤条件的交易。",
   "searchHint": "搜索备注 / 类别",
@@ -122,7 +134,7 @@
   "updatedAtLabel": "更新于",
   "addInvestment": "添加投资",
   "editInvestment": "编辑投资",
-  "nameLabel": "名称",
+  "nameLabel": "姓名",
   "nameHint": "例如：AAPL，比特币，黄金",
   "typeLabel": "类型",
   "tickerCryptoLabel": "CoinGecko ID",
@@ -232,8 +244,6 @@
   "emptyCategory": "本月无支出。",
   "tabMonthlyTx": "月度交易",
   "tooltipAddTemplate": "添加模板",
-  "emptyAccountTitle": "先添加一个账户",
-  "emptyAccountSubtitle": "月度交易需要一个账户作为来源/目的地。",
   "emptyMonthlyTitle": "还没有月度交易",
   "emptyMonthlySubtitle": "设置常规费用（订阅、账单、储蓄），然后\n每个月一次性运行它们。",
   "runBarIncome": "收入 {amount}",
@@ -252,9 +262,8 @@
   "segmentIncome": "收入",
   "segmentTransfer": "转账",
   "nominalLabel": "金额",
-  "fromAccountLabel": "从账户",
+  "fromAccountLabel": "资金来源账户",
   "toAccountLabel": "到账户",
-  "accountLabel": "账户",
   "errorSelectAccount": "选择目标账户",
   "errorSameAccount": "选择不同的账户",
   "categoryLabel": "类别",
@@ -316,7 +325,6 @@
   "passwordLabel": "密码",
   "passwordRequired": "密码必填",
   "passwordMinLen": "至少 6 个字符",
-  "nameLabel": "姓名",
   "nameRequired": "姓名必填",
   "passwordConfirmLabel": "确认密码",
   "requiredField": "必填字段",
@@ -360,7 +368,6 @@
   "editDebtTitle": "编辑债务",
   "addDebtTitle": "添加债务",
   "debtNameHint": "例如：抵押贷款，信用卡",
-  "typeLabel": "类型",
   "debtRemainingInputLabel": "剩余债务",
   "monthlyPaymentOptional": "月供（可选）",
   "dueDateOptional": "到期日（可选）",
@@ -383,7 +390,6 @@
   "noteReceivableHint": "例如：在 X 餐厅的晚餐",
   "fundNowTitle": "我现在资助",
   "fundNowSubtitle": "资金将从我的账户中扣除",
-  "fromAccountLabel": "资金来源账户",
   "reminderActiveDesc": "提醒已激活。在下方设置时间。",
   "reminderNoPermission": "通知权限被拒绝。请在手机设置中启用。",
   "reminderDisabled": "提醒已关闭。",
@@ -444,7 +450,7 @@
   "reportDate": "日期",
   "reportAmount": "金额",
   "notifSaveTime": "存钱时间 💰",
-  "notifSaveAmount": "为 {name} 预留 {amount}。",
+  "notifSaveAmount": "为 {name} 存入 {amount}。",
   "notifSaveGeneral": "是时候为 {name} 存钱了。",
   "accountTypeCash": "现金",
   "accountTypeBank": "银行",
@@ -463,9 +469,14 @@
   "salaryAllocateDesc": "工资到了，快分配到各个账户和支出项目吧。",
   "highExpenseTitle": "每日支出较高",
   "highExpenseDesc": "本月平均每天 {avg}。试着控制一下吧。",
-  "@highExpenseDesc": { "placeholders": { "avg": { "type": "String" } } },
+  "@highExpenseDesc": {
+    "placeholders": {
+      "avg": {
+        "type": "String"
+      }
+    }
+  },
   "editAccountTitle": "编辑账户",
-
   "deleteTransactionWarning": "账户余额将相应调整。此操作无法撤销。",
   "deleteAccountWarning": "与此账户相关的所有交易也将被删除。",
   "labelAccountName": "账户名称",
@@ -478,14 +489,28 @@
   "labelBalance": "余额",
   "labelInitialBalance": "初始余额",
   "validationInvalidNumber": "数字无效",
-  "addButton": "添加",
   "recordTransactionTitle": "记录交易",
   "labelAmount": "金额",
   "helperBalance": "{name} 余额：{balance}",
-  "@helperBalance": { "placeholders": { "name": { "type": "String" }, "balance": { "type": "String" } } },
+  "@helperBalance": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "validationInvalidAmount": "请输入有效金额",
   "validationExceedBalance": "超过余额 ({balance})",
-  "@validationExceedBalance": { "placeholders": { "balance": { "type": "String" } } },
+  "@validationExceedBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
   "labelFromAccount": "从账户",
   "labelToAccount": "到账户",
   "validationSelectDest": "请选择目标账户",
@@ -498,14 +523,18 @@
   "hintCategory": "例如 餐饮、工资、交通",
   "labelNote": "备注（可选）",
   "labelDate": "日期",
-
   "updateAvailable": "有可用更新",
   "updateVersion": "更新 {version}",
-  "@updateVersion": { "placeholders": { "version": { "type": "String" } } },
+  "@updateVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "updateDefaultNotes": "新版本已发布。",
   "updateBtn": "更新",
   "retryBtn": "重试",
-
   "excelHeaderDate": "日期",
   "excelHeaderType": "类型",
   "excelHeaderCategory": "类别",
@@ -513,12 +542,24 @@
   "excelHeaderAccount": "账户",
   "excelHeaderNote": "备注",
   "reportPrintedAt": "打印日期：{date}",
-  "@reportPrintedAt": { "placeholders": { "date": { "type": "String" } } },
+  "@reportPrintedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "legendIncome": "收入",
   "legendExpense": "支出",
   "noTransactionPeriod": "该时间段无交易记录。",
   "shareReportText": "MoneyWork 交易报告 {period}",
-  "@shareReportText": { "placeholders": { "period": { "type": "String" } } },
+  "@shareReportText": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
   "excelHeaderBalance": "余额",
   "excelHeaderBankNo": "账号",
   "excelHeaderCreatedAt": "创建日期",
@@ -551,42 +592,92 @@
   "statusActive": "启用",
   "statusInactive": "停用",
   "shareBackupText": "MoneyWork 全部数据备份 ({date})",
-  "@shareBackupText": { "placeholders": { "date": { "type": "String" } } },
+  "@shareBackupText": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "excelSheetAccounts": "账户",
   "excelSheetTransactions": "交易",
   "excelSheetDebts": "债务",
   "excelSheetReceivables": "应收",
   "excelSheetInvestments": "投资",
   "excelSheetRecurring": "定期",
-
   "priceErrNoTicker": "请先填写代码/符号。",
   "priceErrUnsupported": "此类型暂不支持自动定价。",
   "priceErrFetch": "获取价格失败。请检查网络连接。",
   "priceErrServer": "CoinGecko 服务器错误 ({code})。",
-  "@priceErrServer": { "placeholders": { "code": { "type": "int" } } },
+  "@priceErrServer": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
   "priceErrNotFound": "在 CoinGecko 上未找到代码 \"{id}\"。",
-  "@priceErrNotFound": { "placeholders": { "id": { "type": "String" } } },
+  "@priceErrNotFound": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
   "priceErrStockNotReady": "股票自动定价尚未启用（后端未部署）。",
   "priceErrStockServer": "股票价格服务器错误 ({code})。",
-  "@priceErrStockServer": { "placeholders": { "code": { "type": "int" } } },
+  "@priceErrStockServer": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
   "priceErrStockNotFound": "未找到股票代码 \"{code}\"。",
-  "@priceErrStockNotFound": { "placeholders": { "code": { "type": "String" } } },
-
+  "@priceErrStockNotFound": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "categoryOther": "其他",
-
   "errorLoadSession": "加载会话失败：{error}",
-  "@errorLoadSession": { "placeholders": { "error": { "type": "String" } } },
+  "@errorLoadSession": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "errorLoadSecurity": "加载安全状态失败：{error}",
-  "@errorLoadSecurity": { "placeholders": { "error": { "type": "String" } } },
-
+  "@errorLoadSecurity": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "notifDailyTitle": "记录今天的交易",
   "notifDailyBody": "别忘了在 MoneyWork 中记录你的收支。",
-  "notifSaveAmount": "为 {name} 存入 {amount}。",
-  "@notifSaveAmount": { "placeholders": { "amount": { "type": "String" }, "name": { "type": "String" } } },
-  "notifSaveGeneral": "是时候为 {name} 存钱了。",
-  "@notifSaveGeneral": { "placeholders": { "name": { "type": "String" } } },
+  "@notifSaveAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@notifSaveGeneral": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "notifSaveTitle": "该存钱啦 💰",
-
   "receiptReview": "账单审核",
   "receiptVerified": "✅ 总计匹配 — 数据已就绪",
   "receiptMismatch": "⚠️ 总计不匹配 — 请检查下方数字",
@@ -605,16 +696,96 @@
   "scanFromCamera": "相机",
   "scanFromGallery": "相册",
   "scanChooseSource": "选择照片来源",
-
   "assignItemsTitle": "分配商品",
   "howManyPeople": "有多少人参与分账？",
   "nextStep": "下一步",
   "enterNames": "输入每个人的姓名",
   "personNumber": "第 {number} 个人",
-  "@personNumber": { "placeholders": { "number": { "type": "int" } } },
+  "@personNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "selectItemsFor": "选择 {name} 的商品",
-  "@selectItemsFor": { "placeholders": { "name": { "type": "String" } } },
+  "@selectItemsFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "calculateSplit": "计算分账",
-  "editTransactionTitle": "编辑交易"
+  "editTransactionTitle": "编辑交易",
+  "assetsTitle": "资产",
+  "myAssetsTitle": "我的资产",
+  "financeTools": "财务工具",
+  "welcomeBack": "欢迎回来",
+  "greeting": "你好，{name}。",
+  "personalFinance": "个人财务空间",
+  "reorderAssets": "调整顺序",
+  "assetOrderHint": "拖动手柄或使用上下箭头。",
+  "saveAssetOrder": "保存顺序",
+  "moveAssetUp": "上移资产",
+  "moveAssetDown": "下移资产",
+  "manualAssetOrder": "自定义顺序",
+  "assetOrderSaved": "资产顺序已更新。请查看同步状态。",
+  "assetOrderChanged": "其他设备已更改顺序。请关闭并重新打开排序界面。",
+  "viewAll": "查看全部",
+  "scanReceiptAction": "扫描收据",
+  "importStatementAction": "导入 PDF",
+  "portfolioCost": "投资成本",
+  "marketValue": "市值",
+  "profitLoss": "盈亏",
+  "assetName": "资产",
+  "orderLabel": "顺序",
+  "accountsBalance": "账户余额",
+  "forecastTitle": "现金流预测",
+  "forecastIntro": "根据定期交易和到期债务预测未来 30 天余额。",
+  "hideBalances": "隐藏金额",
+  "showBalances": "显示金额",
+  "assetDistribution": "投资构成",
+  "assetOrderSyncHint": "顺序保存到云端后会同步到其他设备。",
+  "reorderAccounts": "调整账户顺序",
+  "accountOrderHint": "拖动手柄或使用上下箭头。",
+  "saveAccountOrder": "保存顺序",
+  "moveAccountUp": "上移账户",
+  "moveAccountDown": "下移账户",
+  "accountOrderSaved": "账户顺序已更新。请查看同步状态。",
+  "accountOrderChanged": "其他设备已更改账户顺序。请关闭并重新打开排序界面。",
+  "accountOrderSyncHint": "此顺序用于账户列表和交易账户选项，保存到云端后同步。",
+  "transactionMoreDetails": "备注与日期",
+  "transactionSummary": "交易摘要",
+  "transactionEditHint": "为保持余额准确，金额、账户及日期已锁定。您可修改分类和备注。",
+  "transactionNoAccounts": "请先添加账户再记录交易。",
+  "transactionNeedDestination": "请添加另一个账户以记录转账。",
+  "transactionSaveFailed": "交易尚未保存，请重试。",
+  "focusAssetDetailsTitle": "资产详情",
+  "focusAssetMissing": "此资产已删除或不可用。",
+  "focusAssetValueHint": "市值按数量 × 当前价格计算。",
+  "focusAccountBalance": "账户余额",
+  "focusAccountBalanceHint": "银行、现金及电子钱包余额合计",
+  "focusThisMonth": "本月现金流",
+  "focusMonthNet": "本月净现金流",
+  "focusNetWorthHint": "余额 + 投资 + 应收款 − 债务",
+  "focusToolsShort": "工具",
+  "focusAccountDetails": "账户详情",
+  "focusAccountMissing": "此账户已删除或不可用。",
+  "focusRecordHere": "在此账户记录",
+  "focusAppearance": "外观",
+  "focusDeviceSaved": "已保存到此设备",
+  "focusDevicePending": "已保存到此设备 · 等待同步",
+  "focusCloudSaved": "已同步",
+  "focusSyncFailed": "同步尚未完成",
+  "focusSyncHint": "更改仍保存在此设备。联网后请重试同步。",
+  "focusLoadFailed": "无法加载数据，请联网后重试。",
+  "focusConflict": "其他设备更改了此数据。加载云端版本前请先检查。",
+  "focusLocalMode": "本地模式 · 已保存到此设备",
+  "focusReviewSource": "查看原始文件",
+  "focusReviewBeforeSave": "保存前请核对",
+  "focusScanRetryHint": "无法识别收据，照片仍可用于重试。",
+  "focusReviewDifference": "与原始文件的差额",
+  "focusAccountSaveFailed": "账户更改尚未保存，请重试。",
+  "focusAccountBalanceChanged": "表单打开期间账户余额已发生变化。修改余额前请重新打开表单。"
 }
-

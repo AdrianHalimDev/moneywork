@@ -9,11 +9,14 @@ import '../data/app_controller.dart';
 import '../data/app_state.dart';
 import '../models/account.dart';
 import '../models/transaction.dart';
-import '../services/bank_statement_import_service.dart';
 import '../widgets/common.dart';
 import '../widgets/responsive_layout.dart';
-import 'bank_statement_import_screen.dart';
-import 'monthly_expenses_screen.dart';
+import '../data/display_preferences.dart';
+import '../widgets/display_controls.dart';
+import '../widgets/sync_indicator.dart';
+import '../widgets/dialogs/transaction_editor.dart';
+import '../widgets/display_order_sheet.dart';
+import 'finance_tools_screen.dart';
 
 /// Layar Akun: kelola rekening/dompet dan catat transaksi.
 class AccountsScreen extends ConsumerWidget {
@@ -22,70 +25,26 @@ class AccountsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(appStateProvider);
-    final syncStatus = ref.watch(syncStatusProvider);
-    final syncPhase = syncStatus.phase;
     final l10n = AppLocalizations.of(context)!;
-    final (syncIcon, syncLabel) = switch (syncPhase) {
-      SyncPhase.loading => (Icons.cloud_sync_outlined, l10n.syncStatusLoading),
-      SyncPhase.synced => (Icons.cloud_done_outlined, l10n.syncStatusSynced),
-      SyncPhase.pending => (Icons.cloud_upload_outlined,
-          syncStatus.message == 'cache' ? l10n.syncCache : l10n.syncStatusPending),
-      SyncPhase.error => (Icons.cloud_off_outlined, l10n.syncStatusError),
-    };
     return Scaffold(
       appBar: AppBar(
-        title: Row(children: [
-          Flexible(child: Text(l10n.titleAccounts)),
-          const SizedBox(width: 4),
-          Tooltip(
-            message: syncLabel,
-            child: Icon(syncIcon, size: 18,
-                color: syncPhase == SyncPhase.error
-                    ? Theme.of(context).colorScheme.error
-                    : Theme.of(context).colorScheme.primary),
-          ),
-        ]),
+        title: Text(l10n.navAccounts),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            tooltip: AppLocalizations.of(context)!.tooltipImportStatementPdf,
-            onPressed: async.valueOrNull == null
-                ? null
-                : () async {
-                    final state = async.valueOrNull!;
-                    final approval = await Navigator.of(context)
-                        .push<StatementImportApproval>(MaterialPageRoute(
-                      builder: (_) => BankStatementImportScreen(
-                        accounts: state.accounts,
-                        existingTransactions: state.transactions,
-                        statementScanEndpoint: Uri.parse(
-                            'https://moneywork-ocr.tompel-adrian-6ef.workers.dev/statement-scan'),
-                      ),
-                    ));
-                    if (approval == null || !context.mounted) return;
-                    final result = await ref.read(appStateProvider.notifier)
-                        .importStatementTransactions(approval);
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(result.error ?? [
-                        AppLocalizations.of(context)!
-                            .importSuccess(result.importedCount),
-                        if (result.skippedCount > 0)
-                          AppLocalizations.of(context)!
-                              .importSkipped(result.skippedCount),
-                      ].join(' ')),
-                    ));
-                  },
-          ),
-          IconButton(
-            icon: const Icon(Icons.event_repeat_outlined),
-            tooltip: AppLocalizations.of(context)!.tooltipMonthlyExpenses,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                  builder: (_) => const MonthlyExpensesScreen()),
-            ),
+          const AmountVisibilityButton(),
+          TextButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => const FinanceToolsScreen())),
+            icon: const Icon(Icons.grid_view_outlined, size: 18),
+            label: Text(l10n.focusToolsShort),
           ),
         ],
+        bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(28),
+            child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: SyncIndicator(showLabel: true)))),
       ),
       floatingActionButton: async.maybeWhen(
         data: (state) => _Fab(state: state),
@@ -93,7 +52,7 @@ class AccountsScreen extends ConsumerWidget {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('${AppLocalizations.of(context)!.errorLoadFailed}: $e')),
+        error: (_, __) => const FriendlyLoadError(),
         data: (state) => _Body(state: state),
       ),
     );
@@ -107,11 +66,13 @@ class _Fab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return FloatingActionButton.extended(
-      onPressed: state.accounts.isEmpty
+      onPressed: state.orderedAccounts.isEmpty
           ? () => showAccountDialog(context, ref)
           : () => showTransactionDialog(context, ref, state),
-      icon: Icon(state.accounts.isEmpty ? Icons.add_card : Icons.add),
-      label: Text(state.accounts.isEmpty ? AppLocalizations.of(context)!.fabAddAccount : AppLocalizations.of(context)!.fabRecordTransaction),
+      icon: Icon(state.orderedAccounts.isEmpty ? Icons.add_card : Icons.add),
+      label: Text(state.orderedAccounts.isEmpty
+          ? AppLocalizations.of(context)!.fabAddAccount
+          : AppLocalizations.of(context)!.fabRecordTransaction),
     );
   }
 }
@@ -151,7 +112,7 @@ class _BodyState extends ConsumerState<_Body> {
 
   @override
   Widget build(BuildContext context) {
-    if (state.accounts.isEmpty) {
+    if (state.orderedAccounts.isEmpty) {
       return EmptyState(
         icon: Icons.account_balance_wallet_outlined,
         title: AppLocalizations.of(context)!.emptyAccountTitle,
@@ -167,41 +128,87 @@ class _BodyState extends ConsumerState<_Body> {
     );
 
     return ResponsiveCenter(
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
-      children: [
-        _AccountsStrip(state: state),
-        SectionHeader(title: AppLocalizations.of(context)!.transactionHistory),
-        if (state.transactions.isNotEmpty) _filterBar(),
-        if (state.transactions.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: Text(AppLocalizations.of(context)!.noTransactionsMessage,
-                  style: TextStyle(color: Theme.of(context).colorScheme.outline)),
-            ),
-          )
-        else if (filtered.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: Text(AppLocalizations.of(context)!.noTransactionsFilter,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Theme.of(context).colorScheme.outline)),
-            ),
-          )
-        else
-          for (final entry in byDate.entries) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text(entry.key,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.outline)),
-            ),
-            for (final tx in entry.value) _TxRow(tx: tx, state: state),
-          ],
-      ],
-      ),
+      child: LayoutBuilder(
+          builder: (context, constraints) => ListView(
+                padding: const EdgeInsets.only(bottom: 96),
+                children: [
+                  const SyncStatusBanner(),
+                  Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                      child: Card(
+                          color: AppTheme.heroBackground(context),
+                          child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        AppLocalizations.of(context)!
+                                            .accountsBalance,
+                                        style: const TextStyle(
+                                            color: AppTheme.heroForeground)),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                        formatVisibleMoney(
+                                            ref, state.totalCash),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineMedium
+                                            ?.copyWith(
+                                                color: AppTheme.heroForeground,
+                                                fontWeight: FontWeight.w600)),
+                                  ])))),
+                  _AccountsStrip(state: state),
+                  SectionHeader(
+                      title: AppLocalizations.of(context)!.transactionHistory),
+                  if (state.transactions.isNotEmpty) _filterBar(),
+                  if (state.transactions.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: Text(
+                            AppLocalizations.of(context)!.noTransactionsMessage,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.outline)),
+                      ),
+                    )
+                  else if (filtered.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: Text(
+                            AppLocalizations.of(context)!.noTransactionsFilter,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.outline)),
+                      ),
+                    )
+                  else if (constraints.maxWidth >= 760 &&
+                      MediaQuery.textScalerOf(context).scale(14) <= 18)
+                    Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Card(
+                            child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: _TransactionsTable(
+                                    transactions: filtered, state: state))))
+                  else
+                    for (final entry in byDate.entries) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(entry.key,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.outline)),
+                      ),
+                      for (final tx in entry.value)
+                        _TxRow(tx: tx, state: state),
+                    ],
+                ],
+              )),
     );
   }
 
@@ -263,15 +270,17 @@ class _BodyState extends ConsumerState<_Body> {
   Widget _accountFilterChip() {
     final selectedName = _accountFilter == null
         ? null
-        : state.accounts
+        : state.orderedAccounts
             .firstWhere((a) => a.id == _accountFilter,
-                orElse: () => state.accounts.first)
+                orElse: () => state.orderedAccounts.first)
             .name;
     return PopupMenuButton<String?>(
       onSelected: (v) => setState(() => _accountFilter = v),
       itemBuilder: (context) => [
-        PopupMenuItem(value: null, child: Text(AppLocalizations.of(context)!.filterAllAccounts)),
-        for (final a in state.accounts)
+        PopupMenuItem(
+            value: null,
+            child: Text(AppLocalizations.of(context)!.filterAllAccounts)),
+        for (final a in state.orderedAccounts)
           PopupMenuItem(value: a.id, child: Text(a.name)),
       ],
       child: Chip(
@@ -302,19 +311,36 @@ class _AccountsStrip extends ConsumerWidget {
             label: Text(AppLocalizations.of(context)!.accountLabel),
           ),
         ),
-        SizedBox(
-          height: 116,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
+        Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: state.accounts.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) {
-              final a = state.accounts[i];
-              return _AccountCard(account: a);
-            },
-          ),
-        ),
+            child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                    key: const ValueKey('reorder-accounts'),
+                    onPressed: () => showAccountOrderSheet(context, state),
+                    icon: const Icon(Icons.tune, size: 18),
+                    label:
+                        Text(AppLocalizations.of(context)!.reorderAccounts)))),
+        LayoutBuilder(builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 950
+              ? 3
+              : constraints.maxWidth >= 650
+                  ? 2
+                  : 1;
+          final width =
+              (constraints.maxWidth - 32 - (columns - 1) * 12) / columns;
+          return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(spacing: 12, runSpacing: 12, children: [
+                for (final account in state.orderedAccounts)
+                  SizedBox(
+                      width: width,
+                      height: MediaQuery.textScalerOf(context).scale(14) > 18
+                          ? 160
+                          : 124,
+                      child: _AccountCard(account: account)),
+              ]));
+        }),
       ],
     );
   }
@@ -328,12 +354,14 @@ class _AccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return InkWell(
+      key: ValueKey('account-card-${account.id}'),
       borderRadius: BorderRadius.circular(16),
-      onTap: () => showAccountDialog(context, ref, existing: account),
+      onTap: () => showAccountDetails(context, account.id),
       child: Container(
         width: 180,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: theme.colorScheme.outlineVariant),
         ),
@@ -343,7 +371,8 @@ class _AccountCard extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(account.type.icon, size: 20, color: theme.colorScheme.primary),
+                Icon(account.type.icon,
+                    size: 20, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(account.name,
@@ -357,7 +386,8 @@ class _AccountCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                    account.accountNumber.isEmpty
+                    account.accountNumber.isEmpty ||
+                            ref.watch(amountsHiddenProvider)
                         ? account.type.label(AppLocalizations.of(context)!)
                         : '${account.type.label(AppLocalizations.of(context)!)} · ${account.accountNumber}',
                     maxLines: 1,
@@ -368,7 +398,7 @@ class _AccountCard extends ConsumerWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(Fmt.rupiah(account.balance),
+                  child: Text(formatVisibleMoney(ref, account.balance),
                       style: theme.textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold)),
                 ),
@@ -381,22 +411,113 @@ class _AccountCard extends ConsumerWidget {
   }
 }
 
+class _TransactionsTable extends ConsumerWidget {
+  const _TransactionsTable({required this.transactions, required this.state});
+  final List<Transaction> transactions;
+  final AppState state;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    return SizedBox(
+        width: double.infinity,
+        child: DataTable(
+          showCheckboxColumn: false,
+          columnSpacing: 16,
+          horizontalMargin: 8,
+          dataRowMinHeight: 72,
+          dataRowMaxHeight: 88,
+          columns: [
+            DataColumn(label: Text(l10n.transactionHistory)),
+            DataColumn(label: Text(l10n.accountLabel)),
+            DataColumn(label: Text(l10n.amountLabel), numeric: true),
+            const DataColumn(label: SizedBox.shrink())
+          ],
+          rows: [
+            for (final tx in transactions)
+              DataRow(
+                  onSelectChanged: (_) =>
+                      showTransactionDialog(context, ref, state, existing: tx),
+                  cells: [
+                    DataCell(SizedBox(
+                        width: 190,
+                        child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  tx.note.isEmpty
+                                      ? tx.type.label(l10n)
+                                      : tx.note,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                              Text('${tx.category} · ${Fmt.date(tx.date)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall),
+                            ]))),
+                    DataCell(SizedBox(
+                        width: 110,
+                        child: Text(
+                            tx.type == TxType.transfer
+                                ? '${_name(tx.accountId)} → ${_name(tx.toAccountId ?? '')}'
+                                : _name(tx.accountId),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis))),
+                    DataCell(Text(
+                        formatVisibleMoney(ref, tx.signedAmount, signed: true),
+                        style: TextStyle(
+                            color: tx.type == TxType.income
+                                ? Theme.of(context).colorScheme.primary
+                                : tx.type == TxType.expense
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface))),
+                    DataCell(IconButton(
+                        tooltip: l10n.deleteLabel,
+                        icon: const Icon(Icons.delete_outline, size: 19),
+                        onPressed: () async {
+                          final ctrl = ref.read(appStateProvider.notifier);
+                          if (await _TxRow(tx: tx, state: state)
+                              ._confirmDelete(context)) {
+                            await ctrl.deleteTransaction(tx.id);
+                          }
+                        })),
+                  ]),
+          ],
+        ));
+  }
+
+  String _name(String id) =>
+      state.orderedAccounts
+          .where((a) => a.id == id)
+          .map((a) => a.name)
+          .firstOrNull ??
+      '-';
+}
+
 class _TxRow extends ConsumerWidget {
   const _TxRow({required this.tx, required this.state});
   final Transaction tx;
   final AppState state;
 
   String _accountName(String id) {
-    final m = state.accounts.where((a) => a.id == id);
+    final m = state.orderedAccounts.where((a) => a.id == id);
     return m.isEmpty ? '-' : m.first.name;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final (icon, color) = switch (tx.type) {
-      TxType.income => (Icons.south_west, AppTheme.income),
-      TxType.expense => (Icons.north_east, AppTheme.expense),
-      TxType.transfer => (Icons.swap_horiz, AppTheme.investment),
+      TxType.income => (
+          Icons.south_west,
+          Theme.of(context).colorScheme.primary
+        ),
+      TxType.expense => (Icons.north_east, Theme.of(context).colorScheme.error),
+      TxType.transfer => (
+          Icons.swap_horiz,
+          Theme.of(context).colorScheme.tertiary
+        ),
     };
     final subtitle = tx.type == TxType.transfer
         ? '${_accountName(tx.accountId)} → ${_accountName(tx.toAccountId ?? '')}'
@@ -420,9 +541,11 @@ class _TxRow extends ConsumerWidget {
       child: ListTile(
         onTap: () => showTransactionDialog(context, ref, state, existing: tx),
         leading: IconBadge(icon: icon, color: color),
-        title: Text(tx.note.isEmpty ? tx.type.label(AppLocalizations.of(context)!) : tx.note),
+        title: Text(tx.note.isEmpty
+            ? tx.type.label(AppLocalizations.of(context)!)
+            : tx.note),
         subtitle: Text(subtitle),
-        trailing: Text(Fmt.rupiahSigned(tx.signedAmount),
+        trailing: Text(formatVisibleMoney(ref, tx.signedAmount, signed: true),
             style: TextStyle(color: color, fontWeight: FontWeight.w600)),
         // Geser ke kiri untuk hapus, atau tahan (long-press) bila gestur geser
         // sulit — keduanya melalui konfirmasi yang sama.
@@ -443,8 +566,7 @@ class _TxRow extends ConsumerWidget {
       // yang resolve ke navigator halaman dan malah menutup layar (layar hitam).
       builder: (dialogCtx) => AlertDialog(
         title: Text('${AppLocalizations.of(context)!.deleteLabel}?'),
-        content: Text(
-            AppLocalizations.of(context)!.deleteTransactionWarning),
+        content: Text(AppLocalizations.of(context)!.deleteTransactionWarning),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(dialogCtx, false),
@@ -468,147 +590,322 @@ Future<void> showAccountDialog(
   WidgetRef ref, {
   Account? existing,
 }) async {
-  final nameCtrl = TextEditingController(text: existing?.name ?? '');
-  final balanceCtrl = TextEditingController(
-      text: existing != null ? Fmt.groupInput(existing.balance) : '');
-  final numberCtrl =
-      TextEditingController(text: existing?.accountNumber ?? '');
-  var type = existing?.type ?? AccountType.bank;
-  final isEdit = existing != null;
-  final formKey = GlobalKey<FormState>();
-
   await showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
+    useSafeArea: true,
     isScrollControlled: true,
-    showDragHandle: true,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 8,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+    showDragHandle: false,
+    clipBehavior: Clip.antiAlias,
+    builder: (context) => LayoutBuilder(builder: (context, constraints) {
+      final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+      return Padding(
+        padding: EdgeInsets.only(bottom: keyboard),
+        child: SizedBox(
+          height: (constraints.maxHeight - keyboard - 8)
+              .clamp(0.0, 660.0)
+              .toDouble(),
+          child: _AccountEditor(existing: existing),
         ),
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(isEdit ? AppLocalizations.of(context)!.editAccountTitle : AppLocalizations.of(context)!.fabAddAccount,
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: nameCtrl,
-                autofocus: !isEdit,
-                decoration: InputDecoration(
-                    labelText: AppLocalizations.of(context)!.labelAccountName, hintText: AppLocalizations.of(context)!.hintAccountName),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? AppLocalizations.of(context)!.validationRequired : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<AccountType>(
-                initialValue: type,
-                decoration: InputDecoration(labelText: AppLocalizations.of(context)!.labelAccountType),
-                items: [
-                  for (final t in AccountType.values)
-                    DropdownMenuItem(
-                        value: t,
-                        child: Row(children: [
-                          Icon(t.icon, size: 18),
-                          const SizedBox(width: 8),
-                          Text(t.label(AppLocalizations.of(context)!)),
-                        ])),
-                ],
-                onChanged: (v) => setState(() => type = v ?? type),
-              ),
-              if (type != AccountType.cash) ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: numberCtrl,
-                  keyboardType: TextInputType.text,
-                  decoration: InputDecoration(
-                    labelText: type == AccountType.ewallet
-                        ? AppLocalizations.of(context)!.labelEwalletNumber
-                        : AppLocalizations.of(context)!.labelBankNumber,
-                    hintText: AppLocalizations.of(context)!.hintOptional,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: balanceCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsInputFormatter()],
-                decoration: InputDecoration(
-                  labelText: isEdit ? AppLocalizations.of(context)!.labelBalance : AppLocalizations.of(context)!.labelInitialBalance,
-                  prefixText: 'Rp ',
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return null;
-                  return Fmt.tryParseInput(v) == null
-                      ? AppLocalizations.of(context)!.validationInvalidNumber
-                      : null;
-                },
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  if (isEdit)
-                    TextButton.icon(
-                      onPressed: () async {
-                        // Konfirmasi dulu (sheet masih terbuka → context valid),
-                        // baru hapus, lalu tutup sheet. Memanggil dialog setelah
-                        // pop sebelumnya membuat dialog tak pernah muncul.
-                        final navigator = Navigator.of(context);
-                        final ctrl = ref.read(appStateProvider.notifier);
-                        final confirmed =
-                            await _confirmDeleteAccount(context, existing);
-                        if (!confirmed) return;
-                        await ctrl.deleteAccount(existing.id);
-                        navigator.pop();
-                      },
-                      icon: const Icon(Icons.delete_outline,
-                          color: AppTheme.expense),
-                      label: Text(AppLocalizations.of(context)!.deleteLabel,
-                          style: TextStyle(color: AppTheme.expense)),
-                    ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () {
-                      if (!formKey.currentState!.validate()) return;
-                      final balance =
-                          Fmt.tryParseInput(balanceCtrl.text) ?? 0;
-                      // Nomor rekening tidak berlaku untuk akun tunai.
-                      final number = type == AccountType.cash
-                          ? ''
-                          : numberCtrl.text.trim();
-                      final ctrl = ref.read(appStateProvider.notifier);
-                      if (isEdit) {
-                        ctrl.updateAccount(existing.copyWith(
-                            name: nameCtrl.text.trim(),
-                            type: type,
-                            balance: balance,
-                            accountNumber: number));
-                      } else {
-                        ctrl.addAccount(
-                            name: nameCtrl.text.trim(),
-                            type: type,
-                            initialBalance: balance,
-                            accountNumber: number);
-                      }
-                      Navigator.pop(context);
-                    },
-                    child: Text(isEdit ? AppLocalizations.of(context)!.saveButton : AppLocalizations.of(context)!.addButton),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
+      );
+    }),
   );
+}
+
+class _AccountEditor extends ConsumerStatefulWidget {
+  const _AccountEditor({this.existing});
+  final Account? existing;
+
+  @override
+  ConsumerState<_AccountEditor> createState() => _AccountEditorState();
+}
+
+class _AccountEditorState extends ConsumerState<_AccountEditor> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _name;
+  late final TextEditingController _balance;
+  late final TextEditingController _number;
+  late AccountType _type;
+  bool _busy = false;
+  String? _error;
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _name = TextEditingController(text: existing?.name ?? '');
+    _balance =
+        TextEditingController(text: Fmt.groupInput(existing?.balance ?? 0));
+    _number = TextEditingController(text: existing?.accountNumber ?? '');
+    _type = existing?.type ?? AccountType.bank;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _balance.dispose();
+    _number.dispose();
+    super.dispose();
+  }
+
+  Account? _liveAccount() => ref
+      .read(appStateProvider)
+      .valueOrNull
+      ?.accounts
+      .where((account) => account.id == widget.existing?.id)
+      .firstOrNull;
+
+  Future<void> _save() async {
+    if (_busy || !_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context)!;
+    final balance = Fmt.tryParseInput(_balance.text) ?? 0;
+    Account? updated;
+    final original = widget.existing;
+    if (original != null) {
+      final live = _liveAccount();
+      if (live == null) {
+        setState(() => _error = l10n.focusAccountMissing);
+        return;
+      }
+      final balanceEdited = balance != original.balance;
+      // A name-only edit must not restore a balance from before a new transaction.
+      if (balanceEdited && live.balance != original.balance) {
+        setState(() => _error = l10n.focusAccountBalanceChanged);
+        return;
+      }
+      final nextType = _type == original.type ? live.type : _type;
+      updated = live.copyWith(
+        name:
+            _name.text.trim() == original.name ? live.name : _name.text.trim(),
+        type: nextType,
+        balance: balanceEdited ? balance : live.balance,
+        accountNumber: nextType == AccountType.cash
+            ? ''
+            : _number.text.trim() == original.accountNumber
+                ? live.accountNumber
+                : _number.text.trim(),
+      );
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    FocusManager.instance.primaryFocus?.unfocus();
+    try {
+      final controller = ref.read(appStateProvider.notifier);
+      if (updated != null) {
+        await controller.updateAccount(updated);
+      } else {
+        await controller.addAccount(
+            name: _name.text.trim(),
+            type: _type,
+            initialBalance: balance,
+            accountNumber:
+                _type == AccountType.cash ? '' : _number.text.trim());
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = l10n.focusAccountSaveFailed;
+        });
+      }
+    }
+  }
+
+  Future<void> _delete() async {
+    if (_busy) return;
+    final l10n = AppLocalizations.of(context)!;
+    final live = _liveAccount();
+    if (live == null) {
+      setState(() => _error = l10n.focusAccountMissing);
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      // Confirm while the editor is mounted; the dialog uses its own navigator.
+      final confirmed = await _confirmDeleteAccount(context, live);
+      if (!mounted) return;
+      if (!confirmed) {
+        setState(() => _busy = false);
+        return;
+      }
+      await ref.read(appStateProvider.notifier).deleteAccount(live.id);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = l10n.focusAccountSaveFailed;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colors = Theme.of(context).colorScheme;
+    return PopScope(
+      canPop: !_busy,
+      child: Material(
+        color: colors.surface,
+        child: Column(children: [
+          Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 8, 8),
+              child: Row(children: [
+                Expanded(
+                    child: Text(
+                        _isEdit ? l10n.editAccountTitle : l10n.fabAddAccount,
+                        style: Theme.of(context).textTheme.titleLarge)),
+                IconButton(
+                    tooltip:
+                        MaterialLocalizations.of(context).closeButtonTooltip,
+                    onPressed: _busy ? null : () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close)),
+              ])),
+          const Divider(height: 1),
+          Expanded(
+              child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              key: const ValueKey('account-editor-scroll'),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      key: const ValueKey('account-editor-name'),
+                      controller: _name,
+                      enabled: !_busy,
+                      autofocus: !_isEdit,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                          labelText: l10n.labelAccountName,
+                          hintText: l10n.hintAccountName),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                              ? l10n.validationRequired
+                              : null,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<AccountType>(
+                      key: const ValueKey('account-editor-type'),
+                      initialValue: _type,
+                      isExpanded: true,
+                      decoration:
+                          InputDecoration(labelText: l10n.labelAccountType),
+                      items: [
+                        for (final type in AccountType.values)
+                          DropdownMenuItem(
+                              value: type,
+                              child: Row(children: [
+                                Icon(type.icon, size: 18),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                    child: Text(type.label(l10n),
+                                        overflow: TextOverflow.ellipsis)),
+                              ]))
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (value) => setState(() => _type = value ?? _type),
+                    ),
+                    if (_type != AccountType.cash) ...[
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        key: const ValueKey('account-editor-number'),
+                        controller: _number,
+                        enabled: !_busy,
+                        decoration: InputDecoration(
+                            labelText: _type == AccountType.ewallet
+                                ? l10n.labelEwalletNumber
+                                : l10n.labelBankNumber,
+                            hintText: l10n.hintOptional),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      key: const ValueKey('account-editor-balance'),
+                      controller: _balance,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [ThousandsInputFormatter()],
+                      decoration: InputDecoration(
+                          labelText: _isEdit
+                              ? l10n.labelBalance
+                              : l10n.labelInitialBalance,
+                          prefixText: 'Rp '),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) return null;
+                        final balance = Fmt.tryParseInput(value);
+                        return balance == null || !balance.isFinite
+                            ? l10n.validationInvalidNumber
+                            : null;
+                      },
+                    ),
+                  ]),
+            ),
+          )),
+          DecoratedBox(
+              decoration: BoxDecoration(
+                  color: colors.surfaceContainerLow,
+                  border:
+                      Border(top: BorderSide(color: colors.outlineVariant))),
+              child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_error != null) ...[
+                            Text(_error!,
+                                key: const ValueKey('account-editor-error'),
+                                style: TextStyle(color: colors.error)),
+                            const SizedBox(height: 8),
+                          ],
+                          Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 12,
+                              runSpacing: 8,
+                              children: [
+                                if (_isEdit)
+                                  TextButton.icon(
+                                      key: const ValueKey(
+                                          'account-editor-delete'),
+                                      onPressed: _busy ? null : _delete,
+                                      icon: Icon(Icons.delete_outline,
+                                          color: colors.error),
+                                      label: Text(l10n.deleteLabel,
+                                          style:
+                                              TextStyle(color: colors.error))),
+                                FilledButton(
+                                    key: const ValueKey('account-editor-save'),
+                                    onPressed: _busy ? null : _save,
+                                    child: _busy
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2))
+                                        : Text(_isEdit
+                                            ? l10n.saveButton
+                                            : l10n.addButton)),
+                              ]),
+                        ]),
+                  ))),
+        ]),
+      ),
+    );
+  }
 }
 
 Future<bool> _confirmDeleteAccount(
@@ -618,9 +915,9 @@ Future<bool> _confirmDeleteAccount(
     // Pop pakai context dialog (dialogCtx). Bila pakai context bottom sheet,
     // pop salah sasaran: dialog tak tertutup & future menggantung (stuck).
     builder: (dialogCtx) => AlertDialog(
-      title: Text('${AppLocalizations.of(context)!.deleteLabel} ${account.name}?'),
-      content: Text(
-          AppLocalizations.of(context)!.deleteAccountWarning),
+      title:
+          Text('${AppLocalizations.of(context)!.deleteLabel} ${account.name}?'),
+      content: Text(AppLocalizations.of(context)!.deleteAccountWarning),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
@@ -644,311 +941,155 @@ Future<void> showTransactionDialog(
   AppState state, {
   double? prefilledAmount,
   Transaction? existing,
-}) async {
-  final isEdit = existing != null;
-  final amountCtrl = TextEditingController(
-    text: existing != null
-        ? Fmt.groupInput(existing.amount)
-        : (prefilledAmount != null ? prefilledAmount.toStringAsFixed(0) : ''),
-  );
-  final categoryCtrl = TextEditingController(text: existing?.category ?? '');
-  final categoryFocus = FocusNode();
-  final noteCtrl = TextEditingController(text: existing?.note ?? '');
-  final adminFeeCtrl = TextEditingController();
+  String? initialAccountId,
+}) =>
+    showFocusTransactionEditor(context, ref, state,
+        prefilledAmount: prefilledAmount,
+        existing: existing,
+        initialAccountId: initialAccountId);
 
-  final knownCategories = <String>{
-    for (final t in state.transactions)
-      if (t.category.trim().isNotEmpty) t.category.trim(),
-  }.toList()
-    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-  var type = existing?.type ?? TxType.expense;
-  var useAdminFee = false;
-  var accountId = existing?.accountId ?? state.accounts.first.id;
-  String? toAccountId = existing?.toAccountId ??
-      (state.accounts.length > 1 ? state.accounts[1].id : null);
-  var date = existing?.date ?? DateTime.now();
-  final formKey = GlobalKey<FormState>();
+Future<void> showAccountDetails(BuildContext context, String accountId) =>
+    Navigator.of(context, rootNavigator: true).push<void>(MaterialPageRoute(
+        builder: (_) => AccountDetailsScreen(accountId: accountId)));
 
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 8,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-        ),
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isEdit
-                    ? AppLocalizations.of(context)!.editTransactionTitle
-                    : AppLocalizations.of(context)!.recordTransactionTitle,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              SegmentedButton<TxType>(
-                segments: [
-                  ButtonSegment(
-                      value: TxType.expense,
-                      label: Text(AppLocalizations.of(context)!.segmentExpense)),
-                  ButtonSegment(
-                      value: TxType.income,
-                      label: Text(AppLocalizations.of(context)!.segmentIncome)),
-                  ButtonSegment(
-                      value: TxType.transfer,
-                      label: Text(AppLocalizations.of(context)!.segmentTransfer)),
-                ],
-                selected: {type},
-                onSelectionChanged: isEdit ? null : (s) => setState(() => type = s.first),
-              ),
-              const SizedBox(height: 16),
-              Builder(builder: (context) {
-                final source = state.accounts.firstWhere(
-                  (a) => a.id == accountId,
-                  orElse: () => state.accounts.first,
-                );
-                return TextFormField(
-                  controller: amountCtrl,
-                  enabled: !isEdit,
-                  autofocus: !isEdit,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [ThousandsInputFormatter()],
-                  decoration: InputDecoration(
-                    labelText: AppLocalizations.of(context)!.labelAmount,
-                    prefixText: 'Rp ',
-                    helperText: type == TxType.income
-                        ? null
-                        : AppLocalizations.of(context)!.helperBalance(source.name, Fmt.rupiah(source.balance)),
-                  ),
-                  validator: (v) {
-                    final n = Fmt.tryParseInput(v ?? '');
-                    if (n == null || n <= 0) return AppLocalizations.of(context)!.validationInvalidAmount;
-                    if (!isEdit && type != TxType.income && n > source.balance) {
-                      return AppLocalizations.of(context)!.validationExceedBalance(Fmt.rupiah(source.balance));
-                    }
-                    return null;
-                  },
-                );
-              }),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: accountId,
-                decoration: InputDecoration(
-                    labelText:
-                        type == TxType.transfer ? AppLocalizations.of(context)!.labelFromAccount : AppLocalizations.of(context)!.accountLabel),
-                items: [
-                  for (final a in state.accounts)
-                    DropdownMenuItem(value: a.id, child: Text(a.name)),
-                ],
-                onChanged: isEdit ? null : (v) => setState(() => accountId = v ?? accountId),
-              ),
-              if (type == TxType.transfer) ...[
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: toAccountId,
-                  decoration: InputDecoration(labelText: AppLocalizations.of(context)!.labelToAccount),
-                  items: [
-                    for (final a in state.accounts)
-                      DropdownMenuItem(value: a.id, child: Text(a.name)),
-                  ],
-                  onChanged: isEdit ? null : (v) => setState(() => toAccountId = v),
-                  validator: (v) {
-                    if (type != TxType.transfer) return null;
-                    if (v == null) return AppLocalizations.of(context)!.validationSelectDest;
-                    if (v == accountId) return AppLocalizations.of(context)!.validationDiffAccount;
-                    return null;
-                  },
-                ),
-                SwitchListTile(
-                  value: useAdminFee,
-                  onChanged: isEdit ? null : (v) => setState(() => useAdminFee = v),
-                  title: Text(AppLocalizations.of(context)!.adminFeeOptional),
-                  subtitle: Text(
-                      AppLocalizations.of(context)!.adminFeeSubtitle),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                ),
-                if (useAdminFee)
-                  Builder(builder: (context) {
-                    final amt = Fmt.tryParseInput(amountCtrl.text) ?? 0;
-                    final fee = Fmt.tryParseInput(adminFeeCtrl.text) ?? 0;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextFormField(
-                          controller: adminFeeCtrl,
-                          enabled: !isEdit,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [ThousandsInputFormatter()],
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.labelAdminFee,
-                            prefixText: 'Rp ',
-                            helperText:
-                                AppLocalizations.of(context)!.helperAdminFee,
-                          ),
-                          validator: (v) {
-                            if (!useAdminFee) return null;
-                            final n = Fmt.tryParseInput(v ?? '');
-                            if (n == null || n <= 0) {
-                              return AppLocalizations.of(context)!.validationAdminFee;
-                            }
-                            return null;
-                          },
-                        ),
-                        if (amt > 0 && fee > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                                AppLocalizations.of(context)!.totalOut(Fmt.rupiah(amt + fee)),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.expense)),
-                          ),
-                      ],
-                    );
-                  }),
-              ] else ...[
-                const SizedBox(height: 12),
-                RawAutocomplete<String>(
-                  textEditingController: categoryCtrl,
-                  focusNode: categoryFocus,
-                  optionsBuilder: (value) {
-                    final q = value.text.trim().toLowerCase();
-                    if (q.isEmpty) return const Iterable<String>.empty();
-                    return knownCategories.where((c) {
-                      final low = c.toLowerCase();
-                      return low.contains(q) && low != q;
-                    });
-                  },
-                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                          labelText: AppLocalizations.of(context)!.labelCategory,
-                          hintText: AppLocalizations.of(context)!.hintCategory),
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    final list = options.toList();
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 4,
-                        borderRadius: BorderRadius.circular(8),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 200),
-                          child: ListView.builder(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            itemCount: list.length,
-                            itemBuilder: (context, i) => ListTile(
-                              dense: true,
-                              leading: const Icon(Icons.category_outlined, size: 18),
-                              title: Text(list[i]),
-                              onTap: () => onSelected(list[i]),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: noteCtrl,
-                autofocus: isEdit,
-                decoration:
-                    InputDecoration(labelText: AppLocalizations.of(context)!.labelNote),
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: isEdit
-                    ? null
-                    : () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: date,
-                          firstDate: DateTime(2015),
-                          lastDate: DateTime.now().add(const Duration(days: 1)),
-                        );
-                        if (picked != null) setState(() => date = picked);
-                      },
-                child: InputDecorator(
-                  decoration: InputDecoration(labelText: AppLocalizations.of(context)!.labelDate),
-                  child: Text(Fmt.dateFull(date)),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () async {
-                    if (!formKey.currentState!.validate()) return;
-                    final amount = Fmt.tryParseInput(amountCtrl.text)!;
-                    final messenger = ScaffoldMessenger.of(context);
-                    final navigator = Navigator.of(context);
-                    final String? error;
-                    if (isEdit) {
-                      error = await ref
-                          .read(appStateProvider.notifier)
-                          .updateTransaction(
-                            id: existing.id,
-                            type: type,
-                            amount: amount,
-                            accountId: accountId,
-                            toAccountId:
-                                type == TxType.transfer ? toAccountId : null,
-                            category: categoryCtrl.text.trim(),
-                            note: noteCtrl.text.trim(),
-                            adminFee: type == TxType.transfer && useAdminFee
-                                ? (Fmt.tryParseInput(adminFeeCtrl.text) ?? 0)
-                                : 0,
-                            date: date,
-                          );
-                    } else {
-                      error = await ref
-                          .read(appStateProvider.notifier)
-                          .addTransaction(
-                            type: type,
-                            amount: amount,
-                            accountId: accountId,
-                            toAccountId:
-                                type == TxType.transfer ? toAccountId : null,
-                            category: categoryCtrl.text.trim(),
-                            note: noteCtrl.text.trim(),
-                            adminFee: type == TxType.transfer && useAdminFee
-                                ? (Fmt.tryParseInput(adminFeeCtrl.text) ?? 0)
-                                : 0,
-                            date: date,
-                          );
-                    }
-                    if (error != null) {
-                      messenger.showSnackBar(SnackBar(content: Text(error)));
-                      return;
-                    }
-                    navigator.pop();
-                  },
-                  child: Text(AppLocalizations.of(context)!.saveButton),
-                ),
-              ),
-            ],
-          ),
-        ),
+class AccountDetailsScreen extends ConsumerWidget {
+  const AccountDetailsScreen({super.key, required this.accountId});
+  final String accountId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final async = ref.watch(appStateProvider);
+    final state = async.valueOrNull;
+    final account = state?.accounts.where((a) => a.id == accountId).firstOrNull;
+    return Scaffold(
+      key: ValueKey('account-detail-$accountId'),
+      appBar: AppBar(
+        title: Text(account?.name ?? l10n.focusAccountDetails),
+        actions: [
+          const AmountVisibilityButton(),
+          if (account != null)
+            IconButton(
+              key: const ValueKey('edit-account-details'),
+              tooltip: l10n.editAccount,
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () =>
+                  showAccountDialog(context, ref, existing: account),
+            ),
+        ],
       ),
-    ),
-  );
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => const FriendlyLoadError(),
+        data: (current) {
+          final live =
+              current.accounts.where((a) => a.id == accountId).firstOrNull;
+          if (live == null) {
+            return Center(
+                child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(l10n.focusAccountMissing)));
+          }
+          final transactions = current.transactions
+              .where((tx) =>
+                  tx.accountId == accountId || tx.toAccountId == accountId)
+              .toList()
+            ..sort((a, b) => b.date.compareTo(a.date));
+          return ResponsiveCenter(
+              child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+            children: [
+              const SyncStatusBanner(),
+              Card(
+                  child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l10n.focusAccountBalance,
+                              style: Theme.of(context).textTheme.bodyMedium),
+                          const SizedBox(height: 8),
+                          Text(formatVisibleMoney(ref, live.balance),
+                              key: const ValueKey('account-detail-balance'),
+                              style:
+                                  Theme.of(context).textTheme.headlineMedium),
+                          const SizedBox(height: 12),
+                          Text(live.type.label(l10n)),
+                          if (live.accountNumber.isNotEmpty &&
+                              !ref.watch(amountsHiddenProvider))
+                            Text(live.accountNumber,
+                                style: Theme.of(context).textTheme.bodySmall),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                              onPressed: () => showTransactionDialog(
+                                  context, ref, current,
+                                  initialAccountId: live.id),
+                              icon: const Icon(Icons.add),
+                              label: Text(l10n.focusRecordHere)),
+                        ],
+                      ))),
+              const SizedBox(height: 20),
+              Text(l10n.transactionHistory,
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 10),
+              if (transactions.isEmpty)
+                Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(l10n.noTransactionsMessage)),
+              for (final tx in transactions)
+                _AccountHistoryRow(
+                    tx: tx, state: current, accountId: accountId),
+            ],
+          ));
+        },
+      ),
+    );
+  }
+}
+
+class _AccountHistoryRow extends ConsumerWidget {
+  const _AccountHistoryRow(
+      {required this.tx, required this.state, required this.accountId});
+  final Transaction tx;
+  final AppState state;
+  final String accountId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final receivedTransfer =
+        tx.type == TxType.transfer && tx.toAccountId == accountId;
+    final amount = receivedTransfer ? tx.amount : tx.signedAmount;
+    final color = amount >= 0
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.error;
+    final source =
+        state.accounts.where((a) => a.id == tx.accountId).firstOrNull?.name ??
+            '-';
+    final destination =
+        state.accounts.where((a) => a.id == tx.toAccountId).firstOrNull?.name ??
+            '-';
+    return Card(
+        child: ListTile(
+      onTap: () => showTransactionDialog(context, ref, state, existing: tx),
+      leading: Icon(
+          tx.type == TxType.transfer
+              ? Icons.swap_horiz
+              : amount >= 0
+                  ? Icons.south_west
+                  : Icons.north_east,
+          color: color),
+      title: Text(tx.note.isEmpty ? tx.type.label(l10n) : tx.note),
+      subtitle: Text([
+        if (tx.type == TxType.transfer) '$source → $destination',
+        if (tx.category.isNotEmpty) tx.category,
+        Fmt.date(tx.date),
+      ].join(' · ')),
+      trailing: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .38),
+          child: Text(formatVisibleMoney(ref, amount, signed: true),
+              style: TextStyle(color: color, fontWeight: FontWeight.w600))),
+    ));
+  }
 }

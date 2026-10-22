@@ -18,7 +18,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get navBills => 'Tagihan';
 
   @override
-  String get navAccounts => 'Akun';
+  String get navAccounts => 'Rekening';
 
   @override
   String get navInvestments => 'Investasi';
@@ -125,13 +125,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get noTransactionsMessage => 'Belum ada transaksi.';
 
   @override
-  String get titleAccounts => 'Akun & Transaksi';
+  String get titleAccounts => 'Rekening & Transaksi';
 
   @override
   String get tooltipMonthlyExpenses => 'Transaksi Bulanan';
 
   @override
-  String get fabAddAccount => 'Tambah Akun';
+  String get fabAddAccount => 'Tambah rekening';
 
   @override
   String get fabRecordTransaction => 'Catat Transaksi';
@@ -166,10 +166,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get filterAllAccounts => 'Semua akun';
 
   @override
-  String get accountLabel => 'Akun';
+  String get accountLabel => 'Rekening';
 
   @override
-  String get myAccounts => 'Akun Saya';
+  String get myAccounts => 'Rekeningmu';
 
   @override
   String get titleBills => 'Tagihan';
@@ -1305,7 +1305,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get skip => 'Lewati';
 
   @override
-  String get editAccount => 'Edit Akun';
+  String get editAccount => 'Ubah rekening';
 
   @override
   String get accountNameHint => 'mis. BCA, GoPay, Dompet';
@@ -1500,7 +1500,7 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String get editAccountTitle => 'Edit Akun';
+  String get editAccountTitle => 'Ubah rekening';
 
   @override
   String get deleteTransactionWarning =>
@@ -1511,7 +1511,7 @@ class AppLocalizationsId extends AppLocalizations {
       'Semua transaksi terkait akun ini juga akan dihapus.';
 
   @override
-  String get labelAccountName => 'Nama akun';
+  String get labelAccountName => 'Nama rekening';
 
   @override
   String get hintAccountName => 'mis. BCA, GoPay, Dompet';
@@ -1906,4 +1906,238 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get editTransactionTitle => 'Edit Transaksi';
+
+  @override
+  String get assetsTitle => 'Aset';
+
+  @override
+  String get myAssetsTitle => 'Aset saya';
+
+  @override
+  String get financeTools => 'Alat keuangan';
+
+  @override
+  String get welcomeBack => 'Selamat datang kembali';
+
+  @override
+  String greeting(String name) {
+    return 'Halo, $name.';
+  }
+
+  @override
+  String get personalFinance => 'Ruang keuangan pribadi';
+
+  @override
+  String get reorderAssets => 'Atur urutan';
+
+  @override
+  String get assetOrderHint =>
+      'Geser pegangan atau gunakan panah naik / turun.';
+
+  @override
+  String get saveAssetOrder => 'Simpan urutan';
+
+  @override
+  String get moveAssetUp => 'Naikkan aset';
+
+  @override
+  String get moveAssetDown => 'Turunkan aset';
+
+  @override
+  String get manualAssetOrder => 'Urutan pilihan saya';
+
+  @override
+  String get assetOrderSaved =>
+      'Urutan aset diperbarui. Periksa status sinkronisasi.';
+
+  @override
+  String get assetOrderChanged =>
+      'Urutan berubah di perangkat lain. Tutup dan buka kembali pengaturan urutan.';
+
+  @override
+  String get viewAll => 'Lihat semua';
+
+  @override
+  String get scanReceiptAction => 'Scan struk';
+
+  @override
+  String get importStatementAction => 'Impor PDF';
+
+  @override
+  String get portfolioCost => 'Modal investasi';
+
+  @override
+  String get marketValue => 'Nilai pasar';
+
+  @override
+  String get profitLoss => 'Untung / rugi';
+
+  @override
+  String get assetName => 'Aset';
+
+  @override
+  String get orderLabel => 'Urutan';
+
+  @override
+  String get accountsBalance => 'Saldo rekening';
+
+  @override
+  String get forecastTitle => 'Proyeksi arus kas';
+
+  @override
+  String get forecastIntro =>
+      'Perkirakan saldo 30 hari dari transaksi rutin dan utang jatuh tempo.';
+
+  @override
+  String get hideBalances => 'Sembunyikan nominal';
+
+  @override
+  String get showBalances => 'Tampilkan nominal';
+
+  @override
+  String get assetDistribution => 'Komposisi investasi';
+
+  @override
+  String get assetOrderSyncHint =>
+      'Urutan tersinkron antar perangkat setelah tersimpan di cloud.';
+
+  @override
+  String get reorderAccounts => 'Atur urutan rekening';
+
+  @override
+  String get accountOrderHint =>
+      'Geser pegangan atau gunakan panah naik / turun.';
+
+  @override
+  String get saveAccountOrder => 'Simpan urutan';
+
+  @override
+  String get moveAccountUp => 'Naikkan rekening';
+
+  @override
+  String get moveAccountDown => 'Turunkan rekening';
+
+  @override
+  String get accountOrderSaved =>
+      'Urutan rekening diperbarui. Periksa status sinkronisasi.';
+
+  @override
+  String get accountOrderChanged =>
+      'Urutan rekening berubah di perangkat lain. Tutup dan buka kembali pengaturan urutan.';
+
+  @override
+  String get accountOrderSyncHint =>
+      'Urutan ini digunakan di daftar rekening dan pilihan rekening transaksi, lalu tersinkron setelah tersimpan di cloud.';
+
+  @override
+  String get transactionMoreDetails => 'Catatan & tanggal';
+
+  @override
+  String get transactionSummary => 'Ringkasan transaksi';
+
+  @override
+  String get transactionEditHint =>
+      'Jumlah, rekening, dan tanggal dikunci agar saldo tetap sesuai. Anda bisa mengubah kategori dan catatan.';
+
+  @override
+  String get transactionNoAccounts =>
+      'Tambahkan rekening terlebih dahulu untuk mencatat transaksi.';
+
+  @override
+  String get transactionNeedDestination =>
+      'Tambahkan rekening lain untuk melakukan transfer.';
+
+  @override
+  String get transactionSaveFailed => 'Transaksi belum tersimpan. Coba lagi.';
+
+  @override
+  String get focusAssetDetailsTitle => 'Detail aset';
+
+  @override
+  String get focusAssetMissing => 'Aset sudah dihapus atau tidak tersedia.';
+
+  @override
+  String get focusAssetValueHint =>
+      'Nilai pasar dihitung dari jumlah unit × harga saat ini.';
+
+  @override
+  String get focusAccountBalance => 'Saldo rekening';
+
+  @override
+  String get focusAccountBalanceHint =>
+      'Total saldo rekening, tunai, dan dompet digital';
+
+  @override
+  String get focusThisMonth => 'Arus kas bulan ini';
+
+  @override
+  String get focusMonthNet => 'Selisih bulan ini';
+
+  @override
+  String get focusNetWorthHint => 'Saldo + investasi + piutang − utang';
+
+  @override
+  String get focusToolsShort => 'Alat';
+
+  @override
+  String get focusAccountDetails => 'Detail rekening';
+
+  @override
+  String get focusAccountMissing =>
+      'Rekening sudah dihapus atau tidak tersedia.';
+
+  @override
+  String get focusRecordHere => 'Catat di rekening ini';
+
+  @override
+  String get focusAppearance => 'Tampilan';
+
+  @override
+  String get focusDeviceSaved => 'Tersimpan di perangkat';
+
+  @override
+  String get focusDevicePending =>
+      'Tersimpan di perangkat · menunggu sinkronisasi';
+
+  @override
+  String get focusCloudSaved => 'Tersinkron';
+
+  @override
+  String get focusSyncFailed => 'Sinkronisasi belum berhasil';
+
+  @override
+  String get focusSyncHint =>
+      'Perubahan di perangkat tetap tersedia. Coba sinkronkan lagi saat internet tersedia.';
+
+  @override
+  String get focusLoadFailed =>
+      'Data belum bisa dimuat. Coba lagi setelah koneksi tersedia.';
+
+  @override
+  String get focusConflict =>
+      'Ada perubahan dari perangkat lain. Tinjau sebelum memuat versi cloud.';
+
+  @override
+  String get focusLocalMode => 'Mode lokal · tersimpan di perangkat';
+
+  @override
+  String get focusReviewSource => 'Lihat dokumen asli';
+
+  @override
+  String get focusReviewBeforeSave => 'Periksa hasil sebelum menyimpan';
+
+  @override
+  String get focusScanRetryHint =>
+      'Struk belum bisa dibaca. Foto tetap tersedia untuk dicoba lagi.';
+
+  @override
+  String get focusReviewDifference => 'Selisih dengan dokumen';
+
+  @override
+  String get focusAccountSaveFailed =>
+      'Perubahan rekening belum tersimpan. Coba lagi.';
+
+  @override
+  String get focusAccountBalanceChanged =>
+      'Saldo rekening berubah saat formulir terbuka. Tutup dan buka kembali formulir sebelum mengubah saldo.';
 }

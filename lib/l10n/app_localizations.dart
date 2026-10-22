@@ -121,7 +121,7 @@ abstract class AppLocalizations {
   /// Teks tab Akun di navigasi bawah
   ///
   /// In id, this message translates to:
-  /// **'Akun'**
+  /// **'Rekening'**
   String get navAccounts;
 
   /// Teks tab Investasi di navigasi bawah
@@ -325,7 +325,7 @@ abstract class AppLocalizations {
   /// No description provided for @titleAccounts.
   ///
   /// In id, this message translates to:
-  /// **'Akun & Transaksi'**
+  /// **'Rekening & Transaksi'**
   String get titleAccounts;
 
   /// No description provided for @tooltipMonthlyExpenses.
@@ -337,7 +337,7 @@ abstract class AppLocalizations {
   /// No description provided for @fabAddAccount.
   ///
   /// In id, this message translates to:
-  /// **'Tambah Akun'**
+  /// **'Tambah rekening'**
   String get fabAddAccount;
 
   /// No description provided for @fabRecordTransaction.
@@ -403,13 +403,13 @@ abstract class AppLocalizations {
   /// No description provided for @accountLabel.
   ///
   /// In id, this message translates to:
-  /// **'Akun'**
+  /// **'Rekening'**
   String get accountLabel;
 
   /// No description provided for @myAccounts.
   ///
   /// In id, this message translates to:
-  /// **'Akun Saya'**
+  /// **'Rekeningmu'**
   String get myAccounts;
 
   /// No description provided for @titleBills.
@@ -2497,7 +2497,7 @@ abstract class AppLocalizations {
   /// No description provided for @editAccount.
   ///
   /// In id, this message translates to:
-  /// **'Edit Akun'**
+  /// **'Ubah rekening'**
   String get editAccount;
 
   /// No description provided for @accountNameHint.
@@ -2833,7 +2833,7 @@ abstract class AppLocalizations {
   /// No description provided for @editAccountTitle.
   ///
   /// In id, this message translates to:
-  /// **'Edit Akun'**
+  /// **'Ubah rekening'**
   String get editAccountTitle;
 
   /// No description provided for @deleteTransactionWarning.
@@ -2851,7 +2851,7 @@ abstract class AppLocalizations {
   /// No description provided for @labelAccountName.
   ///
   /// In id, this message translates to:
-  /// **'Nama akun'**
+  /// **'Nama rekening'**
   String get labelAccountName;
 
   /// No description provided for @hintAccountName.
@@ -3573,6 +3573,426 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Edit Transaksi'**
   String get editTransactionTitle;
+
+  /// No description provided for @assetsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Aset'**
+  String get assetsTitle;
+
+  /// No description provided for @myAssetsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Aset saya'**
+  String get myAssetsTitle;
+
+  /// No description provided for @financeTools.
+  ///
+  /// In id, this message translates to:
+  /// **'Alat keuangan'**
+  String get financeTools;
+
+  /// No description provided for @welcomeBack.
+  ///
+  /// In id, this message translates to:
+  /// **'Selamat datang kembali'**
+  String get welcomeBack;
+
+  /// No description provided for @greeting.
+  ///
+  /// In id, this message translates to:
+  /// **'Halo, {name}.'**
+  String greeting(String name);
+
+  /// No description provided for @personalFinance.
+  ///
+  /// In id, this message translates to:
+  /// **'Ruang keuangan pribadi'**
+  String get personalFinance;
+
+  /// No description provided for @reorderAssets.
+  ///
+  /// In id, this message translates to:
+  /// **'Atur urutan'**
+  String get reorderAssets;
+
+  /// No description provided for @assetOrderHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Geser pegangan atau gunakan panah naik / turun.'**
+  String get assetOrderHint;
+
+  /// No description provided for @saveAssetOrder.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan urutan'**
+  String get saveAssetOrder;
+
+  /// No description provided for @moveAssetUp.
+  ///
+  /// In id, this message translates to:
+  /// **'Naikkan aset'**
+  String get moveAssetUp;
+
+  /// No description provided for @moveAssetDown.
+  ///
+  /// In id, this message translates to:
+  /// **'Turunkan aset'**
+  String get moveAssetDown;
+
+  /// No description provided for @manualAssetOrder.
+  ///
+  /// In id, this message translates to:
+  /// **'Urutan pilihan saya'**
+  String get manualAssetOrder;
+
+  /// No description provided for @assetOrderSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Urutan aset diperbarui. Periksa status sinkronisasi.'**
+  String get assetOrderSaved;
+
+  /// No description provided for @assetOrderChanged.
+  ///
+  /// In id, this message translates to:
+  /// **'Urutan berubah di perangkat lain. Tutup dan buka kembali pengaturan urutan.'**
+  String get assetOrderChanged;
+
+  /// No description provided for @viewAll.
+  ///
+  /// In id, this message translates to:
+  /// **'Lihat semua'**
+  String get viewAll;
+
+  /// No description provided for @scanReceiptAction.
+  ///
+  /// In id, this message translates to:
+  /// **'Scan struk'**
+  String get scanReceiptAction;
+
+  /// No description provided for @importStatementAction.
+  ///
+  /// In id, this message translates to:
+  /// **'Impor PDF'**
+  String get importStatementAction;
+
+  /// No description provided for @portfolioCost.
+  ///
+  /// In id, this message translates to:
+  /// **'Modal investasi'**
+  String get portfolioCost;
+
+  /// No description provided for @marketValue.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai pasar'**
+  String get marketValue;
+
+  /// No description provided for @profitLoss.
+  ///
+  /// In id, this message translates to:
+  /// **'Untung / rugi'**
+  String get profitLoss;
+
+  /// No description provided for @assetName.
+  ///
+  /// In id, this message translates to:
+  /// **'Aset'**
+  String get assetName;
+
+  /// No description provided for @orderLabel.
+  ///
+  /// In id, this message translates to:
+  /// **'Urutan'**
+  String get orderLabel;
+
+  /// No description provided for @accountsBalance.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo rekening'**
+  String get accountsBalance;
+
+  /// No description provided for @forecastTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Proyeksi arus kas'**
+  String get forecastTitle;
+
+  /// No description provided for @forecastIntro.
+  ///
+  /// In id, this message translates to:
+  /// **'Perkirakan saldo 30 hari dari transaksi rutin dan utang jatuh tempo.'**
+  String get forecastIntro;
+
+  /// No description provided for @hideBalances.
+  ///
+  /// In id, this message translates to:
+  /// **'Sembunyikan nominal'**
+  String get hideBalances;
+
+  /// No description provided for @showBalances.
+  ///
+  /// In id, this message translates to:
+  /// **'Tampilkan nominal'**
+  String get showBalances;
+
+  /// No description provided for @assetDistribution.
+  ///
+  /// In id, this message translates to:
+  /// **'Komposisi investasi'**
+  String get assetDistribution;
+
+  /// No description provided for @assetOrderSyncHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Urutan tersinkron antar perangkat setelah tersimpan di cloud.'**
+  String get assetOrderSyncHint;
+
+  /// No description provided for @reorderAccounts.
+  ///
+  /// In id, this message translates to:
+  /// **'Atur urutan rekening'**
+  String get reorderAccounts;
+
+  /// No description provided for @accountOrderHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Geser pegangan atau gunakan panah naik / turun.'**
+  String get accountOrderHint;
+
+  /// No description provided for @saveAccountOrder.
+  ///
+  /// In id, this message translates to:
+  /// **'Simpan urutan'**
+  String get saveAccountOrder;
+
+  /// No description provided for @moveAccountUp.
+  ///
+  /// In id, this message translates to:
+  /// **'Naikkan rekening'**
+  String get moveAccountUp;
+
+  /// No description provided for @moveAccountDown.
+  ///
+  /// In id, this message translates to:
+  /// **'Turunkan rekening'**
+  String get moveAccountDown;
+
+  /// No description provided for @accountOrderSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Urutan rekening diperbarui. Periksa status sinkronisasi.'**
+  String get accountOrderSaved;
+
+  /// No description provided for @accountOrderChanged.
+  ///
+  /// In id, this message translates to:
+  /// **'Urutan rekening berubah di perangkat lain. Tutup dan buka kembali pengaturan urutan.'**
+  String get accountOrderChanged;
+
+  /// No description provided for @accountOrderSyncHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Urutan ini digunakan di daftar rekening dan pilihan rekening transaksi, lalu tersinkron setelah tersimpan di cloud.'**
+  String get accountOrderSyncHint;
+
+  /// No description provided for @transactionMoreDetails.
+  ///
+  /// In id, this message translates to:
+  /// **'Catatan & tanggal'**
+  String get transactionMoreDetails;
+
+  /// No description provided for @transactionSummary.
+  ///
+  /// In id, this message translates to:
+  /// **'Ringkasan transaksi'**
+  String get transactionSummary;
+
+  /// No description provided for @transactionEditHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Jumlah, rekening, dan tanggal dikunci agar saldo tetap sesuai. Anda bisa mengubah kategori dan catatan.'**
+  String get transactionEditHint;
+
+  /// No description provided for @transactionNoAccounts.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambahkan rekening terlebih dahulu untuk mencatat transaksi.'**
+  String get transactionNoAccounts;
+
+  /// No description provided for @transactionNeedDestination.
+  ///
+  /// In id, this message translates to:
+  /// **'Tambahkan rekening lain untuk melakukan transfer.'**
+  String get transactionNeedDestination;
+
+  /// No description provided for @transactionSaveFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Transaksi belum tersimpan. Coba lagi.'**
+  String get transactionSaveFailed;
+
+  /// No description provided for @focusAssetDetailsTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Detail aset'**
+  String get focusAssetDetailsTitle;
+
+  /// No description provided for @focusAssetMissing.
+  ///
+  /// In id, this message translates to:
+  /// **'Aset sudah dihapus atau tidak tersedia.'**
+  String get focusAssetMissing;
+
+  /// No description provided for @focusAssetValueHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Nilai pasar dihitung dari jumlah unit × harga saat ini.'**
+  String get focusAssetValueHint;
+
+  /// No description provided for @focusAccountBalance.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo rekening'**
+  String get focusAccountBalance;
+
+  /// No description provided for @focusAccountBalanceHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Total saldo rekening, tunai, dan dompet digital'**
+  String get focusAccountBalanceHint;
+
+  /// No description provided for @focusThisMonth.
+  ///
+  /// In id, this message translates to:
+  /// **'Arus kas bulan ini'**
+  String get focusThisMonth;
+
+  /// No description provided for @focusMonthNet.
+  ///
+  /// In id, this message translates to:
+  /// **'Selisih bulan ini'**
+  String get focusMonthNet;
+
+  /// No description provided for @focusNetWorthHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo + investasi + piutang − utang'**
+  String get focusNetWorthHint;
+
+  /// No description provided for @focusToolsShort.
+  ///
+  /// In id, this message translates to:
+  /// **'Alat'**
+  String get focusToolsShort;
+
+  /// No description provided for @focusAccountDetails.
+  ///
+  /// In id, this message translates to:
+  /// **'Detail rekening'**
+  String get focusAccountDetails;
+
+  /// No description provided for @focusAccountMissing.
+  ///
+  /// In id, this message translates to:
+  /// **'Rekening sudah dihapus atau tidak tersedia.'**
+  String get focusAccountMissing;
+
+  /// No description provided for @focusRecordHere.
+  ///
+  /// In id, this message translates to:
+  /// **'Catat di rekening ini'**
+  String get focusRecordHere;
+
+  /// No description provided for @focusAppearance.
+  ///
+  /// In id, this message translates to:
+  /// **'Tampilan'**
+  String get focusAppearance;
+
+  /// No description provided for @focusDeviceSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Tersimpan di perangkat'**
+  String get focusDeviceSaved;
+
+  /// No description provided for @focusDevicePending.
+  ///
+  /// In id, this message translates to:
+  /// **'Tersimpan di perangkat · menunggu sinkronisasi'**
+  String get focusDevicePending;
+
+  /// No description provided for @focusCloudSaved.
+  ///
+  /// In id, this message translates to:
+  /// **'Tersinkron'**
+  String get focusCloudSaved;
+
+  /// No description provided for @focusSyncFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Sinkronisasi belum berhasil'**
+  String get focusSyncFailed;
+
+  /// No description provided for @focusSyncHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Perubahan di perangkat tetap tersedia. Coba sinkronkan lagi saat internet tersedia.'**
+  String get focusSyncHint;
+
+  /// No description provided for @focusLoadFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Data belum bisa dimuat. Coba lagi setelah koneksi tersedia.'**
+  String get focusLoadFailed;
+
+  /// No description provided for @focusConflict.
+  ///
+  /// In id, this message translates to:
+  /// **'Ada perubahan dari perangkat lain. Tinjau sebelum memuat versi cloud.'**
+  String get focusConflict;
+
+  /// No description provided for @focusLocalMode.
+  ///
+  /// In id, this message translates to:
+  /// **'Mode lokal · tersimpan di perangkat'**
+  String get focusLocalMode;
+
+  /// No description provided for @focusReviewSource.
+  ///
+  /// In id, this message translates to:
+  /// **'Lihat dokumen asli'**
+  String get focusReviewSource;
+
+  /// No description provided for @focusReviewBeforeSave.
+  ///
+  /// In id, this message translates to:
+  /// **'Periksa hasil sebelum menyimpan'**
+  String get focusReviewBeforeSave;
+
+  /// No description provided for @focusScanRetryHint.
+  ///
+  /// In id, this message translates to:
+  /// **'Struk belum bisa dibaca. Foto tetap tersedia untuk dicoba lagi.'**
+  String get focusScanRetryHint;
+
+  /// No description provided for @focusReviewDifference.
+  ///
+  /// In id, this message translates to:
+  /// **'Selisih dengan dokumen'**
+  String get focusReviewDifference;
+
+  /// No description provided for @focusAccountSaveFailed.
+  ///
+  /// In id, this message translates to:
+  /// **'Perubahan rekening belum tersimpan. Coba lagi.'**
+  String get focusAccountSaveFailed;
+
+  /// No description provided for @focusAccountBalanceChanged.
+  ///
+  /// In id, this message translates to:
+  /// **'Saldo rekening berubah saat formulir terbuka. Tutup dan buka kembali formulir sebelum mengubah saldo.'**
+  String get focusAccountBalanceChanged;
 }
 
 class _AppLocalizationsDelegate

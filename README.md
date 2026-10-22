@@ -4,9 +4,15 @@ Aplikasi pencatatan dan pengelolaan keuangan pribadi modern berbasis **Flutter**
 
 ---
 
-## 📸 Fitur Unggulan (v2.8.0)
+## 📸 Fitur Unggulan (v2.9.0)
 
 Catatan pembaruan sejak APK v2.7.2 tersedia di [Release Notes v2.8.0](docs/RELEASE_NOTES_v2.8.0.md).
+
+Pembaruan Tenang Fokus serta pengurutan aset dan rekening tersedia di [Release Notes v2.9.0](docs/RELEASE_NOTES_v2.9.0.md). Lihat [panduan mencoba di lokal](docs/TENANG_FOKUS_LOCAL_TEST.md).
+
+- **Tenang Fokus**: saldo dan pencatatan harian menjadi fokus Beranda, kartu rekening/aset membuka detail, serta fitur pendukung dikelompokkan dalam Alat. Form transaksi menyesuaikan keyboard HP dan dialog desktop. Tema terang, gelap, dan mengikuti sistem tetap tersedia.
+- **Urutan Aset Antar Perangkat**: buka **Aset → Atur urutan**, geser atau gunakan panah, lalu simpan. Preferensi urutan terenkripsi dan tersinkron untuk akun yang sama, termasuk pembaruan pada perangkat lain yang sedang terbuka.
+- **Urutan Rekening Antar Perangkat**: buka **Akun → Atur urutan rekening**. Urutan berlaku pada daftar rekening dan dropdown transaksi/transfer, serta pilihan rekening di fitur lain. Transaksi lama tetap memakai rekening semula.
 
 - **🤖 Pemindai Bon & Struk Berbasis AI (OCR)**: Foto struk belanja dari kamera atau galeri. AI secara otomatis mengidentifikasi nama merchant, daftar item, harga satuan, PPN, dan service charge. Diproses via Cloudflare Worker Proxy untuk keamanan API key.
 - **👥 Split Bill Interaktif (Item Assignment per Qty)**: Tentukan porsi makanan per individu menggunakan selector kuantitas `[ - ] qty [ + ]`. Bebas pelipatgandaan item; sisa makanan yang belum dipilih otomatis dialokasikan sebagai *Item Bersama* (Shared Items) yang dibagi rata. Total hitungan 100% cocok dengan bon fisik.

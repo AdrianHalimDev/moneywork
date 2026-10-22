@@ -37,9 +37,10 @@ class _PayDebtSheetState extends ConsumerState<_PayDebtSheet> {
   void initState() {
     super.initState();
     final d = widget.debt;
-    final defaultAmount = d.monthlyPayment > 0 && d.monthlyPayment <= d.remaining
-        ? d.monthlyPayment
-        : d.remaining;
+    final defaultAmount =
+        d.monthlyPayment > 0 && d.monthlyPayment <= d.remaining
+            ? d.monthlyPayment
+            : d.remaining;
     _amountCtrl = TextEditingController(text: defaultAmount.toStringAsFixed(0));
   }
 
@@ -53,14 +54,14 @@ class _PayDebtSheetState extends ConsumerState<_PayDebtSheet> {
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider).valueOrNull;
     final l10n = AppLocalizations.of(context)!;
-    if (state == null || state.accounts.isEmpty) {
+    if (state == null || state.orderedAccounts.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(24),
         child: Text(l10n.addAccountFirst),
       );
     }
-    
-    _accountId ??= state.accounts.first.id;
+
+    _accountId ??= state.orderedAccounts.first.id;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -79,12 +80,14 @@ class _PayDebtSheetState extends ConsumerState<_PayDebtSheet> {
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(l10n.debtRemainingLabel(Fmt.rupiah(widget.debt.remaining)),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.outline)),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Theme.of(context).colorScheme.outline)),
             const SizedBox(height: 16),
             Builder(builder: (context) {
               final source =
-                  state.accounts.firstWhere((a) => a.id == _accountId);
+                  state.orderedAccounts.firstWhere((a) => a.id == _accountId);
               return TextFormField(
                 controller: _amountCtrl,
                 autofocus: true,
@@ -93,13 +96,15 @@ class _PayDebtSheetState extends ConsumerState<_PayDebtSheet> {
                 decoration: InputDecoration(
                   labelText: l10n.payAmountLabel,
                   prefixText: 'Rp ',
-                  helperText: l10n.balanceHelper(source.name, Fmt.rupiah(source.balance)),
+                  helperText: l10n.balanceHelper(
+                      source.name, Fmt.rupiah(source.balance)),
                 ),
                 validator: (v) {
                   final n = Fmt.tryParseInput(v ?? '');
                   if (n == null || n <= 0) return l10n.invalidNumber;
                   if (n > widget.debt.remaining) {
-                    return l10n.exceedsDebtRemaining(Fmt.rupiah(widget.debt.remaining));
+                    return l10n.exceedsDebtRemaining(
+                        Fmt.rupiah(widget.debt.remaining));
                   }
                   if (n > source.balance) {
                     return l10n.exceedsBalance(Fmt.rupiah(source.balance));
@@ -113,7 +118,7 @@ class _PayDebtSheetState extends ConsumerState<_PayDebtSheet> {
               initialValue: _accountId,
               decoration: InputDecoration(labelText: l10n.payFromLabel),
               items: [
-                for (final a in state.accounts)
+                for (final a in state.orderedAccounts)
                   DropdownMenuItem(
                       value: a.id,
                       child: Text('${a.name} · ${Fmt.rupiah(a.balance)}')),
@@ -151,8 +156,9 @@ class _PayDebtSheetState extends ConsumerState<_PayDebtSheet> {
     }
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.paymentRecorded(Fmt.rupiah(amount)))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .paymentRecorded(Fmt.rupiah(amount)))));
     }
   }
 }
@@ -277,8 +283,7 @@ class _DebtDialogSheetState extends ConsumerState<_DebtDialogSheet> {
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsInputFormatter()],
               decoration: InputDecoration(
-                  labelText: l10n.monthlyPaymentOptional,
-                  prefixText: 'Rp '),
+                  labelText: l10n.monthlyPaymentOptional, prefixText: 'Rp '),
             ),
             const SizedBox(height: 12),
             InkWell(
@@ -342,7 +347,7 @@ class _DebtDialogSheetState extends ConsumerState<_DebtDialogSheet> {
     final remaining = Fmt.tryParseInput(_remainingCtrl.text)!;
     final monthly = Fmt.tryParseInput(_monthlyCtrl.text) ?? 0;
     final ctrl = ref.read(appStateProvider.notifier);
-    
+
     if (isEdit) {
       ctrl.updateDebt(widget.existing!.copyWith(
         name: _nameCtrl.text.trim(),
